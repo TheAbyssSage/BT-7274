@@ -47,12 +47,14 @@ def _warmup_audio():
 def record_until_silence(config: dict) -> Optional[str]:
     """
     Record audio from microphone until silence is detected.
+    Includes a post-wake grace period so the mic stays open after the trigger word.
     Returns path to temporary WAV file.
     """
     sample_rate = config.get("sample_rate", 16000)
     silence_threshold = config.get("silence_threshold", 0.02)
     silence_duration = config.get("silence_duration", 1.5)
     max_record_seconds = config.get("max_record_seconds", 30)
+    post_wake_grace = config.get("post_wake_grace", 1.5)
 
     # Warm up PortAudio to suppress macOS alert sound on first real stream open
     _warmup_audio()
@@ -62,14 +64,17 @@ def record_until_silence(config: dict) -> Optional[str]:
     chunk_duration = 0.1  # 100ms chunks
     chunk_samples = int(sample_rate * chunk_duration)
     silence_chunks_needed = int(silence_duration / chunk_duration)
+    grace_chunks = int(post_wake_grace / chunk_duration)
     max_chunks = int(max_record_seconds / chunk_duration)
 
     audio_buffer = []
     silence_counter = 0
     recording = True
+    speech_detected = False
+    grace_counter = 0
 
     def callback(indata, frames, time_info, status):
-        nonlocal silence_counter, recording
+        nonlocal silence_counter, recording, speech_detected, grace_counter
         if not recording:
             return
 
@@ -81,9 +86,18 @@ def record_until_silence(config: dict) -> Optional[str]:
             silence_counter += 1
         else:
             silence_counter = 0
+            if not speech_detected:
+                speech_detected = True
+                print("    🗣 Speech detected, holding channel open...")
 
-        if silence_counter >= silence_chunks_needed and len(audio_buffer) > 10:
-            recording = False
+        # Grace period: once speech is detected, require extra silence before stopping
+        if speech_detected:
+            if silence_counter >= silence_chunks_needed + grace_chunks and len(audio_buffer) > 10:
+                recording = False
+        else:
+            # Before speech: normal silence detection (stop if ambient silence)
+            if silence_counter >= silence_chunks_needed and len(audio_buffer) > 10:
+                recording = False
 
     # Start recording
     stream = sd.InputStream(
@@ -106,9 +120,6 @@ def record_until_silence(config: dict) -> Optional[str]:
 
     # Concatenate and save
     audio = np.concatenate(audio_buffer, axis=0).flatten()
-
-    # Trim trailing silence
-    # (simplified: just use the recorded buffer)
 
     temp_path = tempfile.mktemp(suffix=".wav")
     sf.write(temp_path, audio, sample_rate)

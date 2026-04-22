@@ -6,9 +6,10 @@ stt:
   language: en
   device: mps                   # 'mps' = Metal GPU (M1), 'cpu' = fallback
   sample_rate: 16000
-  silence_threshold: 0.02
-  silence_duration: 1.0         # Shorter = faster turn-around
-  max_record_seconds: 10        # Shorter = less waiting
+  silence_threshold: 0.015      # Lower = less likely to stop on brief pauses
+  silence_duration: 2.5           # Longer = more time to finish your sentence after "BT"
+  max_record_seconds: 15          # Cap recording length
+  post_wake_grace: 1.5            # Extra seconds to keep recording after speech starts
 
 llm:
   model: bt7274
