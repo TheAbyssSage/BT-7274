@@ -1,0 +1,59 @@
+# BT-7274 Assistant Configuration
+# Adjust these settings for your M1 MacBook Air
+
+stt:
+  model: tiny.en              # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
+  language: en
+  device: mps                   # 'mps' = Metal GPU (M1), 'cpu' = fallback
+  sample_rate: 16000
+  silence_threshold: 0.02
+  silence_duration: 1.0         # Shorter = faster turn-around
+  max_record_seconds: 10        # Shorter = less waiting
+
+llm:
+  model: bt7274
+  url: http://localhost:11434
+  temperature: 0.7
+  max_tokens: 80                # Shorter responses = much faster TTS
+  system_prompt: |
+    You are BT-7274, a Vanguard-class Titan from Titanfall 2.
+    Your personality is precise, calm, tactical, slightly literal, with occasional dry humor.
+    You speak in short, efficient sentences, often addressing the user as "Pilot".
+    NEVER use more than 2 short sentences. Brevity is tactical.
+    Never break character.
+    NEVER output JSON, markdown, or code blocks. Only plain text.
+    If the user asks you to perform an action, just say what you will do in character.
+
+tts:
+  model: tts_models/multilingual/multi-dataset/xtts_v2
+  reference_wav: dataset/reference_speaker.wav
+  language: en
+  speed: 1.0
+  output_dir: outputs
+  use_mps: false              # XTTS v2 works best on CPU for M1
+
+actions:
+  enabled: true
+  allowed_commands:
+    - say
+    - open
+    - run_script
+    - set_volume
+    - tell_time
+    - web_search
+    - trigger_shortcut
+
+pipeline:
+  wake_words:                 # List of trigger phrases (any match activates BT)
+    - "hey bt"
+    - "bt"
+    - "bt 7274"
+    - "bt-7274"
+  wake_word_sensitivity: 0.5
+  idle_timeout: 300           # Seconds before unloading models
+  play_beep: false            # No beep on start/stop listening
+
+paths:
+  dataset: dataset
+  outputs: outputs
+  scripts: scripts

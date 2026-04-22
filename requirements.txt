@@ -1,0 +1,37 @@
+# BT-7274 Local AI Assistant - Python Dependencies
+# Compatible with macOS Apple Silicon (M1)
+
+# Core
+numpy>=1.24.0
+pyyaml>=6.0
+requests>=2.31.0
+
+# Audio processing
+pyaudio>=0.2.13
+sounddevice>=0.4.6
+soundfile>=0.12.1
+librosa>=0.10.1
+webrtcvad>=2.0.10
+noisereduce>=3.0.0
+
+# Speech-to-Text (Whisper)
+openai-whisper>=20231117
+
+# Text-to-Speech (Coqui XTTS v2)
+TTS>=0.22.0
+torchcodec>=0.11.0
+
+# Pin compatible versions for XTTS v2
+transformers==4.40.2
+tokenizers==0.19.1
+huggingface-hub==0.23.4
+
+# LLM client
+ollama>=0.1.0
+
+# Utilities
+rich>=13.0.0
+click>=8.1.0
+
+# macOS-specific
+pyobjc>=10.0; sys_platform == 'darwin'
