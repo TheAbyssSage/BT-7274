@@ -4,6 +4,9 @@ BT-7274 Voice Assistant - Main Pipeline
 Microphone → Whisper STT → Ollama LLM → XTTS v2 → Speaker
 """
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
 import os
 import sys
 import json
@@ -94,10 +97,10 @@ class BT7274Assistant:
 
         print(f"[3/7] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
         # Use OllamaClient for both local and cloud since they use the same API
-        if self.ai_mode == "local":
-            self.llm = OllamaClient(self.config["llm"]["local"])
-        else:  # cloud
-            self.llm = OllamaClient(self.config["llm"]["cloud"])
+        # Merge system prompt from top-level llm config
+        llm_config = self.config["llm"][self.ai_mode].copy()
+        llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
+        self.llm = OllamaClient(llm_config)
 
         print("[4/7] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
