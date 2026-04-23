@@ -58,13 +58,13 @@ class BT7274Assistant:
         print("  Protocol 1: Link to Pilot")
         print("=" * 50)
 
-        print("\n[1/7] Initializing Speech-to-Text...")
+        print("\n[1/8] Initializing Speech-to-Text...")
         self.stt = WhisperSTT(self.config["stt"])
         # Preload Whisper model to avoid delays during first transcription
         _ = self.stt.model
         print("    ✓ Whisper model loaded and ready.")
 
-        print("\n[2/7] Which LLM?")
+        print("\n[2/8] Which LLM?")
         if self.ai_mode is None:
             # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
@@ -95,26 +95,26 @@ class BT7274Assistant:
             model_name = self.config["llm"][self.ai_mode]["model"]
             print(f"  → Using: {mode_name} ({model_name}) (preselected)")
 
-        print(f"\n[3/7] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
+        print(f"\n[3/8] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
         # Use OllamaClient for both local and cloud since they use the same API
         # Merge system prompt from top-level llm config
         llm_config = self.config["llm"][self.ai_mode].copy()
         llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
         self.llm = OllamaClient(llm_config)
 
-        print("\n[4/7] Initializing Text-to-Speech...")
+        print("\n[4/8] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
         # Preload TTS model at startup to avoid delays during first synthesis
         _ = self.tts.model  # Trigger model loading
         print("    ✓ TTS model loaded and ready.")
 
-        print("    Loading pre-recorded standby clips...")
-        self._load_standby_clips()
+        print("\n[5/8] Checking standby audio files...")
+        self._check_and_generate_standby_clips()
 
-        print("\n[5/7] Initializing Action Handler...")
+        print("\n[6/8] Initializing Action Handler...")
         self.actions = ActionHandler(self.config["actions"])
 
-        print("\n[6/7] Initializing Location Services...")
+        print("\n[7/8] Initializing Location Services...")
         manual_loc = self.config.get("location", {}).get("manual")
         self.location = LocationProvider(manual_location=manual_loc)
         if self.location.update():
@@ -122,7 +122,7 @@ class BT7274Assistant:
         else:
             print("    ⚠ Location unavailable.")
 
-        print("\n[7/7] Opening persistent audio stream...")
+        print("\n[8/8] Opening persistent audio stream...")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
         print("    ✓ Microphone stream active.")
@@ -138,17 +138,81 @@ class BT7274Assistant:
         phrase = re.sub(r'\s+', ' ', phrase)     # collapse spaces
         return phrase
 
-    def _load_standby_clips(self):
-        """Load pre-recorded standby WAV files from standby/ folder."""
+    def _normalize_filename_to_phrase(self, filename: str) -> str:
+        """Convert a filename back to its original phrase."""
+        # Remove .wav extension
+        phrase = filename.replace('.wav', '')
+        # Replace underscores with spaces
+        phrase = phrase.replace('_', ' ')
+        # Handle special cases for common phrases
+        phrase = phrase.replace('you re welcome', "you're welcome")
+        return phrase.strip()
+
+    def _check_and_generate_standby_clips(self):
+        """Check all standby phrases from config and generate missing .wav files."""
         standby_dir = Path(__file__).parent.parent / "standby"
-        if not standby_dir.exists():
-            print("    ⚠ No standby/ folder found. Will generate TTS on the fly.")
-            return
-        for wav_file in standby_dir.glob("*.wav"):
-            phrase = wav_file.stem.replace("_", " ")
+        standby_dir.mkdir(exist_ok=True)
+
+        # Collect all phrases from config
+        all_phrases = []
+        pipeline = self.config.get("pipeline", {})
+        for key in pipeline:
+            if key.startswith("standby_phrases"):
+                all_phrases.extend(pipeline[key])
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_phrases = []
+        for p in all_phrases:
+            if p not in seen:
+                seen.add(p)
+                unique_phrases.append(p)
+
+        # First pass: check which files exist
+        missing = []
+        loaded = 0
+        for phrase in unique_phrases:
+            safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
+            safe_name = safe_name.replace(" ", "_").replace("-", "_")
+            wav_path = standby_dir / f"{safe_name}.wav"
             key = self._normalize_phrase(phrase)
-            self.standby_clips[key] = str(wav_file)
-        print(f"    ✓ Loaded {len(self.standby_clips)} standby clips.")
+
+            if wav_path.exists():
+                self.standby_clips[key] = str(wav_path)
+                loaded += 1
+            else:
+                missing.append((phrase, safe_name, key))
+
+        # Report status
+        total = len(unique_phrases)
+        if not missing:
+            print(f"    ✓ All {total} standby clips present and loaded.")
+            return
+
+        print(f"    ⚠ {len(missing)} of {total} clips missing. Generating now...")
+
+        # Second pass: generate missing files
+        generated = 0
+        failed = 0
+        for phrase, safe_name, key in missing:
+            wav_path = standby_dir / f"{safe_name}.wav"
+            print(f"    → [{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
+            try:
+                generated_wav = self.tts.speak(phrase)
+                if generated_wav:
+                    import shutil
+                    shutil.move(generated_wav, str(wav_path))
+                    self.standby_clips[key] = str(wav_path)
+                    generated += 1
+                    print(f"      ✓ Saved: {wav_path.name}")
+                else:
+                    print(f"      ✗ Failed to generate: {phrase}")
+                    failed += 1
+            except Exception as e:
+                print(f"      ✗ Error generating '{phrase}': {e}")
+                failed += 1
+
+        print(f"    ✓ Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
 
     def _extract_location_from_query(self, text: str) -> Optional[str]:
         """Extract location from weather query like 'weather in Tucson, Arizona'."""
@@ -252,6 +316,65 @@ class BT7274Assistant:
             if lower == expr or lower.startswith(expr + " ") or lower.endswith(" " + expr) or f" {expr} " in lower:
                 return True
         return False
+
+    def generate_standby_responses(self, force_regenerate: bool = False):
+        """Generate standby response audio files using BT's voice.
+        
+        Args:
+            force_regenerate: If True, regenerate all clips even if they exist.
+        """
+        print("Generating standby responses with BT's voice...")
+        
+        # Collect all phrases from config
+        all_phrases = []
+        pipeline = self.config.get("pipeline", {})
+        for key in pipeline:
+            if key.startswith("standby_phrases"):
+                all_phrases.extend(pipeline[key])
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        phrases = []
+        for p in all_phrases:
+            if p not in seen:
+                seen.add(p)
+                phrases.append(p)
+        
+        generated_count = 0
+        skipped_count = 0
+        output_dir = Path(__file__).parent.parent / "standby"
+        output_dir.mkdir(exist_ok=True)
+        
+        for phrase in phrases:
+            # Create safe filename
+            safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
+            safe_name = safe_name.replace(" ", "_").replace("-", "_")
+            output_path = output_dir / f"{safe_name}.wav"
+            
+            if output_path.exists() and not force_regenerate:
+                print(f"  ⏭ Skipping: {phrase}")
+                skipped_count += 1
+                continue
+                
+            print(f"  → Generating: {phrase}")
+            try:
+                # Remove old file if forcing regeneration
+                if output_path.exists() and force_regenerate:
+                    output_path.unlink()
+                    
+                wav_path = self.tts.speak(phrase)
+                if wav_path:
+                    import shutil
+                    shutil.move(wav_path, str(output_path))
+                    print(f"    ✓ Saved: {output_path.name}")
+                    generated_count += 1
+                else:
+                    print(f"    ✗ Failed: {phrase}")
+            except Exception as e:
+                print(f"    ✗ Error generating '{phrase}': {e}")
+        
+        print(f"\nDone! Generated: {generated_count}, Skipped: {skipped_count}")
+        return generated_count
 
     def process_command(self, audio_path: str = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: str = None) -> bool:
         """Process a single voice command."""
@@ -546,8 +669,26 @@ class BT7274Assistant:
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="BT-7274 Voice Assistant")
+    parser.add_argument("--generate-responses", action="store_true", 
+                        help="Generate missing standby response audio files")
+    parser.add_argument("--force-regenerate", action="store_true", 
+                        help="Force regenerate ALL standby audio files")
+    parser.add_argument("--ai-mode", choices=["local", "cloud"], 
+                        help="AI mode (local or cloud)")
+    args = parser.parse_args()
+    
     # Initialize with no preset AI mode so user can choose during startup
-    assistant = BT7274Assistant(ai_mode=None)
+    assistant = BT7274Assistant(ai_mode=args.ai_mode)
+    
+    if args.generate_responses or args.force_regenerate:
+        # Initialize all components first
+        assistant.initialize()
+        count = assistant.generate_standby_responses(force_regenerate=args.force_regenerate)
+        print(f"Successfully generated {count} standby responses!")
+        return
+    
     assistant.run()
 
 
