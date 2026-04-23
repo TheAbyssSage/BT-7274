@@ -4,8 +4,8 @@ Audio utilities for recording, playback, and processing.
 
 import os
 import tempfile
-import wave
-import struct
+import time
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -35,95 +35,108 @@ def beep(frequency: int = 880, duration: float = 0.15, samplerate: int = 44100):
     sd.wait()
 
 
-def _warmup_audio():
-    """Pre-open and close a dummy stream to prevent macOS PortAudio alert beep."""
-    try:
-        with sd.InputStream(samplerate=16000, channels=1, dtype=np.float32, blocksize=1024):
-            pass
-    except Exception:
-        pass
+class PersistentAudioRecorder:
+    """
+    Keeps the microphone stream open for the entire session.
+    Eliminates PortAudio open/close overhead and macOS alert sounds.
+    """
+
+    def __init__(self, config: dict):
+        self.sample_rate = config.get("sample_rate", 16000)
+        self.silence_threshold = config.get("silence_threshold", 0.02)
+        self.silence_duration = config.get("silence_duration", 1.5)
+        self.max_record_seconds = config.get("max_record_seconds", 30)
+        self.post_wake_grace = config.get("post_wake_grace", 1.5)
+
+        self._stream: Optional[sd.InputStream] = None
+        self._recording = False
+        self._audio_buffer: list = []
+        self._silence_counter = 0
+        self._speech_detected = False
+        self._lock = threading.Lock()
+
+    def _callback(self, indata, frames, time_info, status):
+        with self._lock:
+            if not self._recording:
+                return
+            rms = np.sqrt(np.mean(indata**2))
+            self._audio_buffer.append(indata.copy())
+
+            if rms < self.silence_threshold:
+                self._silence_counter += 1
+            else:
+                self._silence_counter = 0
+                if not self._speech_detected:
+                    self._speech_detected = True
+                    print("    🗣 Speech detected, holding channel open...")
+
+            chunk_duration = 0.1
+            silence_chunks_needed = int(self.silence_duration / chunk_duration)
+            grace_chunks = int(self.post_wake_grace / chunk_duration)
+
+            if self._speech_detected:
+                if self._silence_counter >= silence_chunks_needed + grace_chunks and len(self._audio_buffer) > 10:
+                    self._recording = False
+            else:
+                if self._silence_counter >= silence_chunks_needed and len(self._audio_buffer) > 10:
+                    self._recording = False
+
+    def start(self):
+        """Open the persistent input stream (call once at startup)."""
+        if self._stream is not None:
+            return
+        chunk_samples = int(self.sample_rate * 0.1)
+        self._stream = sd.InputStream(
+            samplerate=self.sample_rate,
+            channels=1,
+            dtype=np.float32,
+            blocksize=chunk_samples,
+            callback=self._callback
+        )
+        self._stream.start()
+
+    def stop(self):
+        """Close the persistent input stream."""
+        if self._stream is not None:
+            self._stream.stop()
+            self._stream.close()
+            self._stream = None
+
+    def record(self) -> Optional[str]:
+        """Start a new recording using the already-open stream."""
+        if self._stream is None:
+            self.start()
+
+        with self._lock:
+            self._audio_buffer = []
+            self._silence_counter = 0
+            self._speech_detected = False
+            self._recording = True
+
+        print("    Recording...")
+        start_time = time.time()
+        while self._recording and (time.time() - start_time) < self.max_record_seconds:
+            time.sleep(0.05)
+
+        with self._lock:
+            if len(self._audio_buffer) < 5:
+                print("    ✗ Recording too short.")
+                return None
+            audio = np.concatenate(self._audio_buffer, axis=0).flatten()
+
+        temp_path = tempfile.mktemp(suffix=".wav")
+        sf.write(temp_path, audio, self.sample_rate)
+        return temp_path
 
 
 def record_until_silence(config: dict) -> Optional[str]:
-    """
-    Record audio from microphone until silence is detected.
-    Includes a post-wake grace period so the mic stays open after the trigger word.
-    Returns path to temporary WAV file.
-    """
-    sample_rate = config.get("sample_rate", 16000)
-    silence_threshold = config.get("silence_threshold", 0.02)
-    silence_duration = config.get("silence_duration", 1.5)
-    max_record_seconds = config.get("max_record_seconds", 30)
-    post_wake_grace = config.get("post_wake_grace", 1.5)
-
-    # Warm up PortAudio to suppress macOS alert sound on first real stream open
-    _warmup_audio()
-
-    print("    Recording...")
-
-    chunk_duration = 0.1  # 100ms chunks
-    chunk_samples = int(sample_rate * chunk_duration)
-    silence_chunks_needed = int(silence_duration / chunk_duration)
-    grace_chunks = int(post_wake_grace / chunk_duration)
-    max_chunks = int(max_record_seconds / chunk_duration)
-
-    audio_buffer = []
-    silence_counter = 0
-    recording = True
-    speech_detected = False
-    grace_counter = 0
-
-    def callback(indata, frames, time_info, status):
-        nonlocal silence_counter, recording, speech_detected, grace_counter
-        if not recording:
-            return
-
-        # Compute RMS energy
-        rms = np.sqrt(np.mean(indata**2))
-        audio_buffer.append(indata.copy())
-
-        if rms < silence_threshold:
-            silence_counter += 1
-        else:
-            silence_counter = 0
-            if not speech_detected:
-                speech_detected = True
-                print("    🗣 Speech detected, holding channel open...")
-
-        # Grace period: once speech is detected, require extra silence before stopping
-        if speech_detected:
-            if silence_counter >= silence_chunks_needed + grace_chunks and len(audio_buffer) > 10:
-                recording = False
-        else:
-            # Before speech: normal silence detection (stop if ambient silence)
-            if silence_counter >= silence_chunks_needed and len(audio_buffer) > 10:
-                recording = False
-
-    # Start recording
-    stream = sd.InputStream(
-        samplerate=sample_rate,
-        channels=1,
-        dtype=np.float32,
-        blocksize=chunk_samples,
-        callback=callback
-    )
-
-    with stream:
-        import time
-        start_time = time.time()
-        while recording and (time.time() - start_time) < max_record_seconds:
-            time.sleep(0.05)
-
-    if len(audio_buffer) < 5:
-        print("    ✗ Recording too short.")
-        return None
-
-    # Concatenate and save
-    audio = np.concatenate(audio_buffer, axis=0).flatten()
-
-    temp_path = tempfile.mktemp(suffix=".wav")
-    sf.write(temp_path, audio, sample_rate)
-    return temp_path
+    """Legacy wrapper — kept for compatibility."""
+    recorder = PersistentAudioRecorder(config)
+    recorder.start()
+    try:
+        return recorder.record()
+    finally:
+        recorder.stop()
 
 
 def resample_audio(input_path: str, output_path: str, target_sr: int = 22050):

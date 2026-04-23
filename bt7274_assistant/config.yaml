@@ -22,7 +22,9 @@ llm:
     You speak in short, efficient sentences, often addressing the user as "Pilot".
     NEVER use more than 2 short sentences. Brevity is tactical.
     Never break character.
-    NEVER output JSON, markdown, or code blocks. Only plain text.
+    NEVER output markdown, code blocks, JSON, headers, horizontal rules, bold text, or explanations.
+    NEVER output "Instruction", "Follow Up Questions", or any meta-text.
+    Only output plain text sentences. Nothing else.
     If the user asks you to perform an action, just say what you will do in character.
 
 tts:
@@ -43,6 +45,9 @@ actions:
     - tell_time
     - web_search
     - trigger_shortcut
+    - search_web
+    - get_location
+    - get_weather
 
 pipeline:
   wake_words:                 # List of trigger phrases (any match activates BT)
@@ -53,6 +58,11 @@ pipeline:
   wake_word_sensitivity: 0.5
   idle_timeout: 300           # Seconds before unloading models
   play_beep: false            # No beep on start/stop listening
+  standby_phrases:            # Spoken while waiting for slow operations
+    - "Copy that, Pilot. Stand by."
+    - "Processing, Pilot."
+    - "Acknowledged. Retrieving data."
+    - "Stand by, Pilot."
 
 paths:
   dataset: dataset

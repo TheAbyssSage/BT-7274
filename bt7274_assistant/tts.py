@@ -77,23 +77,12 @@ class XTTSClient:
         output_path = self.output_dir / f"bt7274_{os.urandom(4).hex()}.wav"
 
         try:
-            # Use cached latents if available for faster inference
-            if self._gpt_cond_latent is not None and self._speaker_embedding is not None:
-                result = self._model.synthesizer.tts_model.inference(
-                    text,
-                    self.language,
-                    self._gpt_cond_latent,
-                    self._speaker_embedding,
-                    temperature=0.7,
-                )
-                # inference may return a tuple (wav, sr) or just wav
-                wav = result[0] if isinstance(result, tuple) else result
-            else:
-                wav = self.model.tts(
-                    text=text,
-                    speaker_wav=self.reference_wav,
-                    language=self.language
-                )
+            # Use the standard TTS API (cached latents path is unstable on some setups)
+            wav = self.model.tts(
+                text=text,
+                speaker_wav=self.reference_wav,
+                language=self.language
+            )
             sf.write(str(output_path), wav, 24000)
             return str(output_path)
         except Exception as e:
