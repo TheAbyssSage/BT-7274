@@ -58,11 +58,21 @@ pipeline:
   wake_word_sensitivity: 0.5
   idle_timeout: 300           # Seconds before unloading models
   play_beep: false            # No beep on start/stop listening
-  standby_phrases:            # Spoken while waiting for slow operations
+  standby_phrases:            # Generic fallback phrases
     - "Copy that, Pilot. Stand by."
     - "Processing, Pilot."
     - "Acknowledged. Retrieving data."
     - "Stand by, Pilot."
+  standby_phrases_weather:    # Spoken while fetching weather data
+    - "Copy that, Pilot. Pulling weather data."
+    - "Acknowledged. Accessing atmospheric sensors."
+    - "Stand by. Retrieving local weather conditions."
+    - "Copy. Querying meteorological feeds."
+  standby_phrases_search:     # Spoken while searching the web
+    - "Retrieving data from the web."
+    - "Copy that. Searching data networks."
+    - "Stand by, Pilot. Accessing external databases."
+    - "Acknowledged. Pulling information from the grid."
 
 paths:
   dataset: dataset

@@ -7,6 +7,15 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
+# Patch for PyTorch 2.6+ weights_only loading with XTTS
+# XTTS model checkpoints were created before weights_only=True became default
+import torch
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    kwargs.setdefault('weights_only', False)
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
 from TTS.api import TTS
 import soundfile as sf
 

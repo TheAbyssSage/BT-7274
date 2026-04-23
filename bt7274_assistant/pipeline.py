@@ -39,6 +39,7 @@ class BT7274Assistant:
         self.actions: Optional[ActionHandler] = None
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
+        self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
         self.running = False
         self.last_activity = time.time()
 
@@ -62,6 +63,9 @@ class BT7274Assistant:
         print("[3/4] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
 
+        print("    Loading pre-recorded standby clips...")
+        self._load_standby_clips()
+
         print("[4/4] Initializing Action Handler...")
         self.actions = ActionHandler(self.config["actions"])
 
@@ -79,6 +83,26 @@ class BT7274Assistant:
 
         print("\n✓ All systems online.")
         print("  Say 'Hey BT' or press Enter to speak.\n")
+
+    def _normalize_phrase(self, phrase: str) -> str:
+        """Normalize a phrase for dictionary lookup."""
+        import re
+        phrase = phrase.lower().strip()
+        phrase = re.sub(r'[^\w\s]', '', phrase)  # remove punctuation
+        phrase = re.sub(r'\s+', ' ', phrase)     # collapse spaces
+        return phrase
+
+    def _load_standby_clips(self):
+        """Load pre-recorded standby WAV files from standby/ folder."""
+        standby_dir = Path(__file__).parent.parent / "standby"
+        if not standby_dir.exists():
+            print("    ⚠ No standby/ folder found. Will generate TTS on the fly.")
+            return
+        for wav_file in standby_dir.glob("*.wav"):
+            phrase = wav_file.stem.replace("_", " ")
+            key = self._normalize_phrase(phrase)
+            self.standby_clips[key] = str(wav_file)
+        print(f"    ✓ Loaded {len(self.standby_clips)} standby clips.")
 
     def _is_weather_query(self, text: str) -> bool:
         """Detect if the user is asking for weather."""
@@ -114,12 +138,22 @@ class BT7274Assistant:
             print(f"  ⏭ Wake word not detected. Ignoring.")
             return False
 
-        # Helper: speak a standby phrase immediately
-        def speak_standby():
-            phrases = self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
+        # Helper: speak a standby phrase immediately (pre-recorded if available)
+        def speak_standby(task: str = "generic"):
+            task_key = f"standby_phrases_{task}"
+            phrases = self.config["pipeline"].get(task_key) or self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
             import random
             phrase = random.choice(phrases)
             print(f"  ⏳ {phrase}")
+
+            # Try pre-recorded clip first
+            key = self._normalize_phrase(phrase)
+            wav_path = self.standby_clips.get(key)
+            if wav_path and Path(wav_path).exists():
+                play_audio(wav_path)
+                return
+
+            # Fallback: generate on the fly
             wav = self.tts.speak(phrase)
             if wav:
                 play_audio(wav)
@@ -127,7 +161,7 @@ class BT7274Assistant:
         # 2. Detect weather query and fetch from Open-Meteo API
         response = None
         if self._is_weather_query(text):
-            speak_standby()
+            speak_standby("weather")
             print("  🌤 Fetching local data...")
             weather_result = self.actions.execute("get_weather")
             if weather_result and not weather_result.startswith("Weather data unavailable"):
@@ -145,7 +179,7 @@ class BT7274Assistant:
 
         # 3. Detect search intent and perform search BEFORE LLM
         if response is None and self._is_search_query(text):
-            speak_standby()
+            speak_standby("search")
             print("  🔍 Looking up...")
             # Enrich query with location context
             enriched_query = self.location.enrich_query(text) if self.location else text
