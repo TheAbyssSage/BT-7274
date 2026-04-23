@@ -48,6 +48,9 @@ llm:
     Use your advanced tactical analysis capabilities to provide the best possible response.
     When appropriate, ask the Pilot follow-up questions to be more helpful.
     If you ask a question, be ready to act on their response.
+    When discussing travel or transportation, always consider the Pilot's location to provide relevant advice.
+    When the Pilot asks about getting somewhere, automatically factor in their current location for personalized recommendations.
+    Be specific about transportation options based on distance, available infrastructure, and typical travel methods.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -80,6 +83,7 @@ actions:
     - trigger_shortcut
     - search_web
     - get_location
+    - get_location_structured
     - get_weather
     - get_weather_for_location
 
@@ -106,19 +110,30 @@ pipeline:
     timeout_seconds: 8        # How long to listen for follow-up
     stop_phrases:             # Phrases that cancel follow-up listening
       - "no"
+      - "nope"
       - "never mind"
       - "stop"
+      - "cancel"
       - "that's all"
+      - "that is all"
       - "goodbye"
+      - "bye"
       - "exit"
       - "quit"
       - "nothing"
       - "forget it"
+      - "thanks"
+      - "thank you"
   standby_phrases:            # Generic fallback phrases
     - "Copy that, Pilot. Stand by."
     - "Processing, Pilot."
     - "Acknowledged. Retrieving data."
     - "Stand by, Pilot."
+    - "You're welcome, Pilot."
+    - "My pleasure, Pilot."
+    - "Glad to assist, Pilot."
+    - "Happy to help, Pilot."
+    - "Anytime, Pilot."
   standby_phrases_weather:    # Spoken while fetching weather data
     - "Copy that, Pilot. Pulling weather data."
     - "Acknowledged. Accessing atmospheric sensors."

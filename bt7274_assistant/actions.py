@@ -187,6 +187,29 @@ def action_get_location():
     except Exception as e:
         return f"Location error: {str(e)}"
 
+@register_action("get_location_structured")
+def action_get_location_structured():
+    """Return current location as structured data."""
+    try:
+        from location import LocationProvider
+        loc = LocationProvider()
+        if loc.update():
+            lat_lon = loc.lat_lon
+            location_data = {
+                "coordinates": {
+                    "latitude": lat_lon[0],
+                    "longitude": lat_lon[1]
+                } if lat_lon else None,
+                "city": loc._city,
+                "region": loc._region,
+                "country": loc._country,
+                "formatted": loc.location_str
+            }
+            return json.dumps(location_data)
+        return "Location unavailable."
+    except Exception as e:
+        return f"Location error: {str(e)}"
+
 
 @register_action("get_weather")
 def action_get_weather():

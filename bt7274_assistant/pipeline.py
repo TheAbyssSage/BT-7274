@@ -197,6 +197,62 @@ class BT7274Assistant:
         lower = text.lower()
         return any(kw in lower for kw in search_keywords)
 
+    def _is_travel_query(self, text: str) -> bool:
+        """Detect if the user is asking about travel or transportation."""
+        travel_keywords = [
+            "how to get", "how do i get", "travel to", "transport to", "go to", 
+            "way to", "route to", "directions to", "getting to", "trip to",
+            "visit", "journey to", "commute to", "drive to", "fly to", 
+            "how do we get", "how to reach", "how can i get", "get to",
+            "options to get to", "best way to", "fastest way to", "how do i reach"
+        ]
+        lower = text.lower()
+        return any(kw in lower for kw in travel_keywords)
+
+    def _mentions_destination(self, text: str) -> bool:
+        """Detect if the user is mentioning getting to a specific destination."""
+        # Common destinations that people ask about
+        destinations = [
+            "brussels", "belgium", "paris", "london", "berlin", "amsterdam",
+            "madrid", "rome", "vienna", "prague", "budapest", "warsaw",
+            "cologne", "hamburg", "munich", "frankfurt", "milan", "barcelona",
+            "lisbon", "athens", "stockholm", "copenhagen", "oslo", "helsinki",
+            "comic con", "expo", "conference", "event"
+        ]
+        lower = text.lower()
+        return any(dest in lower for dest in destinations)
+
+    def _is_requesting_travel_options(self, text: str) -> bool:
+        """Detect if the user is specifically asking for travel options from their location."""
+        # Check for combinations of travel-related words and destination mentions
+        travel_indicators = ["how", "options", "ways", "methods", "best way", "fastest way"]
+        location_indicators = ["from my location", "from here", "from my house", "from my home", "from my current location"]
+        
+        lower = text.lower()
+        has_travel_indicator = any(indicator in lower for indicator in travel_indicators)
+        has_location_indicator = any(indicator in lower for indicator in location_indicators)
+        
+        # Also check for direct questions about getting somewhere
+        is_direct_question = any(phrase in lower for phrase in [
+            "how do i get to", "how to get to", "options to get to", 
+            "ways to get to", "best way to get to", "fastest way to get to"
+        ])
+        
+        return (has_travel_indicator and has_location_indicator) or is_direct_question
+
+    def _is_expression_of_gratitude(self, text: str) -> bool:
+        """Detect if the user is expressing gratitude."""
+        gratitude_expressions = [
+            "thank you", "thanks", "thx", "ty", "appreciate it", 
+            "much appreciated", "grateful", "great thanks", "cool thanks"
+        ]
+        lower = text.lower().strip()
+        # Check for exact matches or phrases that start with gratitude expressions
+        for expr in gratitude_expressions:
+            if lower == expr or lower.startswith(expr + " ") or lower.endswith(" " + expr) or f" {expr} " in lower:
+                return True
+        return False
+
     def process_command(self, audio_path: str = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: str = None) -> bool:
         """Process a single voice command."""
         if audio_path is None and pre_transcribed_text is None:
@@ -240,6 +296,22 @@ class BT7274Assistant:
             wav = self.tts.speak(phrase)
             if wav:
                 play_audio(wav)
+
+        # Special handling for gratitude expressions
+        if self._is_expression_of_gratitude(text):
+            print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
+            # Try to play pre-recorded "you're welcome" clip
+            key = self._normalize_phrase("you're welcome pilot")
+            wav_path = self.standby_clips.get(key)
+            if wav_path and Path(wav_path).exists():
+                play_audio(wav_path)
+            else:
+                # Fallback to TTS
+                response_wav = self.tts.speak("You're welcome, Pilot.")
+                if response_wav:
+                    play_audio(response_wav)
+            self.last_activity = time.time()
+            return True
 
         # 2. Detect location query and return location directly
         response = None
@@ -328,8 +400,36 @@ class BT7274Assistant:
             else:
                 response = "Pilot, my sensors cannot reach the data network at this time."
 
-        # 6. Normal LLM Processing (if not a search or weather query)
-        if response is None:
+        # 6. Special handling for travel/transportation queries
+        if response is None and (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text)):
+            # For travel queries, get user's location first
+            print("  📍 Checking your location for travel planning...")
+            location_result = self.actions.execute("get_location_structured")
+            if location_result and not location_result.startswith("Location"):
+                try:
+                    location_data = json.loads(location_result)
+                    location_context = f"My current location is: {location_data.get('formatted', 'Unknown')}. Coordinates: {location_data.get('coordinates', {}).get('latitude', 'N/A')}, {location_data.get('coordinates', {}).get('longitude', 'N/A')}. City: {location_data.get('city', 'Unknown')}."
+                    # Add location context to the query
+                    enriched_text = f"{text} {location_context}"
+                    print("  [LLM] Thinking with location context...")
+                    response = self.llm.chat(enriched_text)
+                except json.JSONDecodeError:
+                    # Fallback to simple location if JSON parsing fails
+                    simple_location = self.actions.execute("get_location")
+                    if simple_location and not simple_location.startswith("Location"):
+                        enriched_text = f"{text} My current location is: {simple_location}"
+                        print("  [LLM] Thinking with location context...")
+                        response = self.llm.chat(enriched_text)
+                    else:
+                        # Proceed with normal LLM processing if location unavailable
+                        print("  [LLM] Thinking...")
+                        response = self.llm.chat(text)
+            else:
+                # Proceed with normal LLM processing if location unavailable
+                print("  [LLM] Thinking...")
+                response = self.llm.chat(text)
+        # 7. Normal LLM Processing (if not a search, weather, or special travel query)
+        elif response is None:
             print("  [LLM] Thinking...")
             response = self.llm.chat(text)
 
@@ -395,10 +495,13 @@ class BT7274Assistant:
         text = text.strip()
         print(f"  🎤 Pilot: \"{text}\"")
 
-        # Check for stop phrases
-        lower_text = text.lower()
+        # Check for stop phrases (match whole words only)
+        import re
+        lower_text = text.lower().strip()
         for phrase in stop_phrases:
-            if phrase.lower() in lower_text:
+            # Create a regex pattern that matches the phrase as a whole word
+            pattern = r'\b' + re.escape(phrase.lower()) + r'\b'
+            if re.search(pattern, lower_text):
                 print(f"  ⏭ Follow-up stopped by phrase: '{phrase}'")
                 return
 
