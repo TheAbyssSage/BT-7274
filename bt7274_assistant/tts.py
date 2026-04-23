@@ -63,6 +63,19 @@ class XTTSClient:
         except Exception as e:
             print(f"    ⚠ TTS warmup warning: {e}")
 
+    def _preprocess_text(self, text: str) -> str:
+        """Preprocess text for better TTS pronunciation."""
+        import re
+
+        # Convert BT-7274 to spelled-out digits for correct pronunciation
+        # BT-7274 -> BT seven two seven four (keep BT together, spell out digits)
+        text = re.sub(r'BT[-\s]?7274', 'BT seven two seven four', text, flags=re.IGNORECASE)
+
+        # Also handle standalone 7274 references
+        text = re.sub(r'\b7274\b', 'seven two seven four', text)
+
+        return text
+
     def speak(self, text: str) -> Optional[str]:
         """Synthesize speech and return the output WAV path."""
         if not text or not text.strip():
@@ -77,6 +90,9 @@ class XTTSClient:
 
         if not text:
             return None
+
+        # Preprocess for correct pronunciation
+        text = self._preprocess_text(text)
 
         # Truncate very long responses to avoid slow synthesis
         max_chars = 600
