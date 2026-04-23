@@ -16,14 +16,14 @@ from bt7274_assistant.pipeline import BT7274Assistant
 
 def test_compound_query():
     """Test compound query handling"""
-    print("Testing compound query: 'BT, what is the date and the weather?'")
+    print("Testing compound query: 'BT, what is the date, the weather, and how to get to Antwerp and what are my options?'")
     
     # Initialize BT assistant
     assistant = BT7274Assistant()
     assistant.initialize()
     
     # Simulate the compound query
-    test_query = "BT, what is the date and the weather?"
+    test_query = "BT, what is the date, the weather, and how to get to Antwerp and what are my options?"
     print(f"\nSimulating query: {test_query}")
     
     # Process the command (skip wake word check for testing)

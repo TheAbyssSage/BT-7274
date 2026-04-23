@@ -253,24 +253,41 @@ class BT7274Assistant:
         return is_location
 
     def _is_time_query(self, text: str) -> bool:
-        """Detect if the user is asking ONLY for the time/date (not as part of a larger question)."""
+        """Detect if the user is asking for the time/date."""
         lower = text.lower().strip()
         time_keywords = ["what time", "what is the time", "current time", "what date", "what is the date", "today's date", "the date today", "what day", "what day is it"]
-        is_time = any(kw in lower for kw in time_keywords)
-        # If it's a longer query with other intents, let the LLM handle it
-        if is_time and len(lower.split()) > 10:
-            return False
-        return is_time
+        return any(kw in lower for kw in time_keywords)
 
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
         search_keywords = [
             "who won", "who was",
             "news", "latest",
-            "search", "look up", "tell me about"
+            "search", "look up", "tell me about", "find", "what is", "what are"
         ]
         lower = text.lower()
-        return any(kw in lower for kw in search_keywords)
+        
+        # Check for basic search keywords
+        if any(kw in lower for kw in search_keywords):
+            return True
+            
+        # Check for event/datetime questions that likely need current info
+        event_keywords = ["when is", "when was", "what year", "what date", "next", "upcoming", "recent", "price", "cost", "ticket", "how much", "order"]
+        has_event_keyword = any(kw in lower for kw in event_keywords)
+        
+        # Check for specific topics that change over time
+        time_sensitive_topics = ["comic con", "conference", "event", "concert", "festival", "tournament", "election", "release", "show"]
+        has_time_sensitive_topic = any(topic in lower for topic in time_sensitive_topics)
+        
+        # If asking about when something happens and it's time-sensitive, it needs search
+        if has_event_keyword and has_time_sensitive_topic:
+            return True
+            
+        # Also check for general event information queries
+        if self._is_event_information_query(text):
+            return True
+            
+        return False
 
     def _is_travel_query(self, text: str) -> bool:
         """Detect if the user is asking about travel or transportation."""
@@ -282,7 +299,30 @@ class BT7274Assistant:
             "options to get to", "best way to", "fastest way to", "how do i reach"
         ]
         lower = text.lower()
+        
+        # Don't treat event information queries as travel queries
+        if self._is_event_information_query(text):
+            return False
+            
         return any(kw in lower for kw in travel_keywords)
+
+    def _is_travel_query_complex(self, text: str) -> bool:
+        """Detect if the user is asking about travel in a complex query."""
+        lower = text.lower()
+        
+        # Don't treat event information queries as travel queries
+        if self._is_event_information_query(text):
+            return False
+        
+        # Check for travel-related words combined with destinations
+        travel_indicators = ["how", "way", "route", "get", "travel", "journey"]
+        has_travel_word = any(indicator in lower for indicator in travel_indicators)
+        
+        # Check if asking about getting somewhere specific
+        getting_indicators = ["to brussels", "to antwerp", "to belgium", "getting to", "go to"]
+        has_getting_phrase = any(phrase in lower for phrase in getting_indicators)
+        
+        return has_travel_word and has_getting_phrase
 
     def _mentions_destination(self, text: str) -> bool:
         """Detect if the user is mentioning getting to a specific destination."""
@@ -299,6 +339,10 @@ class BT7274Assistant:
 
     def _is_requesting_travel_options(self, text: str) -> bool:
         """Detect if the user is specifically asking for travel options from their location."""
+        # Don't treat event information queries as travel queries
+        if self._is_event_information_query(text):
+            return False
+        
         # Check for combinations of travel-related words and destination mentions
         travel_indicators = ["how", "options", "ways", "methods", "best way", "fastest way"]
         location_indicators = ["from my location", "from here", "from my house", "from my home", "from my current location"]
@@ -327,6 +371,19 @@ class BT7274Assistant:
             if lower == expr or lower.startswith(expr + " ") or lower.endswith(" " + expr) or f" {expr} " in lower:
                 return True
         return False
+
+    def _is_event_information_query(self, text: str) -> bool:
+        """Detect if the user is asking for event information (dates, prices, etc.)"""
+        lower = text.lower()
+        # Keywords that indicate the user wants information rather than travel
+        information_keywords = ["when", "price", "cost", "ticket", "how much", "date", "time", "order"]
+        # Topics that are often events
+        event_topics = ["comic con", "concert", "festival", "conference", "expo", "event", "show"]
+        
+        has_info_keyword = any(keyword in lower for keyword in information_keywords)
+        has_event_topic = any(topic in lower for topic in event_topics)
+        
+        return has_info_keyword and has_event_topic
 
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
@@ -545,17 +602,20 @@ class BT7274Assistant:
                 handled_types.add("search")
 
         # Check for travel queries - always let LLM handle these with location context
-        is_travel_related = (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text))
-        if is_travel_related and "travel" not in handled_types:
+        # But don't process travel context for event information queries (dates, prices, etc.)
+        is_information_query = self._is_event_information_query(text)
+        is_travel_related = (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text) or self._is_travel_query_complex(text))
+        
+        if is_travel_related and "travel" not in handled_types and not is_information_query:
             # For travel queries, silently get user's location and inject it into the LLM prompt
             print("  📍 Checking your location for travel planning...")
             location_result = self.actions.execute("get_location_structured")
             if location_result and not location_result.startswith("Location"):
                 try:
                     location_data = json.loads(location_result)
-                    location_context = f"My current location is: {location_data.get('formatted', 'Unknown')}. Coordinates: {location_data.get('coordinates', {}).get('latitude', 'N/A')}, {location_data.get('coordinates', {}).get('longitude', 'N/A')}. City: {location_data.get('city', 'Unknown')}."
+                    location_context = f"IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {location_data.get('formatted', 'Unknown')}. Coordinates: {location_data.get('coordinates', {}).get('latitude', 'N/A')}, {location_data.get('coordinates', {}).get('longitude', 'N/A')}. City: {location_data.get('city', 'Unknown')}."
                     # Add location context to the query - let LLM handle the full question
-                    enriched_text = f"{text} {location_context}"
+                    enriched_text = f"{text} {location_context} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                     print("  [LLM] Thinking with location context...")
                     travel_response = self.llm.chat(enriched_text)
                     response_parts.append(travel_response)
@@ -564,7 +624,7 @@ class BT7274Assistant:
                     # Fallback to simple location if JSON parsing fails
                     simple_location = self.actions.execute("get_location")
                     if simple_location and not simple_location.startswith("Location"):
-                        enriched_text = f"{text} My current location is: {simple_location}"
+                        enriched_text = f"{text} IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {simple_location} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                         print("  [LLM] Thinking with location context...")
                         travel_response = self.llm.chat(enriched_text)
                         response_parts.append(travel_response)
@@ -579,6 +639,12 @@ class BT7274Assistant:
                 normal_response = self.llm.chat(text)
                 response_parts.append(normal_response)
                 handled_types.add("travel")
+        elif is_information_query and "travel" not in handled_types and is_travel_related:
+            # For event information queries, process normally without location context
+            print("  [LLM] Thinking...")
+            normal_response = self.llm.chat(text)
+            response_parts.append(normal_response)
+            handled_types.add("travel")
 
         # Combine responses or fall back to normal processing
         if response_parts:
@@ -604,6 +670,19 @@ class BT7274Assistant:
         clean_response = clean_response.strip()
         # Collapse multiple blank lines
         clean_response = '\n'.join(line for line in clean_response.splitlines() if line.strip())
+        
+        # Post-process to correct location inaccuracies
+        if "New London" in clean_response:
+            # Try to get actual location and replace New London references
+            try:
+                from location import LocationProvider
+                loc = LocationProvider()
+                if loc.update():
+                    actual_location = loc.location_str
+                    clean_response = clean_response.replace("New London", actual_location)
+            except:
+                pass
+        
         if not clean_response:
             clean_response = "Processing complete, Pilot."
 
