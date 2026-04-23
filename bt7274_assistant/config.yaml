@@ -51,6 +51,8 @@ llm:
     When discussing travel or transportation, always consider the Pilot's location to provide relevant advice.
     When the Pilot asks about getting somewhere, automatically factor in their current location for personalized recommendations.
     Be specific about transportation options based on distance, available infrastructure, and typical travel methods.
+    If the Pilot asks multiple questions at once, address each part completely.
+    For compound queries, provide comprehensive answers that cover all requested information.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -122,8 +124,6 @@ pipeline:
       - "quit"
       - "nothing"
       - "forget it"
-      - "thanks"
-      - "thank you"
   standby_phrases:            # Generic fallback phrases
     - "Copy that, Pilot. Stand by."
     - "Processing, Pilot."

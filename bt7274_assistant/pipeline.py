@@ -241,15 +241,26 @@ class BT7274Assistant:
         return any(kw in text.lower() for kw in ["weather", "temperature", "forecast"])
 
     def _is_location_query(self, text: str) -> bool:
-        """Detect if the user is asking for their location."""
-        lower = text.lower()
-        return any(kw in lower for kw in ["my location", "where am i", "where are we", "find my location", "what is my location"])
+        """Detect if the user is asking ONLY for their location (not as part of a larger question)."""
+        lower = text.lower().strip()
+        # Must be a short, direct location query
+        location_phrases = ["my location", "where am i", "where are we", "find my location", "what is my location"]
+        # Check if the text is primarily a location query (short and contains location keywords)
+        is_location = any(kw in lower for kw in location_phrases)
+        # If it's a longer query with other intents (travel, weather, etc.), let the LLM handle it
+        if is_location and len(lower.split()) > 8:
+            return False
+        return is_location
 
     def _is_time_query(self, text: str) -> bool:
-        """Detect if the user is asking for the time/date."""
-        lower = text.lower()
+        """Detect if the user is asking ONLY for the time/date (not as part of a larger question)."""
+        lower = text.lower().strip()
         time_keywords = ["what time", "what is the time", "current time", "what date", "what is the date", "today's date", "the date today", "what day", "what day is it"]
-        return any(kw in lower for kw in time_keywords)
+        is_time = any(kw in lower for kw in time_keywords)
+        # If it's a longer query with other intents, let the LLM handle it
+        if is_time and len(lower.split()) > 10:
+            return False
+        return is_time
 
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
@@ -436,36 +447,41 @@ class BT7274Assistant:
             self.last_activity = time.time()
             return True
 
-        # 2. Detect location query and return location directly
-        response = None
+        # 2. Handle compound queries - detect all matching query types
+        response_parts = []
+        handled_types = set()
+        
+        # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
-            speak_standby("search")
             print("  📍 Locating Pilot...")
             location_result = self.actions.execute("get_location")
             if location_result and not location_result.startswith("Location"):
                 print(f"  📍 {location_result}")
-                response = f"Pilot, {location_result}"
+                response_parts.append(f"Pilot, {location_result}")
+                handled_types.add("location")
             else:
-                response = "Pilot, my navigation systems are currently unable to establish our position."
+                response_parts.append("Pilot, my navigation systems are currently unable to establish our position.")
+                handled_types.add("location")
 
-        # 3. Detect time query and return time/date directly
-        if response is None and self._is_time_query(text):
-            speak_standby("generic")
+        # Check for time query
+        if self._is_time_query(text):
             print("  🕐 Checking chronometer...")
             time_result = self.actions.execute("tell_time")
             date_result = self.actions.execute("tell_date")
             if time_result and date_result:
                 print(f"  🕐 {time_result}")
                 print(f"  📅 {date_result}")
-                response = f"Pilot, {date_result} {time_result}"
+                response_parts.append(f"Pilot, {date_result} {time_result}")
+                handled_types.add("time")
             elif time_result:
-                response = f"Pilot, {time_result}"
+                response_parts.append(f"Pilot, {time_result}")
+                handled_types.add("time")
             else:
-                response = "Pilot, my chronometer is offline."
+                response_parts.append("Pilot, my chronometer is offline.")
+                handled_types.add("time")
 
-        # 4. Detect weather query and fetch from Open-Meteo API
-        if response is None and self._is_weather_query(text):
-            speak_standby("weather")
+        # Check for weather query
+        if self._is_weather_query(text):
             print("  🌤 Fetching local data...")
             # Check if user specified a location in the query
             query_location = self._extract_location_from_query(text)
@@ -484,13 +500,15 @@ class BT7274Assistant:
                     f"NEVER repeat the user's question. Just answer directly. "
                     f"Only the response text. No quotes, no markdown, no extra text."
                 )
-                response = self.llm.chat(summary_prompt)
+                weather_response = self.llm.chat(summary_prompt)
+                response_parts.append(weather_response)
+                handled_types.add("weather")
             else:
-                response = "Pilot, atmospheric sensors are offline."
+                response_parts.append("Pilot, atmospheric sensors are offline.")
+                handled_types.add("weather")
 
-        # 5. Detect search intent and perform search BEFORE LLM
-        if response is None and self._is_search_query(text):
-            speak_standby("search")
+        # Check for search intent - always let LLM handle these with search results
+        if self._is_search_query(text) and "search" not in handled_types:
             print("  🔍 Looking up...")
             # Enrich query with location context
             enriched_query = self.location.enrich_query(text) if self.location else text
@@ -519,42 +537,60 @@ class BT7274Assistant:
                         f"NEVER repeat the user's question. Just answer directly. "
                         f"Only the response text. No quotes, no markdown, no extra text."
                     )
-                response = self.llm.chat(summary_prompt)
+                search_response = self.llm.chat(summary_prompt)
+                response_parts.append(search_response)
+                handled_types.add("search")
             else:
-                response = "Pilot, my sensors cannot reach the data network at this time."
+                response_parts.append("Pilot, my sensors cannot reach the data network at this time.")
+                handled_types.add("search")
 
-        # 6. Special handling for travel/transportation queries
-        if response is None and (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text)):
-            # For travel queries, get user's location first
+        # Check for travel queries - always let LLM handle these with location context
+        is_travel_related = (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text))
+        if is_travel_related and "travel" not in handled_types:
+            # For travel queries, silently get user's location and inject it into the LLM prompt
             print("  📍 Checking your location for travel planning...")
             location_result = self.actions.execute("get_location_structured")
             if location_result and not location_result.startswith("Location"):
                 try:
                     location_data = json.loads(location_result)
                     location_context = f"My current location is: {location_data.get('formatted', 'Unknown')}. Coordinates: {location_data.get('coordinates', {}).get('latitude', 'N/A')}, {location_data.get('coordinates', {}).get('longitude', 'N/A')}. City: {location_data.get('city', 'Unknown')}."
-                    # Add location context to the query
+                    # Add location context to the query - let LLM handle the full question
                     enriched_text = f"{text} {location_context}"
                     print("  [LLM] Thinking with location context...")
-                    response = self.llm.chat(enriched_text)
+                    travel_response = self.llm.chat(enriched_text)
+                    response_parts.append(travel_response)
+                    handled_types.add("travel")
                 except json.JSONDecodeError:
                     # Fallback to simple location if JSON parsing fails
                     simple_location = self.actions.execute("get_location")
                     if simple_location and not simple_location.startswith("Location"):
                         enriched_text = f"{text} My current location is: {simple_location}"
                         print("  [LLM] Thinking with location context...")
-                        response = self.llm.chat(enriched_text)
+                        travel_response = self.llm.chat(enriched_text)
+                        response_parts.append(travel_response)
+                        handled_types.add("travel")
                     else:
-                        # Proceed with normal LLM processing if location unavailable
                         print("  [LLM] Thinking...")
-                        response = self.llm.chat(text)
+                        normal_response = self.llm.chat(text)
+                        response_parts.append(normal_response)
+                        handled_types.add("travel")
             else:
-                # Proceed with normal LLM processing if location unavailable
                 print("  [LLM] Thinking...")
-                response = self.llm.chat(text)
-        # 7. Normal LLM Processing (if not a search, weather, or special travel query)
-        elif response is None:
+                normal_response = self.llm.chat(text)
+                response_parts.append(normal_response)
+                handled_types.add("travel")
+
+        # Combine responses or fall back to normal processing
+        if response_parts:
+            # Combine all collected responses
+            response = " ".join(response_parts)
+        elif not handled_types:
+            # No specific handlers matched, use normal LLM processing
             print("  [LLM] Thinking...")
             response = self.llm.chat(text)
+        else:
+            # This shouldn't happen, but just in case
+            response = "Processing complete, Pilot."
 
         # Strip markdown, JSON, and instruction blocks before TTS
         import re
@@ -617,6 +653,23 @@ class BT7274Assistant:
 
         text = text.strip()
         print(f"  🎤 Pilot: \"{text}\"")
+
+        # Check for gratitude expressions FIRST (before stop phrases)
+        if self._is_expression_of_gratitude(text):
+            print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
+            key = self._normalize_phrase("you're welcome pilot")
+            wav_path = self.standby_clips.get(key)
+            if wav_path and Path(wav_path).exists():
+                play_audio(wav_path)
+            else:
+                response_wav = self.tts.speak("You're welcome, Pilot.")
+                if response_wav:
+                    play_audio(response_wav)
+            self.last_activity = time.time()
+            # After gratitude, listen for another follow-up
+            if follow_up_depth < self.config["pipeline"].get("follow_up", {}).get("max_depth", 1):
+                self._listen_for_follow_up(follow_up_depth)
+            return
 
         # Check for stop phrases (match whole words only)
         import re
