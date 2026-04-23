@@ -87,6 +87,15 @@ pipeline:
     - "bt"
     - "bt 7274"
     - "bt-7274"
+    - "hey bt-7274"
+    - "hey bt 7274"
+    - "B.T."
+    - "B,T."
+    - "B.T,"
+    - "B,T,"
+    - "B.T"
+    - "B,T"
+    - "B T"
   wake_word_sensitivity: 0.5
   idle_timeout: 300           # Seconds before unloading models
   play_beep: false            # No beep on start/stop listening
