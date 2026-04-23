@@ -64,7 +64,7 @@ class BT7274Assistant:
         _ = self.stt.model
         print("    ✓ Whisper model loaded and ready.")
 
-        print("[2/7] Which LLM?")
+        print("\n[2/7] Which LLM?")
         if self.ai_mode is None:
             # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
@@ -95,14 +95,14 @@ class BT7274Assistant:
             model_name = self.config["llm"][self.ai_mode]["model"]
             print(f"  → Using: {mode_name} ({model_name}) (preselected)")
 
-        print(f"[3/7] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
+        print(f"\n[3/7] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
         # Use OllamaClient for both local and cloud since they use the same API
         # Merge system prompt from top-level llm config
         llm_config = self.config["llm"][self.ai_mode].copy()
         llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
         self.llm = OllamaClient(llm_config)
 
-        print("[4/7] Initializing Text-to-Speech...")
+        print("\n[4/7] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
         # Preload TTS model at startup to avoid delays during first synthesis
         _ = self.tts.model  # Trigger model loading
@@ -111,10 +111,10 @@ class BT7274Assistant:
         print("    Loading pre-recorded standby clips...")
         self._load_standby_clips()
 
-        print("[5/7] Initializing Action Handler...")
+        print("\n[5/7] Initializing Action Handler...")
         self.actions = ActionHandler(self.config["actions"])
 
-        print("[6/7] Initializing Location Services...")
+        print("\n[6/7] Initializing Location Services...")
         manual_loc = self.config.get("location", {}).get("manual")
         self.location = LocationProvider(manual_location=manual_loc)
         if self.location.update():
@@ -122,7 +122,7 @@ class BT7274Assistant:
         else:
             print("    ⚠ Location unavailable.")
 
-        print("[7/7] Opening persistent audio stream...")
+        print("\n[7/7] Opening persistent audio stream...")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
         print("    ✓ Microphone stream active.")
