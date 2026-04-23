@@ -137,7 +137,7 @@ class BT7274Assistant:
     def _is_location_query(self, text: str) -> bool:
         """Detect if the user is asking for their location."""
         lower = text.lower()
-        return any(kw in lower for kw in ["my location", "where am i", "find my location", "what is my location"])
+        return any(kw in lower for kw in ["my location", "where am i", "where are we", "find my location", "what is my location"])
 
     def _is_time_query(self, text: str) -> bool:
         """Detect if the user is asking for the time/date."""
@@ -256,13 +256,25 @@ class BT7274Assistant:
             if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
                 print(f"  🔍 Results: {search_result[:100]}...")
                 print("  [LLM] Summarizing for Pilot...")
-                summary_prompt = (
-                    f"Search results: {search_result}\n\n"
-                    f"Respond in character as BT-7274 with a detailed, complete explanation. "
-                    f"Use 3-7 sentences. Be thorough and helpful. "
-                    f"NEVER repeat the user's question. Just answer directly. "
-                    f"Only the response text. No quotes, no markdown, no extra text."
-                )
+                # Check if this is a news query
+                is_news_query = any(word in text.lower() for word in ["news", "latest", "breaking"])
+                if is_news_query:
+                    summary_prompt = (
+                        f"Search results: {search_result}\n\n"
+                        f"Respond in character as BT-7274. Provide a concise summary of the most relevant news. "
+                        f"Focus on the key facts from the search results. "
+                        f"Use 2-4 sentences. Be direct and informative. "
+                        f"NEVER repeat the user's question. Just answer directly. "
+                        f"Only the response text. No quotes, no markdown, no extra text."
+                    )
+                else:
+                    summary_prompt = (
+                        f"Search results: {search_result}\n\n"
+                        f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                        f"Use 3-7 sentences. Be thorough and helpful. "
+                        f"NEVER repeat the user's question. Just answer directly. "
+                        f"Only the response text. No quotes, no markdown, no extra text."
+                    )
                 response = self.llm.chat(summary_prompt)
             else:
                 response = "Pilot, my sensors cannot reach the data network at this time."
