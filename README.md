@@ -242,10 +242,23 @@ stt:
   device: cpu             # or 'mps' if available
 
 llm:
-  model: bt7274           # Your Ollama model
-  url: http://localhost:11434
-  temperature: 0.7
-  max_tokens: 150
+  # Local Ollama settings
+  local:
+    model: bt7274         # Your Ollama model
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 200
+  # Cloud Ollama settings
+  cloud:
+    model: gpt-oss:120b-cloud
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 300       # Larger context for cloud models
+  # Current mode (local or cloud)
+  mode: local
+  system_prompt: |
+    You are BT-7274, a Vanguard-class Titan from the game Titanfall 2.
+    ...
 
 tts:
   model: tts_models/multilingual/multi-dataset/xtts_v2
@@ -267,15 +280,37 @@ actions:
 
 ```bash
 source venv/bin/activate
+
+# Run the assistant (will prompt for model selection)
 python bt7274_assistant/pipeline.py
 ```
 
 The pipeline runs in a loop:
 1. **Listen:** Records audio from your microphone until silence is detected
 2. **Transcribe:** Sends audio to Whisper → text
-3. **Think:** Sends text to Ollama (BT-7274 personality) → response text + intent
+3. **Think:** Sends text to the AI (Ollama) → response text + intent
 4. **Act:** If the intent is an action (e.g., "open Safari"), executes it
 5. **Speak:** Sends response text to XTTS v2 → BT-7274 voice audio → plays through speakers
+
+### 5.3 Startup Sequence
+
+When you start the assistant, it will:
+1. **Initialize Speech-to-Text:** Load and activate the Whisper model
+2. **Select LLM:** Choose between Local or Cloud Ollama by entering 1 or 2
+3. **Initialize LLM:** Connect to the selected Ollama instance
+4. **Initialize Text-to-Speech:** Load the XTTS v2 voice model
+5. **Initialize Action Handler:** Set up command execution
+6. **Initialize Location Services:** Detect your location
+7. **Open Audio Stream:** Start listening for voice commands
+
+### 5.4 Using the Startup Script
+
+For convenience, you can use the provided startup script:
+
+```bash
+# Start the assistant
+./start_bt7274.sh
+```
 
 ### 5.3 Wake Word (Optional)
 
@@ -286,6 +321,40 @@ wake_word: "hey bt"
 ```
 
 The pipeline will only process commands after detecting the wake word.
+
+### 5.4 Cloud Model Selection
+
+You can choose between different models on the same Ollama instance:
+
+1. **Local Model**: A lightweight model that runs efficiently on your local machine
+2. **Cloud Model**: A more powerful model (like gpt-oss:120b-cloud) that provides better responses and larger context windows
+
+Configure both models in `config.yaml`:
+```yaml
+llm:
+  # Local Ollama settings
+  local:
+    model: bt7274
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 200
+  # Cloud Ollama settings (same server, different model)
+  cloud:
+    model: gpt-oss:120b-cloud
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 300       # Larger context for cloud models
+```
+
+During startup, you can use the arrow keys to select which model to use:
+- ↑/↓ to navigate between Local Ollama and Cloud Ollama
+- Enter to confirm your selection
+
+Benefits of the cloud model:
+- More powerful reasoning capabilities
+- Larger context windows for better understanding
+- Higher quality responses
+- Better instruction following
 
 ---
 

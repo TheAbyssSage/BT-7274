@@ -21,7 +21,7 @@ import soundfile as sf
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
 from stt import WhisperSTT
-from llm import OllamaClient
+from llm import OllamaClient, CloudLLMClient
 from tts import XTTSClient
 from actions import ActionHandler
 from location import LocationProvider
@@ -29,10 +29,11 @@ from utils import play_audio, PersistentAudioRecorder, beep
 
 
 class BT7274Assistant:
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: str = None, ai_mode: str = "local"):
         if config_path is None:
             config_path = str(Path(__file__).parent / "config.yaml")
         self.config = self.load_config(config_path)
+        self.ai_mode = ai_mode  # "local" or "cloud"
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
         self.tts: Optional[XTTSClient] = None
@@ -50,17 +51,55 @@ class BT7274Assistant:
     def initialize(self):
         """Initialize all components."""
         print("=" * 50)
-        print("  BT-7274 LOCAL AI ASSISTANT")
+        print("  BT-7274 AI ASSISTANT")
         print("  Protocol 1: Link to Pilot")
         print("=" * 50)
 
-        print("\n[1/4] Initializing Speech-to-Text...")
+        print("\n[1/7] Initializing Speech-to-Text...")
         self.stt = WhisperSTT(self.config["stt"])
+        # Preload Whisper model to avoid delays during first transcription
+        _ = self.stt.model
+        print("    ✓ Whisper model loaded and ready.")
 
-        print("[2/4] Initializing LLM (Ollama)...")
-        self.llm = OllamaClient(self.config["llm"])
+        print("[2/7] Which LLM?")
+        if self.ai_mode is None:
+            # Simple and reliable model selection
+            local_model = self.config["llm"]["local"]["model"]
+            cloud_model = self.config["llm"]["cloud"]["model"]
+            
+            print(f"  [1] Local Ollama  ({local_model})")
+            print(f"  [2] Cloud Ollama  ({cloud_model})")
+            
+            while True:
+                try:
+                    choice = input("\nSelect model [1-2]: ").strip()
+                    if choice == "1":
+                        self.ai_mode = "local"
+                        print(f"  → Selected: Local Ollama ({local_model})")
+                        break
+                    elif choice == "2":
+                        self.ai_mode = "cloud"
+                        print(f"  → Selected: Cloud Ollama ({cloud_model})")
+                        break
+                    else:
+                        print("  Invalid choice. Please enter 1 or 2.")
+                except (EOFError, KeyboardInterrupt):
+                    print("\n  Exiting...")
+                    sys.exit(0)
+        else:
+            # Use the provided AI mode
+            mode_name = "Local Ollama" if self.ai_mode == "local" else "Cloud Ollama"
+            model_name = self.config["llm"][self.ai_mode]["model"]
+            print(f"  → Using: {mode_name} ({model_name}) (preselected)")
 
-        print("[3/4] Initializing Text-to-Speech...")
+        print(f"[3/7] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
+        # Use OllamaClient for both local and cloud since they use the same API
+        if self.ai_mode == "local":
+            self.llm = OllamaClient(self.config["llm"]["local"])
+        else:  # cloud
+            self.llm = OllamaClient(self.config["llm"]["cloud"])
+
+        print("[4/7] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
         # Preload TTS model at startup to avoid delays during first synthesis
         _ = self.tts.model  # Trigger model loading
@@ -69,10 +108,10 @@ class BT7274Assistant:
         print("    Loading pre-recorded standby clips...")
         self._load_standby_clips()
 
-        print("[4/4] Initializing Action Handler...")
+        print("[5/7] Initializing Action Handler...")
         self.actions = ActionHandler(self.config["actions"])
 
-        print("[5/5] Initializing Location Services...")
+        print("[6/7] Initializing Location Services...")
         manual_loc = self.config.get("location", {}).get("manual")
         self.location = LocationProvider(manual_location=manual_loc)
         if self.location.update():
@@ -80,7 +119,7 @@ class BT7274Assistant:
         else:
             print("    ⚠ Location unavailable.")
 
-        print("[6/6] Opening persistent audio stream...")
+        print("[7/7] Opening persistent audio stream...")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
         print("    ✓ Microphone stream active.")
@@ -348,7 +387,8 @@ class BT7274Assistant:
 
 
 def main():
-    assistant = BT7274Assistant()
+    # Initialize with no preset AI mode so user can choose during startup
+    assistant = BT7274Assistant(ai_mode=None)
     assistant.run()
 
 

@@ -4,16 +4,16 @@
 cd "$(dirname "$0")"
 source venv/bin/activate
 
-# Check if Ollama is running
+# Check if local Ollama is running (only needed for local mode)
 if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "Starting Ollama server..."
+    echo "Starting local Ollama server..."
     ollama serve &
     sleep 3
 fi
 
 echo ""
 echo "=========================================="
-echo "  BT-7274 LOCAL AI ASSISTANT"
+echo "  BT-7274 AI ASSISTANT"
 echo "  Protocol 1: Link to Pilot"
 echo "=========================================="
 echo ""

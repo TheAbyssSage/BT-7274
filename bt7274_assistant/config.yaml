@@ -12,10 +12,20 @@ stt:
   post_wake_grace: 1.5            # Extra seconds to keep recording after speech starts
 
 llm:
-  model: bt7274
-  url: http://localhost:11434
-  temperature: 0.7
-  max_tokens: 200              # Longer responses = more complete explanations
+  # Local Ollama settings
+  local:
+    model: bt7274
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 200              # Longer responses = more complete explanations
+  # Cloud Ollama settings (same server, different model)
+  cloud:
+    model: gpt-oss:120b-cloud
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 300              # Larger context for cloud models
+  # Current mode (local or cloud)
+  mode: local
   system_prompt: |
     You are BT-7274, a Vanguard-class Titan from the game Titanfall 2.
     You are NOT from Apex Legends. You are a Titan - a giant mech that fights alongside Pilots.
@@ -32,6 +42,9 @@ llm:
     NEVER output "Instruction", "Follow Up Questions", or any meta-text.
     Only output plain text sentences. Nothing else.
     If the user asks you to perform an action, just say what you will do in character.
+    Always follow instructions precisely and completely.
+    Respond quickly and efficiently while maintaining your character.
+    Use your advanced tactical analysis capabilities to provide the best possible response.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
