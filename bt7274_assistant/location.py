@@ -9,8 +9,27 @@ from typing import Optional, Tuple
 from datetime import datetime, timedelta
 
 
+def _reverse_geocode(lat: float, lon: float) -> Tuple[str, str, str]:
+    """Reverse geocode lat/lon to city/region/country using Open-Meteo API."""
+    try:
+        url = f"https://api.open-meteo.com/v1/search?latitude={lat}&longitude={lon}&count=1"
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        results = data.get("results", [])
+        if results:
+            r = results[0]
+            return (
+                r.get("name", ""),
+                r.get("admin1", ""),
+                r.get("country", ""),
+            )
+    except Exception:
+        pass
+    return "", "", ""
+
+
 class LocationProvider:
-    def __init__(self):
+    def __init__(self, manual_location: dict = None):
         self._lat: Optional[float] = None
         self._lon: Optional[float] = None
         self._city: Optional[str] = None
@@ -18,6 +37,7 @@ class LocationProvider:
         self._country: Optional[str] = None
         self._last_update: Optional[datetime] = None
         self._ttl_seconds = 300  # Cache location for 5 minutes
+        self._manual = manual_location  # Optional manual override
 
     def _is_stale(self) -> bool:
         if self._last_update is None:
@@ -27,8 +47,8 @@ class LocationProvider:
     def _get_macos_location(self) -> Optional[Tuple[float, float, str, str, str]]:
         """Try to get location via macOS CoreLocation using pyobjc."""
         try:
-            from Foundation import NSObject, NSRunLoop
-            from CoreLocation import CLLocationManager, kCLDistanceFilterNone
+            from Foundation import NSObject, NSRunLoop, NSDate
+            from CoreLocation import CLLocationManager
 
             class LocationDelegate(NSObject):
                 def init(self):
@@ -54,7 +74,7 @@ class LocationProvider:
 
             # Wait briefly for location
             import time
-            for _ in range(20):  # ~2 seconds
+            for _ in range(30):  # ~3 seconds
                 if delegate.location or delegate.error:
                     break
                 time.sleep(0.1)
@@ -69,7 +89,8 @@ class LocationProvider:
                 lat = loc.coordinate().latitude
                 lon = loc.coordinate().longitude
                 # Reverse geocode to get city/region
-                return lat, lon, "", "", ""
+                city, region, country = _reverse_geocode(lat, lon)
+                return lat, lon, city, region, country
         except Exception:
             pass
         return None
@@ -94,6 +115,16 @@ class LocationProvider:
 
     def update(self) -> bool:
         """Refresh location data. Returns True if successful."""
+        # Use manual override if provided
+        if self._manual:
+            self._lat = self._manual.get("lat")
+            self._lon = self._manual.get("lon")
+            self._city = self._manual.get("city", "")
+            self._region = self._manual.get("region", "")
+            self._country = self._manual.get("country", "")
+            self._last_update = datetime.now()
+            return True
+
         result = self._get_macos_location()
         if result is None:
             result = self._get_ip_location()

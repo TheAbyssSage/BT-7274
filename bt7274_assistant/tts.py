@@ -79,7 +79,7 @@ class XTTSClient:
             return None
 
         # Truncate very long responses to avoid slow synthesis
-        max_chars = 250
+        max_chars = 400
         if len(text) > max_chars:
             text = text[:max_chars].rsplit('.', 1)[0] + '.'
 

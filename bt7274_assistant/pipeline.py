@@ -62,6 +62,9 @@ class BT7274Assistant:
 
         print("[3/4] Initializing Text-to-Speech...")
         self.tts = XTTSClient(self.config["tts"])
+        # Preload TTS model at startup to avoid delays during first synthesis
+        _ = self.tts.model  # Trigger model loading
+        print("    ✓ TTS model loaded and ready.")
 
         print("    Loading pre-recorded standby clips...")
         self._load_standby_clips()
@@ -70,7 +73,8 @@ class BT7274Assistant:
         self.actions = ActionHandler(self.config["actions"])
 
         print("[5/5] Initializing Location Services...")
-        self.location = LocationProvider()
+        manual_loc = self.config.get("location", {}).get("manual")
+        self.location = LocationProvider(manual_location=manual_loc)
         if self.location.update():
             print(f"    📍 Location: {self.location.location_str}")
         else:
@@ -104,19 +108,49 @@ class BT7274Assistant:
             self.standby_clips[key] = str(wav_file)
         print(f"    ✓ Loaded {len(self.standby_clips)} standby clips.")
 
+    def _extract_location_from_query(self, text: str) -> Optional[str]:
+        """Extract location from weather query like 'weather in Tucson, Arizona'."""
+        import re
+        lower = text.lower()
+        # Match patterns like "weather in X", "weather for X", "temperature in X"
+        # Exclude common time words that shouldn't be treated as locations
+        time_words = {"today", "tomorrow", "yesterday", "now", "tonight"}
+        patterns = [
+            r'weather\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
+            r'temperature\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
+            r'forecast\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, lower)
+            if match:
+                location = match.group(1).strip()
+                # Don't treat time words as locations
+                if location in time_words:
+                    return None
+                return location
+        return None
+
     def _is_weather_query(self, text: str) -> bool:
         """Detect if the user is asking for weather."""
         return any(kw in text.lower() for kw in ["weather", "temperature", "forecast"])
 
+    def _is_location_query(self, text: str) -> bool:
+        """Detect if the user is asking for their location."""
+        lower = text.lower()
+        return any(kw in lower for kw in ["my location", "where am i", "find my location", "what is my location"])
+
+    def _is_time_query(self, text: str) -> bool:
+        """Detect if the user is asking for the time/date."""
+        lower = text.lower()
+        time_keywords = ["what time", "what is the time", "current time", "what date", "what is the date", "today's date", "the date today", "what day", "what day is it"]
+        return any(kw in lower for kw in time_keywords)
+
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
         search_keywords = [
-            "who won", "who is", "who was",
-            "what is", "what are", "what's",
-            "when is", "when was", "when are",
-            "where is", "where are", "where can",
-            "news", "latest", "current", "today",
-            "search", "look up", "find", "tell me about"
+            "who won", "who was",
+            "news", "latest",
+            "search", "look up", "tell me about"
         ]
         lower = text.lower()
         return any(kw in lower for kw in search_keywords)
@@ -158,26 +192,59 @@ class BT7274Assistant:
             if wav:
                 play_audio(wav)
 
-        # 2. Detect weather query and fetch from Open-Meteo API
+        # 2. Detect location query and return location directly
         response = None
-        if self._is_weather_query(text):
+        if self._is_location_query(text):
+            speak_standby("search")
+            print("  📍 Locating Pilot...")
+            location_result = self.actions.execute("get_location")
+            if location_result and not location_result.startswith("Location"):
+                print(f"  📍 {location_result}")
+                response = f"Pilot, {location_result}"
+            else:
+                response = "Pilot, my navigation systems are currently unable to establish our position."
+
+        # 3. Detect time query and return time/date directly
+        if response is None and self._is_time_query(text):
+            speak_standby("generic")
+            print("  🕐 Checking chronometer...")
+            time_result = self.actions.execute("tell_time")
+            date_result = self.actions.execute("tell_date")
+            if time_result and date_result:
+                print(f"  🕐 {time_result}")
+                print(f"  📅 {date_result}")
+                response = f"Pilot, {date_result} {time_result}"
+            elif time_result:
+                response = f"Pilot, {time_result}"
+            else:
+                response = "Pilot, my chronometer is offline."
+
+        # 4. Detect weather query and fetch from Open-Meteo API
+        if response is None and self._is_weather_query(text):
             speak_standby("weather")
             print("  🌤 Fetching local data...")
-            weather_result = self.actions.execute("get_weather")
+            # Check if user specified a location in the query
+            query_location = self._extract_location_from_query(text)
+            if query_location:
+                print(f"    📍 Location from query: {query_location}")
+                weather_result = self.actions.execute("get_weather_for_location", location=query_location)
+            else:
+                weather_result = self.actions.execute("get_weather")
             if weather_result and not weather_result.startswith("Weather data unavailable"):
                 print(f"  🌤 {weather_result}")
                 print("  [LLM] Summarizing for Pilot...")
                 summary_prompt = (
-                    f"Pilot asked: {text}\n\n"
                     f"Weather data: {weather_result}\n\n"
-                    f"Respond in character as BT-7274 with exactly ONE short sentence. "
-                    f"Only the sentence. No quotes, no markdown, no extra text."
+                    f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                    f"Use 3-7 sentences. Be thorough and helpful. "
+                    f"NEVER repeat the user's question. Just answer directly. "
+                    f"Only the response text. No quotes, no markdown, no extra text."
                 )
                 response = self.llm.chat(summary_prompt)
             else:
                 response = "Pilot, atmospheric sensors are offline."
 
-        # 3. Detect search intent and perform search BEFORE LLM
+        # 5. Detect search intent and perform search BEFORE LLM
         if response is None and self._is_search_query(text):
             speak_standby("search")
             print("  🔍 Looking up...")
@@ -190,16 +257,17 @@ class BT7274Assistant:
                 print(f"  🔍 Results: {search_result[:100]}...")
                 print("  [LLM] Summarizing for Pilot...")
                 summary_prompt = (
-                    f"Pilot asked: {text}\n\n"
                     f"Search results: {search_result}\n\n"
-                    f"Respond in character as BT-7274 with exactly ONE short sentence. "
-                    f"Only the sentence. No quotes, no markdown, no extra text."
+                    f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                    f"Use 3-7 sentences. Be thorough and helpful. "
+                    f"NEVER repeat the user's question. Just answer directly. "
+                    f"Only the response text. No quotes, no markdown, no extra text."
                 )
                 response = self.llm.chat(summary_prompt)
             else:
                 response = "Pilot, my sensors cannot reach the data network at this time."
 
-        # 4. Normal LLM Processing (if not a search or weather query)
+        # 6. Normal LLM Processing (if not a search or weather query)
         if response is None:
             print("  [LLM] Thinking...")
             response = self.llm.chat(text)

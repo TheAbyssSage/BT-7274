@@ -16,14 +16,16 @@ import soundfile as sf
 
 def play_audio(wav_path: str, device: Optional[int] = None):
     """Play a WAV audio file through the default output device."""
+    # Use afplay on macOS as primary (avoids PortAudio conflicts with recorder)
+    if os.system(f'afplay "{wav_path}"') == 0:
+        return
+    # Fallback to sounddevice if afplay fails
     try:
         data, samplerate = sf.read(wav_path)
         sd.play(data, samplerate, device=device)
         sd.wait()
     except Exception as e:
         print(f"  ✗ Audio playback error: {e}")
-        # Fallback to afplay on macOS
-        os.system(f'afplay "{wav_path}"')
 
 
 def beep(frequency: int = 880, duration: float = 0.15, samplerate: int = 44100):

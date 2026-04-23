@@ -132,6 +132,13 @@ def action_tell_time():
     return f"The current time is {now}."
 
 
+@register_action("tell_date")
+def action_tell_date():
+    """Return current date."""
+    now = datetime.now().strftime("%A, %B %d, %Y")
+    return f"Today is {now}."
+
+
 @register_action("web_search")
 def action_web_search(query: str):
     """Open browser with search query."""
@@ -195,32 +202,60 @@ def action_get_weather():
             return "Location coordinates unavailable."
 
         lat, lon = lat_lon
-        url = (
-            f"https://api.open-meteo.com/v1/forecast?"
-            f"latitude={lat}&longitude={lon}&current_weather=true"
-        )
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        current = data.get("current_weather", {})
-        temp = current.get("temperature")
-        wind = current.get("windspeed")
-        code = current.get("weathercode")
-
-        # WMO weather code mapping (simplified)
-        conditions = {
-            0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
-            45: "fog", 48: "depositing rime fog",
-            51: "light drizzle", 53: "moderate drizzle", 55: "dense drizzle",
-            61: "slight rain", 63: "moderate rain", 65: "heavy rain",
-            71: "slight snow", 73: "moderate snow", 75: "heavy snow",
-            80: "rain showers", 81: "moderate showers", 82: "violent showers",
-            95: "thunderstorm", 96: "thunderstorm with hail", 99: "thunderstorm with heavy hail",
-        }
-        condition = conditions.get(code, "unknown conditions")
-
-        return (
-            f"Current weather in {loc.location_str}: {condition}, "
-            f"{temp}°C, wind {wind} km/h."
-        )
+        return _fetch_weather(lat, lon)
     except Exception as e:
         return f"Weather data unavailable: {str(e)}"
+
+
+@register_action("get_weather_for_location")
+def action_get_weather_for_location(location: str):
+    """Fetch weather for a specific location using geocoding."""
+    try:
+        # Geocode the location string to lat/lon
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location.replace(' ', '+')}&count=1"
+        geo_resp = requests.get(geo_url, timeout=10)
+        geo_data = geo_resp.json()
+        results = geo_data.get("results", [])
+        if not results:
+            return f"Unable to find location: {location}"
+        
+        lat = results[0]["latitude"]
+        lon = results[0]["longitude"]
+        city = results[0].get("name", location)
+        
+        return _fetch_weather(lat, lon, city)
+    except Exception as e:
+        return f"Weather data unavailable: {str(e)}"
+
+
+def _fetch_weather(lat: float, lon: float, city_name: str = None):
+    """Helper to fetch weather from Open-Meteo."""
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}&current_weather=true"
+    )
+    resp = requests.get(url, timeout=10)
+    data = resp.json()
+    current = data.get("current_weather", {})
+    temp = current.get("temperature")
+    wind = current.get("windspeed")
+    code = current.get("weathercode")
+
+    # WMO weather code mapping (simplified)
+    conditions = {
+        0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
+        45: "fog", 48: "depositing rime fog",
+        51: "light drizzle", 53: "moderate drizzle", 55: "dense drizzle",
+        61: "slight rain", 63: "moderate rain", 65: "heavy rain",
+        71: "slight snow", 73: "moderate snow", 75: "heavy snow",
+        80: "rain showers", 81: "moderate showers", 82: "violent showers",
+        95: "thunderstorm", 96: "thunderstorm with hail", 99: "thunderstorm with heavy hail",
+    }
+    condition = conditions.get(code, "unknown conditions")
+    
+    loc_str = city_name if city_name else "your location"
+
+    return (
+        f"Current weather in {loc_str}: {condition}, "
+        f"{temp}°C, wind {wind} km/h."
+    )
