@@ -104,7 +104,7 @@ class PersistentAudioRecorder:
             self._stream.close()
             self._stream = None
 
-    def record(self) -> Optional[str]:
+    def record(self, max_seconds: Optional[int] = None) -> Optional[str]:
         """Start a new recording using the already-open stream."""
         if self._stream is None:
             self.start()
@@ -117,7 +117,8 @@ class PersistentAudioRecorder:
 
         print("    Recording...")
         start_time = time.time()
-        while self._recording and (time.time() - start_time) < self.max_record_seconds:
+        max_record_seconds = max_seconds if max_seconds is not None else self.max_record_seconds
+        while self._recording and (time.time() - start_time) < max_record_seconds:
             time.sleep(0.05)
 
         with self._lock:
@@ -131,12 +132,12 @@ class PersistentAudioRecorder:
         return temp_path
 
 
-def record_until_silence(config: dict) -> Optional[str]:
+def record_until_silence(config: dict, max_seconds: Optional[int] = None) -> Optional[str]:
     """Legacy wrapper — kept for compatibility."""
     recorder = PersistentAudioRecorder(config)
     recorder.start()
     try:
-        return recorder.record()
+        return recorder.record(max_seconds=max_seconds)
     finally:
         recorder.stop()
 

@@ -197,22 +197,29 @@ class BT7274Assistant:
         lower = text.lower()
         return any(kw in lower for kw in search_keywords)
 
-    def process_command(self, audio_path: str) -> bool:
+    def process_command(self, audio_path: str = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: str = None) -> bool:
         """Process a single voice command."""
-        # 1. Speech-to-Text
-        print("\n  [STT] Transcribing...")
-        text = self.stt.transcribe(audio_path)
-        if not text or not text.strip():
-            print("  ✗ No speech detected.")
-            return False
+        if audio_path is None and pre_transcribed_text is None:
+            raise ValueError("Either audio_path or pre_transcribed_text must be provided")
 
-        print(f"  🎤 Pilot: \"{text}\"")
+        # 1. Speech-to-Text
+        if pre_transcribed_text is not None:
+            text = pre_transcribed_text
+            print(f"\n  🎤 Pilot: \"{text}\"")
+        else:
+            print("\n  [STT] Transcribing...")
+            text = self.stt.transcribe(audio_path)
+            if not text or not text.strip():
+                print("  ✗ No speech detected.")
+                return False
+            print(f"  🎤 Pilot: \"{text}\"")
 
         # Check wake words
-        wake_words = self.config["pipeline"].get("wake_words", [])
-        if wake_words and not any(ww.lower() in text.lower() for ww in wake_words):
-            print(f"  ⏭ Wake word not detected. Ignoring.")
-            return False
+        if not skip_wake_word:
+            wake_words = self.config["pipeline"].get("wake_words", [])
+            if wake_words and not any(ww.lower() in text.lower() for ww in wake_words):
+                print(f"  ⏭ Wake word not detected. Ignoring.")
+                return False
 
         # Helper: speak a standby phrase immediately (pre-recorded if available)
         def speak_standby(task: str = "generic"):
@@ -350,7 +357,53 @@ class BT7274Assistant:
             play_audio(output_wav)
 
         self.last_activity = time.time()
+
+        # 5. Listen for follow-up if BT asked a question
+        max_depth = self.config["pipeline"].get("follow_up", {}).get("max_depth", 1)
+        if follow_up_depth < max_depth:
+            self._listen_for_follow_up(follow_up_depth)
+
         return True
+
+    def _listen_for_follow_up(self, follow_up_depth: int):
+        """Listen for a follow-up response after BT speaks."""
+        timeout = self.config["pipeline"].get("follow_up", {}).get("timeout_seconds", 8)
+        stop_phrases = self.config["pipeline"].get("follow_up", {}).get("stop_phrases", ["no", "never mind", "stop", "that's all", "goodbye", "exit", "quit"])
+
+        # Small pause to let speaker echo settle
+        time.sleep(0.5)
+
+        print("\n  🎙 Listening for follow-up... (speak now)")
+        audio_path = self.recorder.record(max_seconds=timeout) if self.recorder else record_until_silence(self.config["stt"], max_seconds=timeout)
+
+        if not audio_path:
+            return
+
+        print("  [STT] Transcribing follow-up...")
+        text = self.stt.transcribe(audio_path)
+
+        # Clean up temp file
+        try:
+            os.remove(audio_path)
+        except:
+            pass
+
+        if not text or not text.strip():
+            print("  ✗ No speech detected in follow-up.")
+            return
+
+        text = text.strip()
+        print(f"  🎤 Pilot: \"{text}\"")
+
+        # Check for stop phrases
+        lower_text = text.lower()
+        for phrase in stop_phrases:
+            if phrase.lower() in lower_text:
+                print(f"  ⏭ Follow-up stopped by phrase: '{phrase}'")
+                return
+
+        # Process as follow-up command (skip wake word)
+        self.process_command(audio_path=None, skip_wake_word=True, follow_up_depth=follow_up_depth + 1, pre_transcribed_text=text)
 
     def run(self):
         """Main voice interaction loop."""
