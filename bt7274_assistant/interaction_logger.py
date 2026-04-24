@@ -36,6 +36,22 @@ class InteractionLogger:
         ai_mode: str = "local",
         performance_mode: str = "standard",
         tts_metrics: Optional[dict] = None,
+        llm_response_time: Optional[float] = None,
+        stt_confidence: Optional[float] = None,
+        audio_file_path: Optional[str] = None,
+        cache_hit: Optional[str] = None,
+        token_usage: Optional[dict] = None,
+        wake_word: Optional[str] = None,
+        follow_up_depth: int = 0,
+        session_id: Optional[str] = None,
+        conversation_duration: Optional[float] = None,
+        protocol_reference: str = "Protocol 1: Link to Pilot",
+        pilot_trust_level: int = 1,
+        mission_elapsed_time: Optional[float] = None,
+        actions_executed: Optional[list] = None,
+        errors: Optional[list] = None,
+        location_context: Optional[str] = None,
+        weather_context: Optional[str] = None,
         metadata: Optional[dict] = None,
     ):
         """Log a single interaction between Pilot and BT-7274."""
@@ -53,9 +69,40 @@ class InteractionLogger:
             "bt_response": bt_response,
         }
 
+        if llm_response_time is not None:
+            entry["llm_response_time"] = round(llm_response_time, 3)
+        if stt_confidence is not None:
+            entry["stt_confidence"] = round(stt_confidence, 4)
+        if audio_file_path:
+            entry["audio_file_path"] = audio_file_path
+        if cache_hit:
+            entry["cache_hit"] = cache_hit
+        if token_usage:
+            entry["token_usage"] = token_usage
+        if wake_word:
+            entry["wake_word"] = wake_word
+        if follow_up_depth > 0:
+            entry["follow_up_depth"] = follow_up_depth
+        if session_id:
+            entry["session_id"] = session_id
+        if conversation_duration is not None:
+            entry["conversation_duration"] = round(conversation_duration, 3)
+        if protocol_reference:
+            entry["protocol_reference"] = protocol_reference
+        if pilot_trust_level > 0:
+            entry["pilot_trust_level"] = pilot_trust_level
+        if mission_elapsed_time is not None:
+            entry["mission_elapsed_time"] = round(mission_elapsed_time, 3)
+        if actions_executed:
+            entry["actions_executed"] = actions_executed
+        if errors:
+            entry["errors"] = errors
+        if location_context:
+            entry["location_context"] = location_context
+        if weather_context:
+            entry["weather_context"] = weather_context
         if tts_metrics:
             entry["tts_metrics"] = tts_metrics
-
         if metadata:
             entry["metadata"] = metadata
 

@@ -51,6 +51,16 @@ class BT7274Assistant:
         self.last_activity = time.time()
         self.logger = InteractionLogger()
         
+        # Session tracking
+        import uuid
+        self.session_id = str(uuid.uuid4())[:8]
+        self.session_start_time = time.time()
+        self.interaction_count = 0
+        self.pilot_trust_level = 1
+        self.errors_this_session = []
+        self.actions_this_session = []
+        self.weather_context = None
+        
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
         if self.tts:
@@ -515,12 +525,15 @@ class BT7274Assistant:
             raise ValueError("Either audio_path or pre_transcribed_text must be provided")
 
         # 1. Speech-to-Text
+        stt_confidence = None
         if pre_transcribed_text is not None:
             text = pre_transcribed_text
             print(f"\n  🎤 Pilot: \"{text}\"")
         else:
             print("\n  [STT] Transcribing...")
-            text = self.stt.transcribe(audio_path)
+            stt_result = self.stt.transcribe(audio_path)
+            text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
+            stt_confidence = stt_result.get("confidence") if isinstance(stt_result, dict) else None
             if not text or not text.strip():
                 print("  ✗ No speech detected.")
                 return False
@@ -771,13 +784,16 @@ class BT7274Assistant:
             handled_types.add("travel")
 
         # Combine responses or fall back to normal processing
+        llm_response_time = None
         if response_parts:
             # Combine all collected responses
             response = " ".join(response_parts)
         elif not handled_types:
             # No specific handlers matched, use normal LLM processing
             print("  [LLM] Thinking...")
+            llm_start = time.time()
             response = self.llm.chat(text)
+            llm_response_time = time.time() - llm_start
         else:
             # This shouldn't happen, but just in case
             response = "Processing complete, Pilot."
@@ -861,6 +877,65 @@ class BT7274Assistant:
 
         # Log the interaction (after TTS so metrics are accurate)
         tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}
+        
+        # Determine cache hit type
+        cache_hit = None
+        if standby_wav and Path(standby_wav).exists():
+            cache_hit = "standby_clip"
+        elif tts_metrics and tts_metrics.get("cached"):
+            cache_hit = "tts_cache"
+        
+        # Get audio file path
+        audio_file_path = None
+        if not (standby_wav and Path(standby_wav).exists()):
+            if self.performance_mode == "performance":
+                audio_file_path = "streaming"
+            else:
+                audio_file_path = output_wav if 'output_wav' in locals() else None
+        
+        # Get location context
+        location_context = None
+        if self.location and self.location.location_str:
+            location_context = self.location.location_str
+        
+        # Get weather context (if weather was queried)
+        weather_context = None
+        if "weather" in handled_types:
+            weather_context = weather_result if 'weather_result' in locals() else None
+        
+        # Calculate mission elapsed time
+        mission_elapsed_time = time.time() - self.session_start_time
+        
+        # Calculate conversation duration (time since last interaction)
+        conversation_duration = time.time() - self.last_activity
+        
+        # Increment interaction count and update trust level
+        self.interaction_count += 1
+        if self.interaction_count > 10:
+            self.pilot_trust_level = min(5, self.pilot_trust_level + 1)
+        
+        # Determine protocol reference based on interaction type
+        protocol_reference = "Protocol 1: Link to Pilot"
+        if "weather" in handled_types or "location" in handled_types:
+            protocol_reference = "Protocol 2: Uphold the Mission"
+        elif any(err in str(handled_types) for err in ["error", "fail"]):
+            protocol_reference = "Protocol 3: Protect the Pilot"
+        
+        # Collect errors
+        errors = self.errors_this_session if self.errors_this_session else None
+        
+        # Collect actions executed
+        actions_executed = list(handled_types) if handled_types else None
+        
+        # Get wake word used
+        wake_word = None
+        if not skip_wake_word:
+            wake_words = self.config["pipeline"].get("wake_words", [])
+            for ww in wake_words:
+                if ww.lower() in text.lower():
+                    wake_word = ww
+                    break
+        
         self.logger.log_interaction(
             pilot_message=text,
             bt_response=clean_response,
@@ -868,6 +943,22 @@ class BT7274Assistant:
             ai_mode=self.ai_mode,
             performance_mode=self.performance_mode,
             tts_metrics=tts_metrics if tts_metrics else None,
+            llm_response_time=llm_response_time if 'llm_response_time' in locals() else None,
+            stt_confidence=stt_confidence,
+            audio_file_path=audio_file_path,
+            cache_hit=cache_hit,
+            token_usage=None,  # Ollama doesn't expose token usage easily
+            wake_word=wake_word,
+            follow_up_depth=follow_up_depth,
+            session_id=self.session_id,
+            conversation_duration=conversation_duration,
+            protocol_reference=protocol_reference,
+            pilot_trust_level=self.pilot_trust_level,
+            mission_elapsed_time=mission_elapsed_time,
+            actions_executed=actions_executed,
+            errors=errors,
+            location_context=location_context,
+            weather_context=weather_context,
             metadata={
                 "handled_types": list(handled_types) if 'handled_types' in locals() else [],
             },

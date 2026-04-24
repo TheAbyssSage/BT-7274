@@ -28,22 +28,41 @@ class WhisperSTT:
             self._model = whisper.load_model(self.model_name).to(self.device)
         return self._model
 
-    def transcribe(self, audio_path: str) -> str:
-        """Transcribe an audio file to text."""
+    def transcribe(self, audio_path: str) -> dict:
+        """Transcribe an audio file to text.
+        
+        Returns:
+            dict with keys: text (str), confidence (float), language (str)
+        """
         result = self.model.transcribe(
             audio_path,
             language=self.language,
             fp16=False  # M1 doesn't support fp16 well
         )
-        return result.get("text", "").strip()
+        text = result.get("text", "").strip()
+        
+        # Calculate confidence from segment probabilities
+        segments = result.get("segments", [])
+        if segments:
+            avg_logprob = sum(s.get("avg_logprob", 0) for s in segments) / len(segments)
+            # Convert logprob to approximate confidence (0-1 scale)
+            confidence = min(1.0, max(0.0, 1.0 + avg_logprob))
+        else:
+            confidence = 0.0
+        
+        return {
+            "text": text,
+            "confidence": confidence,
+            "language": result.get("language", self.language),
+        }
 
-    def transcribe_buffer(self, audio_buffer: np.ndarray, sample_rate: int = 16000) -> str:
+    def transcribe_buffer(self, audio_buffer: np.ndarray, sample_rate: int = 16000) -> dict:
         """Transcribe from an in-memory audio buffer."""
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             sf.write(f.name, audio_buffer, sample_rate)
-            text = self.transcribe(f.name)
+            result = self.transcribe(f.name)
             os.remove(f.name)
-        return text
+        return result
 
     def unload(self):
         """Free model from memory."""

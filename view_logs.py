@@ -24,30 +24,132 @@ def format_entry(entry: dict) -> str:
     bt = entry.get("bt_response", "")
     ai_mode = entry.get("ai_mode", "local")
     perf_mode = entry.get("performance_mode", "standard")
+    
+    # ── Header ──
+    lines = [
+        "",
+        "┌─────────────────────────────────────────",
+        f"│ {timestamp}  —  {entry.get('interaction_type', 'voice').upper()}",
+        f"│ AI Mode: {ai_mode.title()}  │  🔊 TTS Mode: {perf_mode.title()}",
+    ]
+    
+    # ── TTS Metrics ──
     tts = entry.get("tts_metrics", {})
-    tts_line = ""
     if tts:
         if tts.get("cached"):
-            tts_line = "│ TTS: ♻️ cached"
+            lines.append("│ TTS: Cached response")
         elif tts.get("mode") == "streaming":
             synth = tts.get("sentences_synthesized", 0)
             played = tts.get("sentences_played", 0)
             proc = tts.get("processing_time", 0)
-            tts_line = f"│ TTS: ⚡ streaming | {synth}synth {played}played | {proc:.2f}s"
+            lines.append(f"│ ⚡ Streaming TTS: {synth} synthesized, {played} played in {proc:.2f}s")
         else:
             proc = tts.get("processing_time", 0)
             rtf = tts.get("real_time_factor", 0)
-            tts_line = f"│ TTS: ⏱ {proc:.2f}s | RTF {rtf:.2f}x"
-    return f"""
-┌─────────────────────────────────────────
-│ {timestamp}  —  {entry.get('interaction_type', 'voice').upper()}
-│ AI: {ai_mode.upper():<8}  │  TTS: {perf_mode.upper()}
-{tts_line}
-├─────────────────────────────────────────
-│ Pilot:    {pilot}
-│
-│ BT-7274:  {bt}
-└─────────────────────────────────────────"""
+            lines.append(f"│ TTS Processing: {proc:.2f}s (Real-time factor: {rtf:.2f}x)")
+    
+    # ── Conversation ──
+    lines.extend([
+        "├─────────────────────────────────────────",
+        f"│ Pilot:    {pilot}",
+        "│",
+        f"│ BT-7274:  {bt}",
+    ])
+    
+    # ── Technical Details ──
+    details = []
+    
+    # LLM response time
+    llm_time = entry.get("llm_response_time")
+    if llm_time is not None:
+        details.append(f"│ Response Time: {llm_time:.2f}s")
+    
+    # STT confidence
+    stt_conf = entry.get("stt_confidence")
+    if stt_conf is not None:
+        details.append(f"│ Speech Confidence: {stt_conf:.1%}")
+    
+    # Cache hit
+    cache = entry.get("cache_hit")
+    if cache:
+        cache_display = cache.replace("_", " ").title()
+        details.append(f"│ Cache Used: {cache_display}")
+    
+    # Audio file
+    audio = entry.get("audio_file_path")
+    if audio and audio != "streaming":
+        details.append(f"│ Audio File: {Path(audio).name}")
+    elif audio == "streaming":
+        details.append("│ Audio: Streaming playback")
+    
+    # ── Session Info ──
+    session = entry.get("session_id")
+    if session:
+        details.append(f"│ Session ID: {session}")
+    
+    # Follow-up depth
+    depth = entry.get("follow_up_depth", 0)
+    if depth > 0:
+        details.append(f"│ Follow-up Turn: {depth}")
+    
+    # Protocol
+    protocol = entry.get("protocol_reference")
+    if protocol:
+        details.append(f"│ {protocol}")
+    
+    # Trust level
+    trust = entry.get("pilot_trust_level")
+    if trust:
+        details.append(f"│ Pilot Trust Level: {trust} of 5")
+    
+    # Mission elapsed time
+    met = entry.get("mission_elapsed_time")
+    if met is not None:
+        hours = int(met // 3600)
+        mins = int((met % 3600) // 60)
+        secs = int(met % 60)
+        parts = []
+        if hours > 0:
+            parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+        if mins > 0:
+            parts.append(f"{mins} minute{'s' if mins != 1 else ''}")
+        if secs > 0 or not parts:
+            parts.append(f"{secs} second{'s' if secs != 1 else ''}")
+        details.append(f"│ Mission Time: {', '.join(parts)}")
+    
+    # Actions executed
+    actions = entry.get("actions_executed")
+    if actions:
+        action_names = [a.title() for a in actions]
+        details.append(f"│ ⚡ Actions Executed: {', '.join(action_names)}")
+    
+    # Location context
+    loc = entry.get("location_context")
+    if loc:
+        details.append(f"│ Location: {loc}")
+    
+    # Weather context
+    weather = entry.get("weather_context")
+    if weather:
+        # Truncate long weather strings
+        weather_str = str(weather)
+        if len(weather_str) > 60:
+            weather_str = weather_str[:57] + "..."
+        details.append(f"│ Weather Data: {weather_str}")
+    
+    # Errors
+    errors = entry.get("errors")
+    if errors:
+        details.append(f"│ ⚠️  Session Errors: {len(errors)}")
+    
+    # Add details section if any exist
+    if details:
+        lines.append("├─────────────────────────────────────────")
+        lines.extend(details)
+    
+    lines.append("└─────────────────────────────────────────")
+    
+    return "\n".join(lines)
 
 
 def show_today(logger: InteractionLogger):
