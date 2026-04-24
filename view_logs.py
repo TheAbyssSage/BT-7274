@@ -30,7 +30,7 @@ def format_entry(entry: dict) -> str:
         "",
         "┌─────────────────────────────────────────",
         f"│ {timestamp}  —  {entry.get('interaction_type', 'voice').upper()}",
-        f"│ AI Mode: {ai_mode.title()}  │  🔊 TTS Mode: {perf_mode.title()}",
+        f"│ AI Mode: {ai_mode.title()}  │  TTS Mode: {perf_mode.title()}",
     ]
     
     # ── TTS Metrics ──
@@ -159,7 +159,7 @@ def show_today(logger: InteractionLogger):
         print("No interactions logged today.")
         return
 
-    print(f"\n📋 BT-7274 Interaction Log — {datetime.now().strftime('%Y-%m-%d')}")
+    print(f"\n BT-7274 Interaction Log — {datetime.now().strftime('%Y-%m-%d')}")
     print(f"   {len(interactions)} interaction(s) recorded\n")
     for entry in interactions:
         print(format_entry(entry))
@@ -185,13 +185,13 @@ def show_all(logger: InteractionLogger):
             for entry in entries:
                 print(format_entry(entry))
 
-    print(f"\n📊 Total interactions across all logs: {total}")
+    print(f"\n Total interactions across all logs: {total}")
 
 
 def show_summary(logger: InteractionLogger):
     """Display summary statistics."""
     summary = logger.get_log_summary(days=30)
-    print("\n📊 BT-7274 Interaction Log Summary")
+    print("\n BT-7274 Interaction Log Summary")
     print(f"   Log directory: {summary['log_directory']}")
     print(f"   Total log files: {summary['total_log_files']}")
     print(f"   Total interactions: {summary['total_interactions']}")
@@ -207,7 +207,7 @@ def show_date(logger: InteractionLogger, date_str: str):
     with open(log_file, "r", encoding="utf-8") as f:
         entries = [json.loads(line) for line in f if line.strip()]
 
-    print(f"\n📋 BT-7274 Interaction Log — {date_str}")
+    print(f"\n BT-7274 Interaction Log — {date_str}")
     print(f"   {len(entries)} interaction(s) recorded\n")
     for entry in entries:
         print(format_entry(entry))
