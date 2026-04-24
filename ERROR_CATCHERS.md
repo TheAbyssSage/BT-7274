@@ -4,6 +4,25 @@ This document lists all error triggers and exception handlers added across the B
 
 ---
 
+## Recent Improvements for Noisy Environments
+
+### Audio Preprocessing Failures
+Noise reduction preprocessing is now applied to all audio inputs. If preprocessing fails, the system gracefully falls back to using the original audio without noise reduction.
+
+### Bandpass Filter Errors
+Handles "Digital filter critical frequencies must be 0 < Wn < 1" errors by validating frequency ranges before applying filters.
+
+### Follow-up Processing Errors
+Fixed AttributeError when processing follow-up responses by properly extracting text from STT result dictionaries.
+
+### Confidence-Based Filtering
+Low-confidence transcriptions (below 0.3) are now automatically rejected to prevent misinterpretation of noise as commands.
+
+### Adaptive Silence Detection
+The silence detection algorithm now adapts to ambient noise levels, improving performance in varying acoustic environments.
+
+---
+
 ## Error Reporting Infrastructure
 
 ### `pipeline.py` — `_report_error()`

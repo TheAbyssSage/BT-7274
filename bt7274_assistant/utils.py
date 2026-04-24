@@ -49,6 +49,10 @@ class PersistentAudioRecorder:
         self.silence_duration = config.get("silence_duration", 1.5)
         self.max_record_seconds = config.get("max_record_seconds", 30)
         self.post_wake_grace = config.get("post_wake_grace", 1.5)
+        # Adaptive noise floor settings
+        self.adaptive_noise_floor = True
+        self.noise_floor_alpha = 0.01  # Smoothing factor for noise floor estimation
+        self.current_noise_floor = self.silence_threshold
 
         self._stream: Optional[sd.InputStream] = None
         self._recording = False
@@ -64,7 +68,20 @@ class PersistentAudioRecorder:
             rms = np.sqrt(np.mean(indata**2))
             self._audio_buffer.append(indata.copy())
 
-            if rms < self.silence_threshold:
+            # Update adaptive noise floor
+            if self.adaptive_noise_floor:
+                # Exponential smoothing for noise floor estimation
+                self.current_noise_floor = (
+                    self.noise_floor_alpha * rms + 
+                    (1 - self.noise_floor_alpha) * self.current_noise_floor
+                )
+                # Ensure noise floor doesn't go below minimum threshold
+                self.current_noise_floor = max(self.current_noise_floor, 0.005)
+                effective_threshold = max(self.silence_threshold, self.current_noise_floor * 2.0)
+            else:
+                effective_threshold = self.silence_threshold
+
+            if rms < effective_threshold:
                 self._silence_counter += 1
             else:
                 self._silence_counter = 0

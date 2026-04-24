@@ -10,6 +10,7 @@ stt:
   silence_duration: 2.5           # Longer = more time to finish your sentence after "BT"
   max_record_seconds: 15          # Cap recording length
   post_wake_grace: 1.5            # Extra seconds to keep recording after speech starts
+  min_confidence: 0.3             # Minimum confidence threshold for noisy environments
 
 llm:
   # Local Ollama settings
@@ -121,7 +122,13 @@ pipeline:
     - "B.T"
     - "B,T"
     - "B T"
-  wake_word_sensitivity: 0.5
+    # Noise-resistant variants for noisy environments
+    - "hey b*t"
+    - "b*t"
+    - "b t"
+    - "b*t*7274"
+    - "b*t*7*7*4"
+  wake_word_sensitivity: 0.6  # Increased sensitivity for noisy environments
   idle_timeout: 300           # Seconds before unloading models
   play_beep: false            # No beep on start/stop listening
   follow_up:

@@ -27,6 +27,11 @@ A fully local AI assistant based on BT-7274 from Titanfall 2, designed to run on
 | Text-to-Speech | Coqui TTS (XTTS v2) | BT-7274 voice cloning & synthesis | ✅ ~4-6 GB RAM, CPU inference feasible |
 | Action Handler | Python + AppleScript / shell | Execute tasks, control apps, run scripts | ✅ Native macOS integration |
 
+## Recent Improvements
+
+### Noise Resistance Enhancements
+The system now includes advanced noise reduction and adaptive audio processing to work effectively in noisy environments. See [NOISE_IMPROVEMENTS.md](NOISE_IMPROVEMENTS.md) for technical details.
+
 ## Folder Structure
 
 ```

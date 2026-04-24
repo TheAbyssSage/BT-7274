@@ -581,6 +581,12 @@ class BT7274Assistant:
                 print("  ✗ No speech detected.")
                 return False
             print(f"  🎤 Pilot: \"{text}\"")
+            
+            # Confidence-based filtering for noisy environments
+            min_confidence = self.config["stt"].get("min_confidence", 0.3)
+            if stt_confidence is not None and stt_confidence < min_confidence:
+                print(f"  ⚠ Low confidence transcription ({stt_confidence:.2f}). Treating as noise.")
+                return False
 
         # Check wake words
         if not skip_wake_word:
@@ -1079,7 +1085,8 @@ class BT7274Assistant:
             return
 
         print("  [STT] Transcribing follow-up...")
-        text = self.stt.transcribe(audio_path)
+        stt_result = self.stt.transcribe(audio_path)
+        text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
 
         # Clean up temp file
         try:
