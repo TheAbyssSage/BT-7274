@@ -58,6 +58,7 @@ class BT7274Assistant:
         self.interaction_count = 0
         self.pilot_trust_level = 1
         self.errors_this_session = []
+        self.errors_this_interaction = []
         self.actions_this_session = []
         self.weather_context = None
         
@@ -69,7 +70,7 @@ class BT7274Assistant:
             print(f"    ♻️ Cleared {cache_count} cached TTS responses")
 
     def _report_error(self, component: str, function: str, error: Exception, context: dict = None):
-        """Report an error to the session error list for logging."""
+        """Report an error to the current interaction's error list for logging."""
         import traceback
         error_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -81,6 +82,7 @@ class BT7274Assistant:
         }
         if context:
             error_entry["context"] = context
+        self.errors_this_interaction.append(error_entry)
         self.errors_this_session.append(error_entry)
         print(f"    ✗ Error in {component}.{function}: {error}")
 
@@ -1007,8 +1009,8 @@ class BT7274Assistant:
         elif any(err in str(handled_types) for err in ["error", "fail"]):
             protocol_reference = "Protocol 3: Protect the Pilot"
         
-        # Collect errors
-        errors = self.errors_this_session if self.errors_this_session else None
+        # Collect errors (only those from this interaction)
+        errors = self.errors_this_interaction if self.errors_this_interaction else None
         
         # Collect actions executed
         actions_executed = list(handled_types) if handled_types else None
@@ -1051,6 +1053,9 @@ class BT7274Assistant:
         )
 
         self.last_activity = time.time()
+
+        # Clear per-interaction errors for the next turn
+        self.errors_this_interaction = []
 
         # 5. Listen for follow-up if BT asked a question
         max_depth = self.config["pipeline"].get("follow_up", {}).get("max_depth", 1)

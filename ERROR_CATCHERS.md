@@ -1,6 +1,6 @@
 # BT-7274 Error Catchers Reference
 
-This document lists all error triggers and exception handlers added across the BT-7274 assistant codebase. Errors are captured at the component level and reported to the session error list, which is stored in the interaction logs under the `errors` field.
+This document lists all error triggers and exception handlers added across the BT-7274 assistant codebase. Errors are captured at the component level and reported to the **per-interaction** error list, which is stored in each interaction log entry under the `errors` field.
 
 ---
 
@@ -21,10 +21,16 @@ def _report_error(self, component: str, function: str, error: Exception, context
         "traceback": traceback.format_exc(),
         "context": context or {},
     }
-    self.errors_this_session.append(error_entry)
+    self.errors_this_interaction.append(error_entry)   # per-interaction
+    self.errors_this_session.append(error_entry)         # session-wide backup
 ```
 
-Every error caught in the pipeline is appended to `self.errors_this_session`, which is passed to `InteractionLogger.log_interaction()` under the `errors` key.
+Every error caught in the pipeline is appended to `self.errors_this_interaction`. When `InteractionLogger.log_interaction()` is called, **only the errors from the current interaction** are passed under the `errors` key. The list is then cleared for the next turn.
+
+This means:
+- **Conversation 1** → log entry contains only errors from Convo 1
+- **Conversation 2** → log entry contains only errors from Convo 2
+- No cross-contamination between interactions
 
 ---
 
@@ -144,29 +150,65 @@ Every error caught in the pipeline is appended to `self.errors_this_session`, wh
 
 ---
 
-## Log Entry Structure
+## Log Entry Structure (Per-Interaction Errors)
 
-When an interaction is logged, the `errors` field contains a list of all errors reported during that session:
+Each interaction log entry contains **only the errors that occurred during that specific interaction**:
 
+### Conversation 1 — Location Error
 ```json
 {
   "timestamp": "2026-04-24T14:32:01.123456",
-  "date": "2026-04-24",
-  "time": "14:32:01",
-  "pilot_message": "Hey BT, what's the weather?",
-  "bt_response": "Pilot, atmospheric sensors are offline.",
+  "pilot_message": "Hey BT, where am I?",
+  "bt_response": "Pilot, my navigation systems are currently unable to establish our position.",
   "errors": [
     {
       "timestamp": "2026-04-24T14:32:02.456789",
       "component": "actions",
-      "function": "get_weather",
+      "function": "get_location",
       "error_type": "ConnectionError",
-      "error_message": "HTTPSConnectionPool(host='api.open-meteo.com', port=443): Max retries exceeded",
+      "error_message": "HTTPSConnectionPool(host='...', port=443): Max retries exceeded",
       "traceback": "Traceback (most recent call last):\n  ...",
-      "context": {"location": "Tucson"}
+      "context": {}
     }
   ],
-  "actions_executed": ["weather"],
+  "actions_executed": ["location"],
+  "session_id": "a1b2c3d4",
+  ...
+}
+```
+
+### Conversation 2 — Web Search Error
+```json
+{
+  "timestamp": "2026-04-24T14:33:15.789012",
+  "pilot_message": "Hey BT, search for Titanfall news",
+  "bt_response": "Pilot, my sensors cannot reach the data network at this time.",
+  "errors": [
+    {
+      "timestamp": "2026-04-24T14:33:16.123456",
+      "component": "actions",
+      "function": "search_web",
+      "error_type": "ImportError",
+      "error_message": "No module named 'ddgs'",
+      "traceback": "Traceback (most recent call last):\n  ...",
+      "context": {"query": "Titanfall news"}
+    }
+  ],
+  "actions_executed": ["search"],
+  "session_id": "a1b2c3d4",
+  ...
+}
+```
+
+### Conversation 3 — No Errors
+```json
+{
+  "timestamp": "2026-04-24T14:34:30.456789",
+  "pilot_message": "Hey BT, what time is it?",
+  "bt_response": "Pilot, today is Thursday, April 24, 2026. The current time is 02:34 PM.",
+  "errors": null,
+  "actions_executed": ["time"],
+  "session_id": "a1b2c3d4",
   ...
 }
 ```
@@ -196,4 +238,4 @@ def some_function():
         return f"Descriptive failure message: {str(e)}"
 ```
 
-This ensures every failure is captured, logged, and surfaced to the Pilot in-character.
+This ensures every failure is captured, logged per-interaction, and surfaced to the Pilot in-character.
