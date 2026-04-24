@@ -31,6 +31,23 @@ def load_phrases_from_config():
         if key.startswith("standby_phrases"):
             phrases.extend(pipeline[key])
 
+    # Add common response patterns for better caching coverage
+    common_responses = [
+        "Processing complete, Pilot.",
+        "Operation complete, Pilot.",
+        "Task completed, Pilot.",
+        "Execution successful, Pilot.",
+        "Sequence complete, Pilot.",
+        "Protocol fulfilled, Pilot.",
+        "Mission accomplished, Pilot.",
+        "Objective achieved, Pilot.",
+        "Analysis complete, Pilot.",
+        "Calculation finished, Pilot.",
+        "Diagnostic concluded, Pilot.",
+        "Scan completed, Pilot."
+    ]
+    phrases.extend(common_responses)
+
     # Remove duplicates while preserving order
     seen = set()
     unique_phrases = []

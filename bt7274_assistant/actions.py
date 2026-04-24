@@ -282,3 +282,11 @@ def _fetch_weather(lat: float, lon: float, city_name: str = None):
         f"Current weather in {loc_str}: {condition}, "
         f"{temp}°C, wind {wind} km/h."
     )
+
+
+@register_action("clear_tts_cache")
+def action_clear_tts_cache():
+    """Clear the TTS response cache."""
+    # This action needs access to the assistant instance
+    # For now, we'll return a message indicating it should be handled by the pipeline
+    return "TTS cache clearing requested. This will be handled by the main pipeline."

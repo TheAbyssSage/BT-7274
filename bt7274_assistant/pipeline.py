@@ -26,26 +26,35 @@ sys.path.insert(0, str(Path(__file__).parent))
 from stt import WhisperSTT
 from llm import OllamaClient, CloudLLMClient
 from tts import XTTSClient
+from tts_fast import StreamingXTTSClient
 from actions import ActionHandler
 from location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep
 
 
 class BT7274Assistant:
-    def __init__(self, config_path: str = None, ai_mode: str = "local"):
+    def __init__(self, config_path: str = None, ai_mode: str = "local", performance_mode: str = None):
         if config_path is None:
             config_path = str(Path(__file__).parent / "config.yaml")
         self.config = self.load_config(config_path)
         self.ai_mode = ai_mode  # "local" or "cloud"
+        self.performance_mode = performance_mode  # "standard" or "performance"
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
-        self.tts: Optional[XTTSClient] = None
+        self.tts = None  # Can be XTTSClient or StreamingXTTSClient
         self.actions: Optional[ActionHandler] = None
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
         self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
         self.running = False
         self.last_activity = time.time()
+        
+    def clear_tts_cache(self):
+        """Clear the TTS response cache."""
+        if self.tts:
+            cache_count = len(self.tts._response_cache)
+            self.tts._response_cache.clear()
+            print(f"    ♻️ Cleared {cache_count} cached TTS responses")
 
     def load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
@@ -58,13 +67,13 @@ class BT7274Assistant:
         print("  Protocol 1: Link to Pilot")
         print("=" * 50)
 
-        print("\n[1/8] Initializing Speech-to-Text...")
+        print("\n[1/9] Initializing Speech-to-Text...")
         self.stt = WhisperSTT(self.config["stt"])
         # Preload Whisper model to avoid delays during first transcription
         _ = self.stt.model
         print("    ✓ Whisper model loaded and ready.")
 
-        print("\n[2/8] Which LLM?")
+        print("\n[2/9] Which LLM?")
         if self.ai_mode is None:
             # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
@@ -95,26 +104,65 @@ class BT7274Assistant:
             model_name = self.config["llm"][self.ai_mode]["model"]
             print(f"  → Using: {mode_name} ({model_name}) (preselected)")
 
-        print(f"\n[3/8] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
+        print(f"\n[3/9] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
         # Use OllamaClient for both local and cloud since they use the same API
         # Merge system prompt from top-level llm config
         llm_config = self.config["llm"][self.ai_mode].copy()
         llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
         self.llm = OllamaClient(llm_config)
 
-        print("\n[4/8] Initializing Text-to-Speech...")
-        self.tts = XTTSClient(self.config["tts"])
+        print("\n[4/9] Performance Mode Selection")
+        if self.performance_mode is None:
+            print("  [1] Standard Mode")
+            print("      Full response synthesized, then played")
+            print("      Best for: Short responses, maximum voice quality")
+            print("")
+            print("  [2] Performance Mode (STREAMING)")
+            print("      Sentence-level streaming with parallel synthesis")
+            print("      Best for: Long responses, minimal latency")
+            print("      ⚡ First audio plays in ~2-4 seconds")
+            print("      ⚡ BT-7274's voice maintained throughout")
+            
+            while True:
+                try:
+                    choice = input("\nSelect mode [1-2]: ").strip()
+                    if choice == "1":
+                        self.performance_mode = "standard"
+                        print("  → Selected: Standard Mode")
+                        break
+                    elif choice == "2":
+                        self.performance_mode = "performance"
+                        print("  → Selected: Performance Mode (Streaming)")
+                        break
+                    else:
+                        print("  Invalid choice. Please enter 1 or 2.")
+                except (EOFError, KeyboardInterrupt):
+                    print("\n  Exiting...")
+                    sys.exit(0)
+        else:
+            mode_display = "Standard" if self.performance_mode == "standard" else "Performance (Streaming)"
+            print(f"  → Using: {mode_display} (preselected)")
+
+        print(f"\n[5/9] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)...")
+        if self.performance_mode == "performance":
+            self.tts = StreamingXTTSClient(self.config["tts"])
+            print("    ⚡ Streaming TTS engine initialized")
+            print("    ⚡ Sentence-level parallel synthesis enabled")
+        else:
+            self.tts = XTTSClient(self.config["tts"])
+            print("    ✓ Standard TTS engine initialized")
+        
         # Preload TTS model at startup to avoid delays during first synthesis
-        _ = self.tts.model  # Trigger model loading
+        self.tts.ensure_ready()
         print("    ✓ TTS model loaded and ready.")
 
-        print("\n[5/8] Checking standby audio files...")
+        print("\n[6/9] Checking standby audio files...")
         self._check_and_generate_standby_clips()
 
-        print("\n[6/8] Initializing Action Handler...")
+        print("\n[7/9] Initializing Action Handler...")
         self.actions = ActionHandler(self.config["actions"])
 
-        print("\n[7/8] Initializing Location Services...")
+        print("\n[8/9] Initializing Location Services...")
         manual_loc = self.config.get("location", {}).get("manual")
         self.location = LocationProvider(manual_location=manual_loc)
         if self.location.update():
@@ -122,12 +170,14 @@ class BT7274Assistant:
         else:
             print("    ⚠ Location unavailable.")
 
-        print("\n[8/8] Opening persistent audio stream...")
+        print("\n[9/9] Opening persistent audio stream...")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
         print("    ✓ Microphone stream active.")
 
         print("\n✓ All systems online.")
+        if self.performance_mode == "performance":
+            print("  ⚡ Performance Mode: Streaming TTS active")
         print("  Say 'Hey BT' or press Enter to speak.\n")
 
     def _normalize_phrase(self, phrase: str) -> str:
@@ -400,6 +450,19 @@ class BT7274Assistant:
             if key.startswith("standby_phrases"):
                 all_phrases.extend(pipeline[key])
         
+        # Add common response patterns for better caching coverage
+        common_responses = [
+            "Processing complete, Pilot.",
+            "Operation complete, Pilot.",
+            "Task completed, Pilot.",
+            "Execution successful, Pilot.",
+            "Sequence complete, Pilot.",
+            "Protocol fulfilled, Pilot.",
+            "Mission accomplished, Pilot.",
+            "Objective achieved, Pilot."
+        ]
+        all_phrases.extend(common_responses)
+        
         # Remove duplicates while preserving order
         seen = set()
         phrases = []
@@ -487,6 +550,37 @@ class BT7274Assistant:
             wav = self.tts.speak(phrase)
             if wav:
                 play_audio(wav)
+                
+        # Helper: try to find a suitable standby clip for common responses
+        def try_standby_for_response(response_text: str) -> Optional[str]:
+            """Try to match a response to a pre-generated standby clip."""
+            if not response_text:
+                return None
+                
+            normalized = self._normalize_phrase(response_text)
+            
+            # Direct match
+            if normalized in self.standby_clips:
+                return self.standby_clips[normalized]
+                
+            # Partial matches for common patterns
+            common_patterns = {
+                "you're welcome": ["thank you", "thanks", "thx"],
+                "copy that": ["acknowledged", "understood", "roger"],
+                "stand by": ["standby", "waiting", "processing"],
+                "retrieving": ["fetching", "accessing", "pulling"],
+                "pilot": ["user", "human", "person"]
+            }
+            
+            for standby_key, patterns in common_patterns.items():
+                for pattern in patterns:
+                    if pattern in normalized:
+                        # Look for a standby clip that contains this pattern
+                        for key, path in self.standby_clips.items():
+                            if standby_key in key and Path(path).exists():
+                                return path
+                                
+            return None
 
         # Special handling for gratitude expressions
         if self._is_expression_of_gratitude(text):
@@ -497,10 +591,30 @@ class BT7274Assistant:
             if wav_path and Path(wav_path).exists():
                 play_audio(wav_path)
             else:
-                # Fallback to TTS
-                response_wav = self.tts.speak("You're welcome, Pilot.")
-                if response_wav:
-                    play_audio(response_wav)
+                # Try other variations of gratitude responses
+                gratitude_variations = [
+                    "you're welcome pilot",
+                    "you're welcome",
+                    "my pleasure pilot",
+                    "glad to assist pilot",
+                    "happy to help pilot",
+                    "anytime pilot"
+                ]
+                
+                found_clip = False
+                for variation in gratitude_variations:
+                    var_key = self._normalize_phrase(variation)
+                    var_path = self.standby_clips.get(var_key)
+                    if var_path and Path(var_path).exists():
+                        play_audio(var_path)
+                        found_clip = True
+                        break
+                        
+                if not found_clip:
+                    # Fallback to TTS
+                    response_wav = self.tts.speak("You're welcome, Pilot.")
+                    if response_wav:
+                        play_audio(response_wav)
             self.last_activity = time.time()
             return True
 
@@ -601,10 +715,18 @@ class BT7274Assistant:
                 response_parts.append("Pilot, my sensors cannot reach the data network at this time.")
                 handled_types.add("search")
 
+        # Check for TTS cache clearing request
+        if "clear tts cache" in text.lower() or "clear cache" in text.lower():
+            print("  ♻️ Clearing TTS cache...")
+            self.clear_tts_cache()
+            response_parts.append("TTS cache cleared, Pilot.")
+            handled_types.add("maintenance")
+
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
         is_information_query = self._is_event_information_query(text)
-        is_travel_related = (self._is_travel_query(text) or self._mentions_destination(text) or self._is_requesting_travel_options(text) or self._is_travel_query_complex(text))
+        is_travel_related = (self._is_travel_query(text) or self._mentions_destination(text) or 
+                           self._is_requesting_travel_options(text) or self._is_travel_query_complex(text))
         
         if is_travel_related and "travel" not in handled_types and not is_information_query:
             # For travel queries, silently get user's location and inject it into the LLM prompt
@@ -671,6 +793,33 @@ class BT7274Assistant:
         # Collapse multiple blank lines
         clean_response = '\n'.join(line for line in clean_response.splitlines() if line.strip())
         
+        # Optimize response for TTS - break into smaller segments for better pacing
+        # This helps with long responses that might cause TTS delays
+        if len(clean_response) > 300:
+            # Look for sentence boundaries to break the response
+            sentences = re.split(r'(?<=[.!?])\s+', clean_response)
+            if len(sentences) > 1:
+                # Join sentences until we get reasonable chunks
+                optimized_segments = []
+                current_segment = ""
+                
+                for sentence in sentences:
+                    if len(current_segment) + len(sentence) < 200:
+                        current_segment += " " + sentence if current_segment else sentence
+                    else:
+                        if current_segment:
+                            optimized_segments.append(current_segment)
+                        current_segment = sentence
+                        
+                if current_segment:
+                    optimized_segments.append(current_segment)
+                    
+                # If we have multiple segments, consider playing them separately
+                # for better responsiveness (but we'll keep as single for now)
+                if len(optimized_segments) > 1:
+                    # Could implement staggered playback here if needed
+                    pass
+        
         # Post-process to correct location inaccuracies
         if "New London" in clean_response:
             # Try to get actual location and replace New London references
@@ -690,9 +839,23 @@ class BT7274Assistant:
 
         # 4. Text-to-Speech
         print("  [TTS] Synthesizing voice...")
-        output_wav = self.tts.speak(clean_response)
-        if output_wav:
-            play_audio(output_wav)
+        
+        # Try to use a standby clip for common responses to reduce latency
+        standby_wav = try_standby_for_response(clean_response)
+        if standby_wav and Path(standby_wav).exists():
+            print("    ♻️ Using pre-generated standby clip")
+            play_audio(standby_wav)
+        else:
+            # Use appropriate TTS method based on performance mode
+            if self.performance_mode == "performance":
+                # Performance mode: Use streaming TTS for sentence-level playback
+                print("    ⚡ Streaming TTS (sentence-level)...")
+                self.tts.speak_streaming(clean_response)
+            else:
+                # Standard mode: Full response synthesis then playback
+                output_wav = self.tts.speak(clean_response)
+                if output_wav:
+                    play_audio(output_wav)
 
         self.last_activity = time.time()
 
@@ -736,14 +899,36 @@ class BT7274Assistant:
         # Check for gratitude expressions FIRST (before stop phrases)
         if self._is_expression_of_gratitude(text):
             print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
+            # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")
             wav_path = self.standby_clips.get(key)
             if wav_path and Path(wav_path).exists():
                 play_audio(wav_path)
             else:
-                response_wav = self.tts.speak("You're welcome, Pilot.")
-                if response_wav:
-                    play_audio(response_wav)
+                # Try other variations of gratitude responses
+                gratitude_variations = [
+                    "you're welcome pilot",
+                    "you're welcome",
+                    "my pleasure pilot",
+                    "glad to assist pilot",
+                    "happy to help pilot",
+                    "anytime pilot"
+                ]
+                
+                found_clip = False
+                for variation in gratitude_variations:
+                    var_key = self._normalize_phrase(variation)
+                    var_path = self.standby_clips.get(var_key)
+                    if var_path and Path(var_path).exists():
+                        play_audio(var_path)
+                        found_clip = True
+                        break
+                        
+                if not found_clip:
+                    # Fallback to TTS
+                    response_wav = self.tts.speak("You're welcome, Pilot.")
+                    if response_wav:
+                        play_audio(response_wav)
             self.last_activity = time.time()
             # After gratitude, listen for another follow-up
             if follow_up_depth < self.config["pipeline"].get("follow_up", {}).get("max_depth", 1):
@@ -809,10 +994,12 @@ def main():
                         help="Force regenerate ALL standby audio files")
     parser.add_argument("--ai-mode", choices=["local", "cloud"], 
                         help="AI mode (local or cloud)")
+    parser.add_argument("--performance-mode", choices=["standard", "performance"], 
+                        help="TTS mode (standard or performance)")
     args = parser.parse_args()
     
-    # Initialize with no preset AI mode so user can choose during startup
-    assistant = BT7274Assistant(ai_mode=args.ai_mode)
+    # Initialize with no preset modes so user can choose during startup
+    assistant = BT7274Assistant(ai_mode=args.ai_mode, performance_mode=args.performance_mode)
     
     if args.generate_responses or args.force_regenerate:
         # Initialize all components first

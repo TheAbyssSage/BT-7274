@@ -55,6 +55,7 @@ llm:
     When geographic locations are mentioned in the query context, treat them as REAL-WORLD locations, not fictional game world locations.
     If the Pilot asks multiple questions at once, address each part completely.
     For compound queries, provide comprehensive answers that cover all requested information.
+    You can clear the TTS response cache by saying "clear tts cache" or "clear cache".
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -74,6 +75,19 @@ tts:
   output_dir: outputs
   use_mps: false              # XTTS v2 works best on CPU for M1
 
+# Performance Mode Configuration
+# Choose between "standard" (original) and "performance" (streaming) TTS
+# standard: Full response synthesized at once, then played
+# performance: Sentence-level streaming with parallel synthesis and playback
+performance_mode: standard    # Options: standard | performance
+
+# Streaming TTS settings (only used in performance mode)
+streaming:
+  enabled: false              # Auto-enabled when performance_mode = performance
+  max_queue_size: 3           # Max sentences to buffer ahead
+  sentence_min_length: 20     # Minimum characters to treat as a sentence
+  enable_metrics: true          # Show timing stats after each response
+
 actions:
   enabled: true
   allowed_commands:
@@ -90,6 +104,7 @@ actions:
     - get_location_structured
     - get_weather
     - get_weather_for_location
+    - clear_tts_cache
 
 pipeline:
   wake_words:                 # List of trigger phrases (any match activates BT)
@@ -136,16 +151,37 @@ pipeline:
     - "Glad to assist, Pilot."
     - "Happy to help, Pilot."
     - "Anytime, Pilot."
+    - "Understood, Pilot."
+    - "Affirmative, Pilot."
+    - "Roger that, Pilot."
+    - "Confirmed, Pilot."
+    - "Executing, Pilot."
+    - "Initiating, Pilot."
+    - "Commencing, Pilot."
   standby_phrases_weather:    # Spoken while fetching weather data
     - "Copy that, Pilot. Pulling weather data."
     - "Acknowledged. Accessing atmospheric sensors."
     - "Stand by. Retrieving local weather conditions."
     - "Copy. Querying meteorological feeds."
+    - "Processing weather data."
+    - "Analyzing atmospheric conditions."
   standby_phrases_search:     # Spoken while searching the web
     - "Retrieving data from the web."
     - "Copy that. Searching data networks."
     - "Stand by, Pilot. Accessing external databases."
     - "Acknowledged. Pulling information from the grid."
+    - "Querying data repositories."
+    - "Accessing information networks."
+  standby_phrases_location:   # Spoken while fetching location
+    - "Locating Pilot position."
+    - "Determining current coordinates."
+    - "Acquiring positional data."
+    - "Establishing geographic position."
+  standby_phrases_time:       # Spoken while fetching time
+    - "Checking chronometer."
+    - "Accessing temporal systems."
+    - "Querying time databases."
+    - "Retrieving current timestamp."
 
 paths:
   dataset: dataset

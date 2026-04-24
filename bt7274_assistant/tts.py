@@ -5,7 +5,9 @@ Text-to-Speech module using Coqui XTTS v2 for BT-7274 voice cloning.
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
+from functools import lru_cache
+import hashlib
 
 # Patch for PyTorch 2.6+ weights_only loading with XTTS
 # XTTS model checkpoints were created before weights_only=True became default
@@ -32,6 +34,14 @@ class XTTSClient:
         self._model = None
         self._gpt_cond_latent = None
         self._speaker_embedding = None
+        # Cache for generated responses to avoid re-synthesis
+        self._response_cache: Dict[str, str] = {}
+        # Maximum cache size
+        self._max_cache_size = 50
+
+    def ensure_ready(self):
+        """Ensure model is loaded and ready."""
+        _ = self.model
 
     @property
     def model(self):
@@ -74,7 +84,21 @@ class XTTSClient:
         # Also handle standalone 7274 references
         text = re.sub(r'\b7274\b', 'seven two seven four', text)
 
+        # Handle common abbreviations for better pronunciation
+        text = re.sub(r'\bAPI\b', 'A P I', text)
+        text = re.sub(r'\bURL\b', 'U R L', text)
+        text = re.sub(r'\bHTTP\b', 'H T T P', text)
+        text = re.sub(r'\bAI\b', 'A I', text)
+
         return text
+
+    def _get_text_hash(self, text: str) -> str:
+        """Generate a hash for caching purposes."""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()[:12]
+
+    def _is_cache_valid(self, file_path: str) -> bool:
+        """Check if cached file exists and is valid."""
+        return file_path and os.path.exists(file_path)
 
     def speak(self, text: str) -> Optional[str]:
         """Synthesize speech and return the output WAV path."""
@@ -94,12 +118,41 @@ class XTTSClient:
         # Preprocess for correct pronunciation
         text = self._preprocess_text(text)
 
+        # Check cache first
+        text_hash = self._get_text_hash(text)
+        cache_key = f"tts_{text_hash}"
+        if cache_key in self._response_cache:
+            cached_path = self._response_cache[cache_key]
+            if self._is_cache_valid(cached_path):
+                print("    ♻️ Using cached TTS response")
+                return cached_path
+
         # Truncate very long responses to avoid slow synthesis
+        # But preserve sentence boundaries for better listening experience
         max_chars = 600
         if len(text) > max_chars:
-            text = text[:max_chars].rsplit('.', 1)[0] + '.'
+            # Try to truncate at sentence boundary
+            truncated = text[:max_chars]
+            last_sentence_end = truncated.rfind('.')
+            if last_sentence_end > max_chars * 0.7:  # If we have a reasonably long sentence
+                text = truncated[:last_sentence_end + 1]
+            else:
+                # If no good sentence boundary, just cut at max and add ellipsis
+                text = truncated.rsplit('.', 1)[0] + '...'
 
-        output_path = self.output_dir / f"bt7274_{os.urandom(4).hex()}.wav"
+        output_path = self.output_dir / f"bt7274_{text_hash}.wav"
+
+        # If file already exists, use it
+        if self._is_cache_valid(str(output_path)):
+            print("    ♻️ Using existing TTS file")
+            self._response_cache[cache_key] = str(output_path)
+            # Maintain cache size
+            if len(self._response_cache) > self._max_cache_size:
+                # Remove oldest entries
+                keys_to_remove = list(self._response_cache.keys())[:10]
+                for key in keys_to_remove:
+                    del self._response_cache[key]
+            return str(output_path)
 
         try:
             # Use the standard TTS API (cached latents path is unstable on some setups)
@@ -109,6 +162,16 @@ class XTTSClient:
                 language=self.language
             )
             sf.write(str(output_path), wav, 24000)
+            
+            # Add to cache
+            self._response_cache[cache_key] = str(output_path)
+            # Maintain cache size
+            if len(self._response_cache) > self._max_cache_size:
+                # Remove oldest entries
+                keys_to_remove = list(self._response_cache.keys())[:10]
+                for key in keys_to_remove:
+                    del self._response_cache[key]
+            
             return str(output_path)
         except Exception as e:
             print(f"    ✗ TTS error: {e}")
@@ -119,5 +182,7 @@ class XTTSClient:
         self._model = None
         self._gpt_cond_latent = None
         self._speaker_embedding = None
+        # Clear cache but keep the cache structure
+        self._response_cache.clear()
         import gc
         gc.collect()
