@@ -30,6 +30,7 @@ from tts_fast import StreamingXTTSClient
 from actions import ActionHandler
 from location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep
+from interaction_logger import InteractionLogger
 
 
 class BT7274Assistant:
@@ -48,6 +49,7 @@ class BT7274Assistant:
         self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
         self.running = False
         self.last_activity = time.time()
+        self.logger = InteractionLogger()
         
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
@@ -836,6 +838,18 @@ class BT7274Assistant:
             clean_response = "Processing complete, Pilot."
 
         print(f"  🤖 BT-7274: \"{clean_response}\"")
+
+        # Log the interaction
+        self.logger.log_interaction(
+            pilot_message=text,
+            bt_response=clean_response,
+            interaction_type="voice",
+            ai_mode=self.ai_mode,
+            performance_mode=self.performance_mode,
+            metadata={
+                "handled_types": list(handled_types) if 'handled_types' in locals() else [],
+            },
+        )
 
         # 4. Text-to-Speech
         print("  [TTS] Synthesizing voice...")
