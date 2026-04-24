@@ -115,53 +115,65 @@ class LocationProvider:
 
     def update(self) -> bool:
         """Refresh location data. Returns True if successful."""
-        # Use manual override if provided
-        if self._manual:
-            self._lat = self._manual.get("lat")
-            self._lon = self._manual.get("lon")
-            self._city = self._manual.get("city", "")
-            self._region = self._manual.get("region", "")
-            self._country = self._manual.get("country", "")
-            self._last_update = datetime.now()
-            return True
+        try:
+            # Use manual override if provided
+            if self._manual:
+                self._lat = self._manual.get("lat")
+                self._lon = self._manual.get("lon")
+                self._city = self._manual.get("city", "")
+                self._region = self._manual.get("region", "")
+                self._country = self._manual.get("country", "")
+                self._last_update = datetime.now()
+                return True
 
-        result = self._get_macos_location()
-        if result is None:
-            result = self._get_ip_location()
+            result = self._get_macos_location()
+            if result is None:
+                result = self._get_ip_location()
 
-        if result:
-            self._lat, self._lon, self._city, self._region, self._country = result
-            self._last_update = datetime.now()
-            return True
+            if result:
+                self._lat, self._lon, self._city, self._region, self._country = result
+                self._last_update = datetime.now()
+                return True
+        except Exception as e:
+            pass
         return False
 
     @property
     def location_str(self) -> str:
         """Human-readable location string."""
-        if self._is_stale():
-            self.update()
-        parts = [p for p in [self._city, self._region, self._country] if p]
-        if parts:
-            return ", ".join(parts)
+        try:
+            if self._is_stale():
+                self.update()
+            parts = [p for p in [self._city, self._region, self._country] if p]
+            if parts:
+                return ", ".join(parts)
+        except Exception:
+            pass
         return "Unknown location"
 
     @property
     def lat_lon(self) -> Optional[Tuple[float, float]]:
         """Latitude and longitude tuple."""
-        if self._is_stale():
-            self.update()
-        if self._lat is not None and self._lon is not None:
-            return (self._lat, self._lon)
+        try:
+            if self._is_stale():
+                self.update()
+            if self._lat is not None and self._lon is not None:
+                return (self._lat, self._lon)
+        except Exception:
+            pass
         return None
 
     def enrich_query(self, query: str) -> str:
         """Add location context to a search query."""
-        if self._is_stale():
-            self.update()
-        loc = self.location_str
-        if loc and loc != "Unknown location":
-            # Only add location if query doesn't already specify one
-            lower = query.lower()
-            if not any(x in lower for x in ["in ", "near ", "at ", "around "]):
-                return f"{query} in {loc}"
+        try:
+            if self._is_stale():
+                self.update()
+            loc = self.location_str
+            if loc and loc != "Unknown location":
+                # Only add location if query doesn't already specify one
+                lower = query.lower()
+                if not any(x in lower for x in ["in ", "near ", "at ", "around "]):
+                    return f"{query} in {loc}"
+        except Exception:
+            pass
         return query

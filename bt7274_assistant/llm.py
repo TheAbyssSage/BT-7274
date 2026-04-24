@@ -60,21 +60,24 @@ class OllamaClient:
 
     def extract_action(self, text: str) -> Optional[dict]:
         """Extract JSON action block from LLM response."""
-        # Look for JSON code blocks
-        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
+        try:
+            # Look for JSON code blocks
+            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    pass
 
-        # Look for inline JSON
-        json_match = re.search(r'\{[^{}]*"action"[^{}]*\}', text)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                pass
+            # Look for inline JSON
+            json_match = re.search(r'\{[^{}]*"action"[^{}]*\}', text)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            return {"error": f"Action extraction failed: {str(e)}"}
 
         return None
 
@@ -129,20 +132,23 @@ class CloudLLMClient:
 
     def extract_action(self, text: str) -> Optional[dict]:
         """Extract JSON action block from LLM response."""
-        # Look for JSON code blocks
-        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
+        try:
+            # Look for JSON code blocks
+            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    pass
 
-        # Look for inline JSON
-        json_match = re.search(r'\{[^{}]*"action"[^{}]*\}', text)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                pass
+            # Look for inline JSON
+            json_match = re.search(r'\{[^{}]*"action"[^{}]*\}', text)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            return {"error": f"Action extraction failed: {str(e)}"}
 
         return None

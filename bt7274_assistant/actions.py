@@ -107,51 +107,72 @@ def action_say(text: str):
 @register_action("open")
 def action_open(app: str):
     """Open a macOS application."""
-    os.system(f'open -a "{app}"')
-    return f"Opened {app}."
+    try:
+        os.system(f'open -a "{app}"')
+        return f"Opened {app}."
+    except Exception as e:
+        return f"Failed to open {app}: {str(e)}"
 
 
 @register_action("run_script")
 def action_run_script(script: str):
     """Run a shell script or command."""
-    result = subprocess.run(script, shell=True, capture_output=True, text=True)
-    return f"Script executed. Output: {result.stdout[:200]}"
+    try:
+        result = subprocess.run(script, shell=True, capture_output=True, text=True)
+        return f"Script executed. Output: {result.stdout[:200]}"
+    except Exception as e:
+        return f"Script failed: {str(e)}"
 
 
 @register_action("set_volume")
 def action_set_volume(level: int):
     """Set system volume (0-100)."""
-    os.system(f"osascript -e 'set volume output volume {level}'")
-    return f"Volume set to {level}%."
+    try:
+        os.system(f"osascript -e 'set volume output volume {level}'")
+        return f"Volume set to {level}%."
+    except Exception as e:
+        return f"Failed to set volume: {str(e)}"
 
 
 @register_action("tell_time")
 def action_tell_time():
     """Return current time."""
-    now = datetime.now().strftime("%I:%M %p")
-    return f"The current time is {now}."
+    try:
+        now = datetime.now().strftime("%I:%M %p")
+        return f"The current time is {now}."
+    except Exception as e:
+        return f"Failed to get time: {str(e)}"
 
 
 @register_action("tell_date")
 def action_tell_date():
     """Return current date."""
-    now = datetime.now().strftime("%A, %B %d, %Y")
-    return f"Today is {now}."
+    try:
+        now = datetime.now().strftime("%A, %B %d, %Y")
+        return f"Today is {now}."
+    except Exception as e:
+        return f"Failed to get date: {str(e)}"
 
 
 @register_action("web_search")
 def action_web_search(query: str):
     """Open browser with search query."""
-    url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-    webbrowser.open(url)
-    return f"Searching for '{query}'."
+    try:
+        url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
+        webbrowser.open(url)
+        return f"Searching for '{query}'."
+    except Exception as e:
+        return f"Search failed: {str(e)}"
 
 
 @register_action("trigger_shortcut")
 def action_trigger_shortcut(name: str):
     """Run a macOS Shortcuts automation."""
-    os.system(f'shortcuts run "{name}"')
-    return f"Triggered shortcut: {name}."
+    try:
+        os.system(f'shortcuts run "{name}"')
+        return f"Triggered shortcut: {name}."
+    except Exception as e:
+        return f"Shortcut failed: {str(e)}"
 
 
 @register_action("search_web")

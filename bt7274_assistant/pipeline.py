@@ -68,6 +68,22 @@ class BT7274Assistant:
             self.tts._response_cache.clear()
             print(f"    ♻️ Cleared {cache_count} cached TTS responses")
 
+    def _report_error(self, component: str, function: str, error: Exception, context: dict = None):
+        """Report an error to the session error list for logging."""
+        import traceback
+        error_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "component": component,
+            "function": function,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "traceback": traceback.format_exc(),
+        }
+        if context:
+            error_entry["context"] = context
+        self.errors_this_session.append(error_entry)
+        print(f"    ✗ Error in {component}.{function}: {error}")
+
     def load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
             return yaml.safe_load(f)
@@ -80,10 +96,14 @@ class BT7274Assistant:
         print("=" * 50)
 
         print("\n[1/9] Initializing Speech-to-Text...")
-        self.stt = WhisperSTT(self.config["stt"])
-        # Preload Whisper model to avoid delays during first transcription
-        _ = self.stt.model
-        print("    ✓ Whisper model loaded and ready.")
+        try:
+            self.stt = WhisperSTT(self.config["stt"])
+            # Preload Whisper model to avoid delays during first transcription
+            _ = self.stt.model
+            print("    ✓ Whisper model loaded and ready.")
+        except Exception as e:
+            self._report_error("stt", "initialize", e)
+            print(f"    ✗ STT initialization failed: {e}")
 
         print("\n[2/9] Which LLM?")
         if self.ai_mode is None:
@@ -117,11 +137,15 @@ class BT7274Assistant:
             print(f"  → Using: {mode_name} ({model_name}) (preselected)")
 
         print(f"\n[3/9] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
-        # Use OllamaClient for both local and cloud since they use the same API
-        # Merge system prompt from top-level llm config
-        llm_config = self.config["llm"][self.ai_mode].copy()
-        llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
-        self.llm = OllamaClient(llm_config)
+        try:
+            # Use OllamaClient for both local and cloud since they use the same API
+            # Merge system prompt from top-level llm config
+            llm_config = self.config["llm"][self.ai_mode].copy()
+            llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
+            self.llm = OllamaClient(llm_config)
+        except Exception as e:
+            self._report_error("llm", "initialize", e)
+            print(f"    ✗ LLM initialization failed: {e}")
 
         print("\n[4/9] Performance Mode Selection")
         if self.performance_mode is None:
@@ -156,31 +180,43 @@ class BT7274Assistant:
             print(f"  → Using: {mode_display} (preselected)")
 
         print(f"\n[5/9] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)...")
-        if self.performance_mode == "performance":
-            self.tts = StreamingXTTSClient(self.config["tts"])
-            print("    ⚡ Streaming TTS engine initialized")
-            print("    ⚡ Sentence-level parallel synthesis enabled")
-        else:
-            self.tts = XTTSClient(self.config["tts"])
-            print("    ✓ Standard TTS engine initialized")
-        
-        # Preload TTS model at startup to avoid delays during first synthesis
-        self.tts.ensure_ready()
-        print("    ✓ TTS model loaded and ready.")
+        try:
+            if self.performance_mode == "performance":
+                self.tts = StreamingXTTSClient(self.config["tts"])
+                print("    ⚡ Streaming TTS engine initialized")
+                print("    ⚡ Sentence-level parallel synthesis enabled")
+            else:
+                self.tts = XTTSClient(self.config["tts"])
+                print("    ✓ Standard TTS engine initialized")
+            
+            # Preload TTS model at startup to avoid delays during first synthesis
+            self.tts.ensure_ready()
+            print("    ✓ TTS model loaded and ready.")
+        except Exception as e:
+            self._report_error("tts", "initialize", e)
+            print(f"    ✗ TTS initialization failed: {e}")
 
         print("\n[6/9] Checking standby audio files...")
         self._check_and_generate_standby_clips()
 
         print("\n[7/9] Initializing Action Handler...")
-        self.actions = ActionHandler(self.config["actions"])
+        try:
+            self.actions = ActionHandler(self.config["actions"])
+        except Exception as e:
+            self._report_error("actions", "initialize", e)
+            print(f"    ✗ Action handler initialization failed: {e}")
 
         print("\n[8/9] Initializing Location Services...")
-        manual_loc = self.config.get("location", {}).get("manual")
-        self.location = LocationProvider(manual_location=manual_loc)
-        if self.location.update():
-            print(f"    📍 Location: {self.location.location_str}")
-        else:
-            print("    ⚠ Location unavailable.")
+        try:
+            manual_loc = self.config.get("location", {}).get("manual")
+            self.location = LocationProvider(manual_location=manual_loc)
+            if self.location.update():
+                print(f"    📍 Location: {self.location.location_str}")
+            else:
+                print("    ⚠ Location unavailable.")
+        except Exception as e:
+            self._report_error("location", "initialize", e)
+            print(f"    ✗ Location services initialization failed: {e}")
 
         print("\n[9/9] Opening persistent audio stream...")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
@@ -531,9 +567,14 @@ class BT7274Assistant:
             print(f"\n  🎤 Pilot: \"{text}\"")
         else:
             print("\n  [STT] Transcribing...")
-            stt_result = self.stt.transcribe(audio_path)
-            text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
-            stt_confidence = stt_result.get("confidence") if isinstance(stt_result, dict) else None
+            try:
+                stt_result = self.stt.transcribe(audio_path)
+                text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
+                stt_confidence = stt_result.get("confidence") if isinstance(stt_result, dict) else None
+            except Exception as e:
+                self._report_error("stt", "transcribe", e, {"audio_path": audio_path})
+                text = ""
+                stt_confidence = 0.0
             if not text or not text.strip():
                 print("  ✗ No speech detected.")
                 return False
@@ -640,93 +681,121 @@ class BT7274Assistant:
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
             print("  📍 Locating Pilot...")
-            location_result = self.actions.execute("get_location")
-            if location_result and not location_result.startswith("Location"):
-                print(f"  📍 {location_result}")
-                response_parts.append(f"Pilot, {location_result}")
-                handled_types.add("location")
-            else:
+            try:
+                location_result = self.actions.execute("get_location")
+                if location_result and not location_result.startswith("Location"):
+                    print(f"  📍 {location_result}")
+                    response_parts.append(f"Pilot, {location_result}")
+                    handled_types.add("location")
+                else:
+                    response_parts.append("Pilot, my navigation systems are currently unable to establish our position.")
+                    handled_types.add("location")
+            except Exception as e:
+                self._report_error("actions", "get_location", e)
                 response_parts.append("Pilot, my navigation systems are currently unable to establish our position.")
                 handled_types.add("location")
 
         # Check for time query
         if self._is_time_query(text):
             print("  🕐 Checking chronometer...")
-            time_result = self.actions.execute("tell_time")
-            date_result = self.actions.execute("tell_date")
-            if time_result and date_result:
-                print(f"  🕐 {time_result}")
-                print(f"  📅 {date_result}")
-                response_parts.append(f"Pilot, {date_result} {time_result}")
-                handled_types.add("time")
-            elif time_result:
-                response_parts.append(f"Pilot, {time_result}")
-                handled_types.add("time")
-            else:
+            try:
+                time_result = self.actions.execute("tell_time")
+                date_result = self.actions.execute("tell_date")
+                if time_result and date_result:
+                    print(f"  🕐 {time_result}")
+                    print(f"  📅 {date_result}")
+                    response_parts.append(f"Pilot, {date_result} {time_result}")
+                    handled_types.add("time")
+                elif time_result:
+                    response_parts.append(f"Pilot, {time_result}")
+                    handled_types.add("time")
+                else:
+                    response_parts.append("Pilot, my chronometer is offline.")
+                    handled_types.add("time")
+            except Exception as e:
+                self._report_error("actions", "tell_time/date", e)
                 response_parts.append("Pilot, my chronometer is offline.")
                 handled_types.add("time")
 
         # Check for weather query
         if self._is_weather_query(text):
             print("  🌤 Fetching local data...")
-            # Check if user specified a location in the query
-            query_location = self._extract_location_from_query(text)
-            if query_location:
-                print(f"    📍 Location from query: {query_location}")
-                weather_result = self.actions.execute("get_weather_for_location", location=query_location)
-            else:
-                weather_result = self.actions.execute("get_weather")
-            if weather_result and not weather_result.startswith("Weather data unavailable"):
-                print(f"  🌤 {weather_result}")
-                print("  [LLM] Summarizing for Pilot...")
-                summary_prompt = (
-                    f"Weather data: {weather_result}\n\n"
-                    f"Respond in character as BT-7274 with a detailed, complete explanation. "
-                    f"Use 3-7 sentences. Be thorough and helpful. "
-                    f"NEVER repeat the user's question. Just answer directly. "
-                    f"Only the response text. No quotes, no markdown, no extra text."
-                )
-                weather_response = self.llm.chat(summary_prompt)
-                response_parts.append(weather_response)
-                handled_types.add("weather")
-            else:
+            try:
+                # Check if user specified a location in the query
+                query_location = self._extract_location_from_query(text)
+                if query_location:
+                    print(f"    📍 Location from query: {query_location}")
+                    weather_result = self.actions.execute("get_weather_for_location", location=query_location)
+                else:
+                    weather_result = self.actions.execute("get_weather")
+                if weather_result and not weather_result.startswith("Weather data unavailable"):
+                    print(f"  🌤 {weather_result}")
+                    print("  [LLM] Summarizing for Pilot...")
+                    summary_prompt = (
+                        f"Weather data: {weather_result}\n\n"
+                        f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                        f"Use 3-7 sentences. Be thorough and helpful. "
+                        f"NEVER repeat the user's question. Just answer directly. "
+                        f"Only the response text. No quotes, no markdown, no extra text."
+                    )
+                    try:
+                        weather_response = self.llm.chat(summary_prompt)
+                        response_parts.append(weather_response)
+                    except Exception as e:
+                        self._report_error("llm", "chat_weather_summary", e)
+                        response_parts.append(f"Pilot, {weather_result}")
+                    handled_types.add("weather")
+                else:
+                    response_parts.append("Pilot, atmospheric sensors are offline.")
+                    handled_types.add("weather")
+            except Exception as e:
+                self._report_error("actions", "get_weather", e)
                 response_parts.append("Pilot, atmospheric sensors are offline.")
                 handled_types.add("weather")
 
         # Check for search intent - always let LLM handle these with search results
         if self._is_search_query(text) and "search" not in handled_types:
             print("  🔍 Looking up...")
-            # Enrich query with location context
-            enriched_query = self.location.enrich_query(text) if self.location else text
-            if enriched_query != text:
-                print(f"    📍 Localized query: {enriched_query}")
-            search_result = self.actions.execute("search_web", query=enriched_query)
-            if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
-                print(f"  🔍 Results: {search_result[:100]}...")
-                print("  [LLM] Summarizing for Pilot...")
-                # Check if this is a news query
-                is_news_query = any(word in text.lower() for word in ["news", "latest", "breaking"])
-                if is_news_query:
-                    summary_prompt = (
-                        f"Search results: {search_result}\n\n"
-                        f"Respond in character as BT-7274. Provide a concise summary of the most relevant news. "
-                        f"Focus on the key facts from the search results. "
-                        f"Use 2-4 sentences. Be direct and informative. "
-                        f"NEVER repeat the user's question. Just answer directly. "
-                        f"Only the response text. No quotes, no markdown, no extra text."
-                    )
+            try:
+                # Enrich query with location context
+                enriched_query = self.location.enrich_query(text) if self.location else text
+                if enriched_query != text:
+                    print(f"    📍 Localized query: {enriched_query}")
+                search_result = self.actions.execute("search_web", query=enriched_query)
+                if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
+                    print(f"  🔍 Results: {search_result[:100]}...")
+                    print("  [LLM] Summarizing for Pilot...")
+                    # Check if this is a news query
+                    is_news_query = any(word in text.lower() for word in ["news", "latest", "breaking"])
+                    if is_news_query:
+                        summary_prompt = (
+                            f"Search results: {search_result}\n\n"
+                            f"Respond in character as BT-7274. Provide a concise summary of the most relevant news. "
+                            f"Focus on the key facts from the search results. "
+                            f"Use 2-4 sentences. Be direct and informative. "
+                            f"NEVER repeat the user's question. Just answer directly. "
+                            f"Only the response text. No quotes, no markdown, no extra text."
+                        )
+                    else:
+                        summary_prompt = (
+                            f"Search results: {search_result}\n\n"
+                            f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                            f"Use 3-7 sentences. Be thorough and helpful. "
+                            f"NEVER repeat the user's question. Just answer directly. "
+                            f"Only the response text. No quotes, no markdown, no extra text."
+                        )
+                    try:
+                        search_response = self.llm.chat(summary_prompt)
+                        response_parts.append(search_response)
+                    except Exception as e:
+                        self._report_error("llm", "chat_search_summary", e)
+                        response_parts.append(f"Pilot, {search_result}")
+                    handled_types.add("search")
                 else:
-                    summary_prompt = (
-                        f"Search results: {search_result}\n\n"
-                        f"Respond in character as BT-7274 with a detailed, complete explanation. "
-                        f"Use 3-7 sentences. Be thorough and helpful. "
-                        f"NEVER repeat the user's question. Just answer directly. "
-                        f"Only the response text. No quotes, no markdown, no extra text."
-                    )
-                search_response = self.llm.chat(summary_prompt)
-                response_parts.append(search_response)
-                handled_types.add("search")
-            else:
+                    response_parts.append("Pilot, my sensors cannot reach the data network at this time.")
+                    handled_types.add("search")
+            except Exception as e:
+                self._report_error("actions", "search_web", e)
                 response_parts.append("Pilot, my sensors cannot reach the data network at this time.")
                 handled_types.add("search")
 
@@ -792,7 +861,11 @@ class BT7274Assistant:
             # No specific handlers matched, use normal LLM processing
             print("  [LLM] Thinking...")
             llm_start = time.time()
-            response = self.llm.chat(text)
+            try:
+                response = self.llm.chat(text)
+            except Exception as e:
+                self._report_error("llm", "chat", e, {"pilot_message": text})
+                response = "Pilot, my neural network is experiencing interference. Please try again."
             llm_response_time = time.time() - llm_start
         else:
             # This shouldn't happen, but just in case
@@ -860,20 +933,33 @@ class BT7274Assistant:
 
         # Try to use a standby clip for common responses to reduce latency
         standby_wav = try_standby_for_response(clean_response)
+        tts_success = False
         if standby_wav and Path(standby_wav).exists():
             print("    ♻️ Using pre-generated standby clip")
-            play_audio(standby_wav)
+            try:
+                play_audio(standby_wav)
+                tts_success = True
+            except Exception as e:
+                self._report_error("tts", "play_standby", e, {"standby_wav": standby_wav})
         else:
             # Use appropriate TTS method based on performance mode
-            if self.performance_mode == "performance":
-                # Performance mode: Use streaming TTS for sentence-level playback
-                print("    ⚡ Streaming TTS (sentence-level)...")
-                self.tts.speak_streaming(clean_response)
-            else:
-                # Standard mode: Full response synthesis then playback
-                output_wav = self.tts.speak(clean_response)
-                if output_wav:
-                    play_audio(output_wav)
+            try:
+                if self.performance_mode == "performance":
+                    # Performance mode: Use streaming TTS for sentence-level playback
+                    print("    ⚡ Streaming TTS (sentence-level)...")
+                    self.tts.speak_streaming(clean_response)
+                    tts_success = True
+                else:
+                    # Standard mode: Full response synthesis then playback
+                    output_wav = self.tts.speak(clean_response)
+                    if output_wav:
+                        try:
+                            play_audio(output_wav)
+                            tts_success = True
+                        except Exception as e:
+                            self._report_error("tts", "play_audio", e, {"output_wav": output_wav})
+            except Exception as e:
+                self._report_error("tts", "speak", e, {"text": clean_response})
 
         # Log the interaction (after TTS so metrics are accurate)
         tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}

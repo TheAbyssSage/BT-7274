@@ -197,7 +197,7 @@ class StreamingXTTSClient:
                     try:
                         audio, sr = sf.read(cached_path)
                         return AudioChunk(audio=audio, sample_rate=sr, text=text)
-                    except:
+                    except Exception:
                         pass
 
         try:

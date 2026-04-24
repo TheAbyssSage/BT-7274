@@ -34,35 +34,51 @@ class WhisperSTT:
         Returns:
             dict with keys: text (str), confidence (float), language (str)
         """
-        result = self.model.transcribe(
-            audio_path,
-            language=self.language,
-            fp16=False  # M1 doesn't support fp16 well
-        )
-        text = result.get("text", "").strip()
-        
-        # Calculate confidence from segment probabilities
-        segments = result.get("segments", [])
-        if segments:
-            avg_logprob = sum(s.get("avg_logprob", 0) for s in segments) / len(segments)
-            # Convert logprob to approximate confidence (0-1 scale)
-            confidence = min(1.0, max(0.0, 1.0 + avg_logprob))
-        else:
-            confidence = 0.0
-        
-        return {
-            "text": text,
-            "confidence": confidence,
-            "language": result.get("language", self.language),
-        }
+        try:
+            result = self.model.transcribe(
+                audio_path,
+                language=self.language,
+                fp16=False  # M1 doesn't support fp16 well
+            )
+            text = result.get("text", "").strip()
+            
+            # Calculate confidence from segment probabilities
+            segments = result.get("segments", [])
+            if segments:
+                avg_logprob = sum(s.get("avg_logprob", 0) for s in segments) / len(segments)
+                # Convert logprob to approximate confidence (0-1 scale)
+                confidence = min(1.0, max(0.0, 1.0 + avg_logprob))
+            else:
+                confidence = 0.0
+            
+            return {
+                "text": text,
+                "confidence": confidence,
+                "language": result.get("language", self.language),
+            }
+        except Exception as e:
+            return {
+                "text": "",
+                "confidence": 0.0,
+                "language": self.language,
+                "error": f"STT transcription failed: {str(e)}",
+            }
 
     def transcribe_buffer(self, audio_buffer: np.ndarray, sample_rate: int = 16000) -> dict:
         """Transcribe from an in-memory audio buffer."""
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            sf.write(f.name, audio_buffer, sample_rate)
-            result = self.transcribe(f.name)
-            os.remove(f.name)
-        return result
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                sf.write(f.name, audio_buffer, sample_rate)
+                result = self.transcribe(f.name)
+                os.remove(f.name)
+            return result
+        except Exception as e:
+            return {
+                "text": "",
+                "confidence": 0.0,
+                "language": self.language,
+                "error": f"STT buffer transcription failed: {str(e)}",
+            }
 
     def unload(self):
         """Free model from memory."""
