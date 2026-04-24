@@ -1,4 +1,4 @@
-****# BT-7274 Performance Mode Documentation
+# BT-7274 Performance Mode Documentation
 
 ## Overview
 

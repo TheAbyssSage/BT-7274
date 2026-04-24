@@ -312,7 +312,7 @@ For convenience, you can use the provided startup script:
 ./start_bt7274.sh
 ```
 
-### 5.3 Wake Word (Optional)
+### 5.5 Wake Word (Optional)
 
 To avoid processing all ambient audio, add a wake word like "Hey BT" or "BT-7274":
 
@@ -322,7 +322,7 @@ wake_word: "hey bt"
 
 The pipeline will only process commands after detecting the wake word.
 
-### 5.4 Cloud Model Selection
+### 5.6 Cloud Model Selection
 
 You can choose between different models on the same Ollama instance:
 
@@ -423,8 +423,9 @@ For faster TTS, consider **Piper TTS** as a fallback for short responses.
 
 ### 7.4 TTS Optimization Features
 
-The BT-7274 assistant includes several optimizations to improve TTS response times:
+The BT-7274 assistant includes several optimizations to improve TTS response times. For full details, see [`TTS_OPTIMIZATIONS.md`](TTS_OPTIMIZATIONS.md).
 
+Key highlights:
 1. **Response Caching**: Frequently used responses are cached to avoid re-synthesis
 2. **Enhanced Standby Clips**: Expanded library of pre-generated responses for common phrases
 3. **Intelligent Text Processing**: Better handling of long responses with sentence boundary preservation
@@ -434,58 +435,16 @@ These optimizations can reduce TTS latency by 50-70% for repeated or common resp
 
 ### 7.5 Performance Mode (Streaming TTS)
 
-For the fastest possible responses, enable **Performance Mode** which uses sentence-level streaming TTS:
+For the fastest possible responses, enable **Performance Mode** which uses sentence-level streaming TTS. For full details, see [`PERFORMANCE_MODE.md`](PERFORMANCE_MODE.md).
 
-**How it works:**
-```
-Standard Mode:  LLM Response → Synthesize ALL → Play ALL (6-15s)
-Performance Mode: LLM Response → Synthesize Sentence 1 → Play Sentence 1 (2-4s)
-                                    ↓
-                              Synthesize Sentence 2 → Play Sentence 2
-                                    ↓
-                              Synthesize Sentence 3 → Play Sentence 3
-```
-
-**Benefits:**
+Quick overview:
 - **First audio plays in ~2-4 seconds** instead of waiting for full synthesis
 - **Parallel processing**: Synthesis and playback happen simultaneously
-- **BT-7274's voice is maintained** throughout - same voice model, same quality
+- **BT-7274's voice is maintained** throughout — same voice model, same quality
 - **Best for long responses** (3+ sentences)
 
-**Trade-offs:**
-- Slightly more complex system (3 worker threads)
-- For very short responses (1-2 sentences), standard mode may be similar or faster
-- Uses marginally more RAM during streaming
-
-**When to use each mode:**
-
-| Mode | Best For | Latency | Voice Quality |
-|------|----------|---------|---------------|
-| Standard | Short responses, testing | 6-15s | Excellent |
-| Performance | Long responses, conversations | 2-4s first audio | Excellent |
-
-**Selecting Performance Mode:**
-
-When starting the assistant, you'll be prompted:
-```
-[4/9] Performance Mode Selection
-  [1] Standard Mode
-      Full response synthesized, then played
-      Best for: Short responses, maximum voice quality
-
-  [2] Performance Mode (STREAMING)
-      Sentence-level streaming with parallel synthesis
-      Best for: Long responses, minimal latency
-      ⚡ First audio plays in ~2-4 seconds
-      ⚡ BT-7274's voice maintained throughout
-```
-
-Or use command-line arguments:
+Enable via command line:
 ```bash
-# Standard mode
-python bt7274_assistant/pipeline.py --performance-mode standard
-
-# Performance mode
 python bt7274_assistant/pipeline.py --performance-mode performance
 ```
 
@@ -494,30 +453,7 @@ Or set in `config.yaml`:
 performance_mode: performance  # Options: standard | performance
 ```
 
-**Performance Mode Technical Details:**
-
-The streaming TTS system uses a multi-threaded pipeline:
-
-1. **Sentence Splitter**: Breaks LLM response into sentences
-2. **Synthesis Worker**: Synthesizes sentences in order, using cached speaker latents
-3. **Playback Worker**: Plays audio chunks as they become ready
-4. **Backpressure Management**: Limits queue sizes to prevent memory issues
-
-The system maintains BT-7274's voice by:
-- Using the same XTTS v2 model and reference speaker
-- Pre-computing speaker conditioning latents at startup
-- Ensuring consistent voice characteristics across all sentences
-
-**Testing Performance Mode:**
-
-```bash
-# Compare both modes
-python scripts/test_performance_mode.py
-```
-
-This will synthesize the same test phrase in both modes and show timing comparison.
-
-### 7.5 Thermal Throttling
+### 7.6 Thermal Throttling
 
 The M1 MacBook Air has no fan. During extended use:
 - The CPU may throttle after 10–15 minutes of heavy load
