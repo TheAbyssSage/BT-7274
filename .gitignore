@@ -54,3 +54,4 @@ models/
 
 # Logs
 *.log
+logs/
