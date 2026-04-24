@@ -35,6 +35,7 @@ class InteractionLogger:
         interaction_type: str = "voice",
         ai_mode: str = "local",
         performance_mode: str = "standard",
+        tts_metrics: Optional[dict] = None,
         metadata: Optional[dict] = None,
     ):
         """Log a single interaction between Pilot and BT-7274."""
@@ -51,6 +52,9 @@ class InteractionLogger:
             "pilot_message": pilot_message,
             "bt_response": bt_response,
         }
+
+        if tts_metrics:
+            entry["tts_metrics"] = tts_metrics
 
         if metadata:
             entry["metadata"] = metadata

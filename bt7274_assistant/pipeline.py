@@ -839,21 +839,9 @@ class BT7274Assistant:
 
         print(f"  🤖 BT-7274: \"{clean_response}\"")
 
-        # Log the interaction
-        self.logger.log_interaction(
-            pilot_message=text,
-            bt_response=clean_response,
-            interaction_type="voice",
-            ai_mode=self.ai_mode,
-            performance_mode=self.performance_mode,
-            metadata={
-                "handled_types": list(handled_types) if 'handled_types' in locals() else [],
-            },
-        )
-
         # 4. Text-to-Speech
         print("  [TTS] Synthesizing voice...")
-        
+
         # Try to use a standby clip for common responses to reduce latency
         standby_wav = try_standby_for_response(clean_response)
         if standby_wav and Path(standby_wav).exists():
@@ -870,6 +858,20 @@ class BT7274Assistant:
                 output_wav = self.tts.speak(clean_response)
                 if output_wav:
                     play_audio(output_wav)
+
+        # Log the interaction (after TTS so metrics are accurate)
+        tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}
+        self.logger.log_interaction(
+            pilot_message=text,
+            bt_response=clean_response,
+            interaction_type="voice",
+            ai_mode=self.ai_mode,
+            performance_mode=self.performance_mode,
+            tts_metrics=tts_metrics if tts_metrics else None,
+            metadata={
+                "handled_types": list(handled_types) if 'handled_types' in locals() else [],
+            },
+        )
 
         self.last_activity = time.time()
 

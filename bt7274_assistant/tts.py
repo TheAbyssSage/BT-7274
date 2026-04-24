@@ -4,6 +4,7 @@ Text-to-Speech module using Coqui XTTS v2 for BT-7274 voice cloning.
 
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Optional, Dict
 from functools import lru_cache
@@ -38,6 +39,12 @@ class XTTSClient:
         self._response_cache: Dict[str, str] = {}
         # Maximum cache size
         self._max_cache_size = 50
+        # Performance metrics (last synthesis)
+        self._last_metrics: Dict[str, float] = {}
+
+    def get_metrics(self) -> dict:
+        """Return performance metrics from the last synthesis."""
+        return self._last_metrics.copy()
 
     def ensure_ready(self):
         """Ensure model is loaded and ready."""
@@ -125,6 +132,13 @@ class XTTSClient:
             cached_path = self._response_cache[cache_key]
             if self._is_cache_valid(cached_path):
                 print("    ♻️ Using cached TTS response")
+                self._last_metrics = {
+                    "processing_time": 0.0,
+                    "real_time_factor": 0.0,
+                    "audio_duration": 0.0,
+                    "mode": "standard",
+                    "cached": True,
+                }
                 return cached_path
 
         # Truncate very long responses to avoid slow synthesis
@@ -152,16 +166,37 @@ class XTTSClient:
                 keys_to_remove = list(self._response_cache.keys())[:10]
                 for key in keys_to_remove:
                     del self._response_cache[key]
+            self._last_metrics = {
+                "processing_time": 0.0,
+                "real_time_factor": 0.0,
+                "audio_duration": 0.0,
+                "mode": "standard",
+                "cached": True,
+            }
             return str(output_path)
 
         try:
+            start_time = time.time()
             # Use the standard TTS API (cached latents path is unstable on some setups)
             wav = self.model.tts(
                 text=text,
                 speaker_wav=self.reference_wav,
                 language=self.language
             )
+            synthesis_time = time.time() - start_time
             sf.write(str(output_path), wav, 24000)
+
+            # Estimate audio duration for real-time factor (~24k samples/sec, mono)
+            audio_duration = len(wav) / 24000.0 if hasattr(wav, '__len__') else 0.0
+            rt_factor = audio_duration / synthesis_time if synthesis_time > 0 else 0.0
+
+            self._last_metrics = {
+                "processing_time": round(synthesis_time, 3),
+                "real_time_factor": round(rt_factor, 3),
+                "audio_duration": round(audio_duration, 3),
+                "mode": "standard",
+                "cached": False,
+            }
             
             # Add to cache
             self._response_cache[cache_key] = str(output_path)
@@ -175,6 +210,7 @@ class XTTSClient:
             return str(output_path)
         except Exception as e:
             print(f"    ✗ TTS error: {e}")
+            self._last_metrics = {"error": str(e)}
             return None
 
     def unload(self):

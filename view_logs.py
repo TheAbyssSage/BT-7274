@@ -24,10 +24,25 @@ def format_entry(entry: dict) -> str:
     bt = entry.get("bt_response", "")
     ai_mode = entry.get("ai_mode", "local")
     perf_mode = entry.get("performance_mode", "standard")
+    tts = entry.get("tts_metrics", {})
+    tts_line = ""
+    if tts:
+        if tts.get("cached"):
+            tts_line = "│ TTS: ♻️ cached"
+        elif tts.get("mode") == "streaming":
+            synth = tts.get("sentences_synthesized", 0)
+            played = tts.get("sentences_played", 0)
+            proc = tts.get("processing_time", 0)
+            tts_line = f"│ TTS: ⚡ streaming | {synth}synth {played}played | {proc:.2f}s"
+        else:
+            proc = tts.get("processing_time", 0)
+            rtf = tts.get("real_time_factor", 0)
+            tts_line = f"│ TTS: ⏱ {proc:.2f}s | RTF {rtf:.2f}x"
     return f"""
 ┌─────────────────────────────────────────
 │ {timestamp}  —  {entry.get('interaction_type', 'voice').upper()}
 │ AI: {ai_mode.upper():<8}  │  TTS: {perf_mode.upper()}
+{tts_line}
 ├─────────────────────────────────────────
 │ Pilot:    {pilot}
 │

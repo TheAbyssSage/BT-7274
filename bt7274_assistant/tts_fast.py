@@ -386,6 +386,17 @@ class StreamingXTTSClient:
         print(f"    📊 Metrics: {self._metrics['sentences_synthesized']} synthesized, "
               f"{self._metrics['sentences_played']} played")
 
+        # Store last metrics for external retrieval
+        self._last_metrics = {
+            "processing_time": round(total_time, 3),
+            "sentences_synthesized": self._metrics['sentences_synthesized'],
+            "sentences_played": self._metrics['sentences_played'],
+            "total_synthesis_time": round(self._metrics['total_synthesis_time'], 3),
+            "total_playback_time": round(self._metrics['total_playback_time'], 3),
+            "mode": "streaming",
+            "cached": False,
+        }
+
         return True
 
     def speak(self, text: str) -> Optional[str]:
