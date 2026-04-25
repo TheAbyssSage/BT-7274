@@ -311,3 +311,120 @@ def action_clear_tts_cache():
     # This action needs access to the assistant instance
     # For now, we'll return a message indicating it should be handled by the pipeline
     return "TTS cache clearing requested. This will be handled by the main pipeline."
+
+
+@register_action("read_logs")
+def action_read_logs(lines: int = 10, date: str = None, search: str = None):
+    """Read recent interaction logs with optional search capability."""
+    try:
+        from interaction_logger import InteractionLogger
+        import json
+        from datetime import datetime
+        from pathlib import Path
+        import os
+        import glob
+        
+        log_dir = Path(__file__).parent.parent / "logs"
+        
+        # If date is specified, read only that day's logs
+        if date is not None:
+            log_file = log_dir / f"bt7274_interactions_{date}.jsonl"
+            if not log_file.exists():
+                return f"No logs found for {date}."
+            log_files = [log_file]
+        else:
+            # Read all available log files, sorted by date (newest first)
+            log_pattern = log_dir / "bt7274_interactions_*.jsonl"
+            log_files = sorted(glob.glob(str(log_pattern)), reverse=True)
+            if not log_files:
+                return "No log files found."
+        
+        # Collect entries from all relevant log files
+        all_entries = []
+        
+        for log_file in log_files:
+            if len(all_entries) >= lines and date is None:
+                break  # Stop if we have enough entries and we're not looking at a specific date
+                
+            try:
+                with open(log_file, 'r') as f:
+                    file_lines = f.readlines()
+                
+                # Process entries from this file (newest first)
+                for line in reversed(file_lines):
+                    if len(all_entries) >= lines and date is None:
+                        break
+                        
+                    try:
+                        entry = json.loads(line.strip())
+                        
+                        # Apply search filter if provided
+                        if search is not None:
+                            pilot_msg = entry.get("pilot_message", "").lower()
+                            bt_response = entry.get("bt_response", "").lower()
+                            search_lower = search.lower()
+                            
+                            # Skip entries that don't match the search term
+                            if search_lower not in pilot_msg and search_lower not in bt_response:
+                                continue
+                        
+                        timestamp = entry.get("timestamp", "Unknown time")
+                        pilot_msg = entry.get("pilot_message", "").strip()
+                        bt_response = entry.get("bt_response", "").strip()
+                        
+                        # Extract date from filename or timestamp for sorting
+                        if date is None:
+                            # Extract date from timestamp for sorting
+                            try:
+                                entry_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp[:10]
+                            except:
+                                entry_date = "unknown"
+                        else:
+                            entry_date = date
+                        
+                        # Truncate long messages
+                        if len(pilot_msg) > 100:
+                            pilot_msg = pilot_msg[:100] + "..."
+                        if len(bt_response) > 100:
+                            bt_response = bt_response[:100] + "..."
+                        
+                        all_entries.append({
+                            "date": entry_date,
+                            "entry": f"[{timestamp}] Pilot: \"{pilot_msg}\" → BT: \"{bt_response}\""
+                        })
+                    except json.JSONDecodeError:
+                        # Skip malformed entries
+                        continue
+            except Exception as file_error:
+                # Continue with other files if one fails
+                continue
+        
+        # Sort entries by date (newest first) if reading multiple days
+        if date is None:
+            all_entries.sort(key=lambda x: x["date"], reverse=True)
+        
+        # Limit to requested number of lines
+        selected_entries = all_entries[:lines] if len(all_entries) >= lines else all_entries
+        
+        if not selected_entries:
+            if search is not None:
+                return f"No log entries found matching '{search}'."
+            elif date is not None:
+                return f"No valid log entries found for {date}."
+            else:
+                return "No valid log entries found."
+        
+        # Format the output
+        formatted_entries = [entry["entry"] for entry in selected_entries]
+        
+        if search is not None:
+            header = f"Recent logs matching '{search}' ({len(formatted_entries)} entries):"
+        elif date is not None:
+            header = f"Logs from {date} ({len(formatted_entries)} entries):"
+        else:
+            header = f"Recent logs ({len(formatted_entries)} entries):"
+        
+        return header + "\n" + "\n".join(formatted_entries)
+        
+    except Exception as e:
+        return f"Failed to read logs: {str(e)}"

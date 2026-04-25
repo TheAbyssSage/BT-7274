@@ -32,6 +32,13 @@ A fully local AI assistant based on BT-7274 from Titanfall 2, designed to run on
 ### Noise Resistance Enhancements
 The system now includes advanced noise reduction and adaptive audio processing to work effectively in noisy environments. See [NOISE_IMPROVEMENTS.md](NOISE_IMPROVEMENTS.md) for technical details.
 
+### Enhanced Log Reading Capability
+BT-7274 can now read and summarize interaction logs from all dates using the `read_logs` action, with advanced features:
+- Read logs from all dates or a specific date
+- Search across all logs for specific content
+- Configurable number of entries to retrieve
+- Sorted by recency for most relevant information
+
 ## Folder Structure
 
 ```
@@ -504,6 +511,21 @@ Make it executable: `chmod +x start_bt7274.sh`
 | Ollama slow responses | Switch to `phi3:mini` or `llama3.1:8b` |
 | Audio playback delayed | Reduce TTS chunk size or use Piper for short phrases |
 | Microphone not detected | Check macOS Privacy & Security → Microphone permissions |
+
+---
+
+## Viewing Interaction Logs
+
+You can view BT-7274's interaction logs using the `view_logs.py` script with the following options:
+
+**New Usage Options**
+- `python view_logs.py` - Show today's interactions (enhanced formatting)
+- `python view_logs.py --all` - Show all log files (enhanced formatting)
+- `python view_logs.py --summary` - Show summary statistics (enhanced formatting)
+- `python view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
+- `python view_logs.py --logs` - Show all logs content (NEW)
+
+The enhanced formatting provides better readability with clear section headers, visual indicators for response times and confidence levels, and organized technical details.
 
 ---
 

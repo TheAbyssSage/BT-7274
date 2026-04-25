@@ -15,6 +15,13 @@ Handles "Digital filter critical frequencies must be 0 < Wn < 1" errors by valid
 ### Follow-up Processing Errors
 Fixed AttributeError when processing follow-up responses by properly extracting text from STT result dictionaries.
 
+### Log Reading Action
+Added new `read_logs` action with comprehensive error handling for file operations and JSON parsing, including:
+- Multi-file log reading across all dates
+- Search functionality across all logs
+- Graceful handling of missing or corrupted log files
+- Configurable result limits
+
 ### Confidence-Based Filtering
 Low-confidence transcriptions (below 0.3) are now automatically rejected to prevent misinterpretation of noise as commands.
 

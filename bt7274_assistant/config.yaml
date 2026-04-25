@@ -106,6 +106,7 @@ actions:
     - get_weather
     - get_weather_for_location
     - clear_tts_cache
+    - read_logs
 
 pipeline:
   wake_words:                 # List of trigger phrases (any match activates BT)

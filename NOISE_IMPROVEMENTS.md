@@ -33,6 +33,9 @@ Added minimum confidence threshold (0.3) for STT results:
 - Prevents misinterpretation of noise as commands
 - Reduces false activations in noisy environments
 
+### 5. Enhanced Contextual Awareness
+BT-7274 can now read and reference interaction logs from all dates to maintain comprehensive contextual awareness across conversations, with search capabilities to find relevant historical interactions.
+
 ## Configuration Changes
 
 ### New Settings in config.yaml
@@ -71,3 +74,13 @@ All signal processing steps include comprehensive error handling to gracefully f
 - Minimal impact on processing speed (<50ms additional preprocessing)
 - Improved accuracy in noisy environments (estimated 30-40% improvement)
 - Slightly increased CPU usage during audio preprocessing
+
+## Viewing Logs
+You can view BT-7274's interaction logs using the enhanced `view_logs.py` script:
+- `python view_logs.py` - Show today's interactions (enhanced formatting)
+- `python view_logs.py --all` - Show all log files (enhanced formatting)
+- `python view_logs.py --summary` - Show summary statistics (enhanced formatting)
+- `python view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
+- `python view_logs.py --logs` - Show all logs content (NEW)
+
+The enhanced formatting provides better readability with clear section headers and organized technical details.
