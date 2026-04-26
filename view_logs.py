@@ -42,19 +42,26 @@ def format_entry(entry: dict) -> str:
     
     # ── TTS Metrics ──
     tts = entry.get("tts_metrics", {})
-    if tts:
+    audio_file_path = entry.get("audio_file_path")
+    if tts or audio_file_path:
         lines.append("+" + "-" * 60 + "+")
-        if tts.get("cached"):
+        if audio_file_path == "streaming":
+            lines.append("| TTS: Streaming playback")
+        elif audio_file_path and audio_file_path != "streaming":
+            lines.append(f"| TTS: Played audio file ({Path(audio_file_path).name})")
+        elif tts.get("cached"):
             lines.append("| TTS: Cached response")
         elif tts.get("mode") == "streaming":
             synth = tts.get("sentences_synthesized", 0)
             played = tts.get("sentences_played", 0)
             proc = tts.get("processing_time", 0)
-            lines.append(f"| Streaming TTS: {synth} synthesized, {played} played in {proc:.2f}s")
-        else:
+            lines.append(f"| TTS: Streaming ({synth} synthesized, {played} played in {proc:.2f}s)")
+        elif tts:
             proc = tts.get("processing_time", 0)
             rtf = tts.get("real_time_factor", 0)
-            lines.append(f"| TTS Processing: {proc:.2f}s (Real-time factor: {rtf:.2f}x)")
+            lines.append(f"| TTS: Standard mode ({proc:.2f}s, RTF: {rtf:.2f}x)")
+        else:
+            lines.append("| TTS: No audio output")
     
     # ── Conversation with better formatting ──
     lines.extend([
@@ -165,6 +172,25 @@ def format_entry(entry: dict) -> str:
     errors = entry.get("errors")
     if errors:
         details.append(f"| Session Errors: {len(errors)}")
+        # Show error details - show all errors but limit message length
+        for i, error in enumerate(errors, 1):
+            error_type = error.get("error_type", "Unknown")
+            error_msg = error.get("error_message", "No message")
+            component = error.get("component", "Unknown")
+            function = error.get("function", "Unknown")
+            timestamp = error.get("timestamp", "")[-8:] if error.get("timestamp") else ""
+            details.append(f"|   Error {i}: [{timestamp}] {error_type} in {component}.{function}")
+            # Truncate long error messages
+            if len(error_msg) > 80:
+                error_msg = error_msg[:77] + "..."
+            details.append(f"|     Message: {error_msg}")
+            # Show context if available
+            context = error.get("context")
+            if context:
+                context_str = str(context)
+                if len(context_str) > 80:
+                    context_str = context_str[:77] + "..."
+                details.append(f"|     Context: {context_str}")
     
     # Add details section if any exist
     if details:

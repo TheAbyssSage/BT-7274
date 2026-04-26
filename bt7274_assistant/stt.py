@@ -60,15 +60,16 @@ class WhisperSTT:
                 processed_audio_path,
                 language=self.language,
                 fp16=False  # M1 doesn't support fp16 well
-            )
-            text = result.get("text", "").strip()
+            ) if self.model else {}
+            text_raw = result.get("text", "") if isinstance(result, dict) else ""
+            text = text_raw.strip() if isinstance(text_raw, str) else ""
             
             # Calculate confidence from segment probabilities
-            segments = result.get("segments", [])
-            if segments:
-                avg_logprob = sum(s.get("avg_logprob", 0) for s in segments) / len(segments)
+            segments = result.get("segments", []) if result and isinstance(result, dict) else []
+            if segments and isinstance(segments, list):
+                avg_logprob = sum(s.get("avg_logprob", 0) if isinstance(s, dict) else 0 for s in segments) / len(segments)
                 # Convert logprob to approximate confidence (0-1 scale)
-                confidence = min(1.0, max(0.0, 1.0 + avg_logprob))
+                confidence = min(1.0, max(0.0, 1.0 + avg_logprob)) if isinstance(avg_logprob, (int, float)) else 0.0
             else:
                 confidence = 0.0
             
@@ -85,6 +86,10 @@ class WhisperSTT:
                 "language": result.get("language", self.language),
             }
         except Exception as e:
+            print(f"    ✗ STT error: {e}")
+            # Log error for debugging
+            import logging
+            logging.error(f"STT Transcription Error: {e}", exc_info=True)
             return {
                 "text": "",
                 "confidence": 0.0,
@@ -109,8 +114,14 @@ class WhisperSTT:
                 # Only apply filter if frequencies are valid and in correct order
                 if low < high and low > 0 and high < 1:
                     try:
-                        b, a = signal.butter(4, [low, high], btype='band')
-                        filtered_audio = signal.filtfilt(b, a, audio)
+                        butter_result = signal.butter(4, [low, high], btype='band')
+                        if isinstance(butter_result, tuple) and len(butter_result) >= 2:
+                            b, a = butter_result[0], butter_result[1]
+                            filtered_audio = signal.filtfilt(b, a, audio)
+                        else:
+                            # If filtering fails, use original audio
+                            print(f"    ⚠ Bandpass filter returned unexpected result: {type(butter_result)}")
+                            filtered_audio = audio
                     except Exception as filter_error:
                         # If filtering fails, use original audio
                         print(f"    ⚠ Bandpass filter failed: {filter_error}")
@@ -158,7 +169,9 @@ class WhisperSTT:
             # If any noise reduction step fails, return original audio
             print(f"    ⚠ Noise reduction failed: {e}")
             reduced_audio = audio
-            
+
+        return reduced_audio
+
     def transcribe_buffer(self, audio_buffer: np.ndarray, sample_rate: int = 16000) -> dict:
         """Transcribe from an in-memory audio buffer."""
         try:

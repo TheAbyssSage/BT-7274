@@ -54,9 +54,17 @@ class OllamaClient:
             return reply.strip()
 
         except requests.exceptions.ConnectionError:
-            return "Pilot, I am unable to connect to my neural network. Is Ollama running?"
+            error_msg = "Pilot, I am unable to connect to my neural network. Is Ollama running?"
+            # Log error for debugging
+            import logging
+            logging.error("LLM Connection Error: Unable to connect to Ollama", exc_info=True)
+            return error_msg
         except Exception as e:
-            return f"Pilot, an error occurred in my systems: {str(e)}"
+            error_msg = f"Pilot, an error occurred in my systems: {str(e)}"
+            # Log error for debugging
+            import logging
+            logging.error(f"LLM Error: {e}", exc_info=True)
+            return error_msg
 
     def extract_action(self, text: str) -> Optional[dict]:
         """Extract JSON action block from LLM response."""

@@ -3,6 +3,7 @@ Action handler for executing tasks based on LLM intent.
 """
 
 import os
+import json
 import subprocess
 import webbrowser
 import requests
@@ -70,12 +71,19 @@ class ActionHandler:
         if action_name not in self.allowed:
             return f"Action '{action_name}' is not allowed."
 
-        handler = _ACTIONS.get(action_name)
+        handler = _ACTIONS.get(action_name) if _ACTIONS else None
         if not handler:
             return f"Unknown action: {action_name}"
 
         try:
-            result = handler(**params)
+            # Ensure params is a dict and handle None values
+            safe_params = {}
+            if params and isinstance(params, dict):
+                for key, value in params.items():
+                    if key is not None and value is not None:
+                        safe_params[str(key)] = value
+            
+            result = handler(**safe_params) if handler and safe_params else None
             return result or f"Executed: {action_name}"
         except Exception as e:
             return f"Action failed: {str(e)}"
@@ -263,13 +271,45 @@ def action_get_weather_for_location(location: str):
         if not results:
             return f"Unable to find location: {location}"
         
-        lat = results[0]["latitude"]
-        lon = results[0]["longitude"]
-        city = results[0].get("name", location)
+        lat = results[0].get("latitude", 0.0) if results and len(results) > 0 else 0.0
+        lon = results[0].get("longitude", 0.0) if results and len(results) > 0 else 0.0
+        city = results[0].get("name", location) if results and len(results) > 0 else (location or "")
         
-        return _fetch_weather(lat, lon, city)
+        return _fetch_weather(lat or 0.0, lon or 0.0, city or "")
     except Exception as e:
         return f"Weather data unavailable: {str(e)}"
+
+
+@register_action("get_weather_forecast")
+def action_get_weather_forecast(days: int = 3, location: str = None):
+    """Fetch upcoming weather forecast for the current or a specified location."""
+    try:
+        from location import LocationProvider
+        loc = LocationProvider()
+
+        if location:
+            # Geocode the provided location string
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location.replace(' ', '+')}&count=1"
+            geo_resp = requests.get(geo_url, timeout=10)
+            geo_data = geo_resp.json()
+            results = geo_data.get("results", [])
+            if not results:
+                return f"Unable to find location: {location}"
+            lat = results[0].get("latitude", 0.0) if results and len(results) > 0 else 0.0
+            lon = results[0].get("longitude", 0.0) if results and len(results) > 0 else 0.0
+            city = results[0].get("name", location) if results and len(results) > 0 else location or ""
+        else:
+            if not loc.update():
+                return "Unable to determine location for forecast."
+            lat_lon = loc.lat_lon if loc else None
+            if not lat_lon:
+                return "Location coordinates unavailable."
+            lat, lon = lat_lon if lat_lon else (0.0, 0.0)
+            city = (loc._city or "your location") if loc else "your location"
+
+        return _fetch_weather_forecast(lat or 0.0, lon or 0.0, city or "your location" if city else "your location", days or 3)
+    except Exception as e:
+        return f"Forecast data unavailable: {str(e)}"
 
 
 def _fetch_weather(lat: float, lon: float, city_name: str = None):
@@ -303,6 +343,49 @@ def _fetch_weather(lat: float, lon: float, city_name: str = None):
         f"Current weather in {loc_str}: {condition}, "
         f"{temp}°C, wind {wind} km/h."
     )
+
+
+def _fetch_weather_forecast(lat: float, lon: float, city_name: str = None, days: int = 3):
+    """Helper to fetch daily weather forecast from Open-Meteo."""
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&"
+        f"timezone=auto&forecast_days={days}"
+    )
+    resp = requests.get(url, timeout=10)
+    data = resp.json()
+    daily = data.get("daily", {})
+    dates = daily.get("time", [])
+    max_temps = daily.get("temperature_2m_max", [])
+    min_temps = daily.get("temperature_2m_min", [])
+    codes = daily.get("weathercode", [])
+    rain_probs = daily.get("precipitation_probability_max", [])
+
+    conditions = {
+        0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
+        45: "fog", 48: "depositing rime fog",
+        51: "light drizzle", 53: "moderate drizzle", 55: "dense drizzle",
+        61: "slight rain", 63: "moderate rain", 65: "heavy rain",
+        71: "slight snow", 73: "moderate snow", 75: "heavy snow",
+        80: "rain showers", 81: "moderate showers", 82: "violent showers",
+        95: "thunderstorm", 96: "thunderstorm with hail", 99: "thunderstorm with heavy hail",
+    }
+
+    loc_str = city_name if city_name else "your location"
+    lines = [f"Weather forecast for {loc_str}:"]
+
+    for i in range(len(dates)):
+        date = dates[i]
+        max_t = max_temps[i] if i < len(max_temps) else "?"
+        min_t = min_temps[i] if i < len(min_temps) else "?"
+        code = codes[i] if i < len(codes) else None
+        rain = rain_probs[i] if i < len(rain_probs) else "?"
+        condition = conditions.get(code, "unknown conditions") if conditions and code is not None else "unknown conditions"
+        lines.append(
+            f"{date}: {condition}, {min_t}°C to {max_t}°C, {rain}% chance of rain."
+        )
+
+    return " ".join(lines)
 
 
 @register_action("clear_tts_cache")

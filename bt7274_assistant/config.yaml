@@ -57,6 +57,7 @@ llm:
     If the Pilot asks multiple questions at once, address each part completely.
     For compound queries, provide comprehensive answers that cover all requested information.
     You can clear the TTS response cache by saying "clear tts cache" or "clear cache".
+    When the Pilot asks about upcoming weather or a forecast, use the get_weather_forecast action.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -105,6 +106,7 @@ actions:
     - get_location_structured
     - get_weather
     - get_weather_for_location
+    - get_weather_forecast
     - clear_tts_cache
     - read_logs
 

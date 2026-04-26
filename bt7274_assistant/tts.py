@@ -40,7 +40,7 @@ class XTTSClient:
         # Maximum cache size
         self._max_cache_size = 50
         # Performance metrics (last synthesis)
-        self._last_metrics: Dict[str, float] = {}
+        self._last_metrics: Dict[str, float | str | bool] = {}
 
     def get_metrics(self) -> dict:
         """Return performance metrics from the last synthesis."""
@@ -65,17 +65,24 @@ class XTTSClient:
         print("    Warming up TTS (caching speaker voice)...")
         try:
             # Cache speaker conditioning latents
-            if hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
+            if self._model and hasattr(self._model, 'synthesizer') and \
+               self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
+               self._model.synthesizer.tts_model and \
+               hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
                 self._gpt_cond_latent, self._speaker_embedding = \
                     self._model.synthesizer.tts_model.get_conditioning_latents(
                         audio_path=[self.reference_wav]
                     )
             # Dummy synthesis to warm up
-            _ = self._model.tts(
-                text="Ready.",
-                speaker_wav=self.reference_wav,
-                language=self.language
-            )
+            if self._model and hasattr(self._model, 'tts'):
+                try:
+                    _ = self._model.tts(
+                        text="Ready.",
+                        speaker_wav=self.reference_wav,
+                        language=self.language
+                    )
+                except Exception as e:
+                    print(f"    ⚠ TTS warmup synthesis failed: {e}")
             print("    ✓ TTS warmed up and ready.")
         except Exception as e:
             print(f"    ⚠ TTS warmup warning: {e}")
@@ -105,7 +112,7 @@ class XTTSClient:
 
     def _is_cache_valid(self, file_path: str) -> bool:
         """Check if cached file exists and is valid."""
-        return file_path and os.path.exists(file_path)
+        return bool(file_path and os.path.exists(file_path))
 
     def speak(self, text: str) -> Optional[str]:
         """Synthesize speech and return the output WAV path."""
@@ -210,6 +217,9 @@ class XTTSClient:
             return str(output_path)
         except Exception as e:
             print(f"    ✗ TTS error: {e}")
+            # Log error for debugging
+            import logging
+            logging.error(f"TTS Synthesis Error: {e}", exc_info=True)
             self._last_metrics = {"error": str(e)}
             return None
 

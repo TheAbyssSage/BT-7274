@@ -88,6 +88,9 @@ class StreamingXTTSClient:
             'total_playback_time': 0.0,
         }
 
+        # Last metrics for external retrieval
+        self._last_metrics: Dict[str, float | str | bool] = {}
+
     # ─── Model Management ────────────────────────────────────────────
 
     @property
@@ -106,17 +109,24 @@ class StreamingXTTSClient:
         print("    Warming up TTS (caching speaker voice)...")
         try:
             # Cache speaker conditioning latents
-            if hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
+            if self._model and hasattr(self._model, 'synthesizer') and \
+               self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
+               self._model.synthesizer.tts_model and \
+               hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
                 self._gpt_cond_latent, self._speaker_embedding = \
                     self._model.synthesizer.tts_model.get_conditioning_latents(
                         audio_path=[self.reference_wav]
                     )
             # Dummy synthesis to warm up
-            _ = self._model.tts(
-                text="Ready.",
-                speaker_wav=self.reference_wav,
-                language=self.language
-            )
+            if self._model and hasattr(self._model, 'tts'):
+                try:
+                    _ = self._model.tts(
+                        text="Ready.",
+                        speaker_wav=self.reference_wav,
+                        language=self.language
+                    )
+                except Exception as e:
+                    print(f"    ⚠ TTS warmup synthesis failed: {e}")
             print("    ✓ TTS warmed up and ready for streaming.")
         except Exception as e:
             print(f"    ⚠ TTS warmup warning: {e}")
@@ -211,19 +221,27 @@ class StreamingXTTSClient:
             )
 
             # Convert to numpy if needed
-            if hasattr(wav, 'cpu'):
-                wav = wav.cpu().numpy()
-            if hasattr(wav, 'ndim') and wav.ndim > 1:
-                wav = wav.squeeze()
-            elif isinstance(wav, dict):
-                # Handle dict output - extract the waveform
-                if 'wav' in wav:
-                    wav = wav['wav']
-                elif 'audio' in wav:
-                    wav = wav['audio']
-                else:
-                    print(f"    ✗ Unexpected TTS output format: {type(wav)}")
+            if wav is not None:
+                try:
+                    if hasattr(wav, 'cpu') and callable(getattr(wav, 'cpu', None)):
+                        wav = wav.cpu().numpy()
+                    if hasattr(wav, 'ndim') and wav.ndim > 1:
+                        wav = wav.squeeze() if hasattr(wav, 'squeeze') and callable(getattr(wav, 'squeeze', None)) else wav
+                    elif isinstance(wav, dict):
+                        # Handle dict output - extract the waveform
+                        if 'wav' in wav:
+                            wav = wav['wav']
+                        elif 'audio' in wav:
+                            wav = wav['audio']
+                        else:
+                            print(f"    ✗ Unexpected TTS output format: {type(wav)}")
+                            return None
+                except Exception as e:
+                    print(f"    ⚠ Audio conversion failed: {e}")
                     return None
+            else:
+                print(f"    ✗ TTS synthesis returned None")
+                return None
 
             synthesis_time = time.time() - start_time
             self._metrics['sentences_synthesized'] += 1
@@ -231,7 +249,11 @@ class StreamingXTTSClient:
 
             # Cache the result
             output_path = self.output_dir / f"bt7274_{text_hash}.wav"
-            sf.write(str(output_path), wav, 24000)
+            try:
+                sf.write(str(output_path), wav, 24000)
+            except Exception as e:
+                print(f"    ⚠ Failed to write audio file: {e}")
+                return None
 
             with self._cache_lock:
                 self._response_cache[cache_key] = str(output_path)
@@ -241,12 +263,21 @@ class StreamingXTTSClient:
                     for k in keys:
                         del self._response_cache[k]
 
+            # Ensure wav is a numpy array before creating AudioChunk
+            if isinstance(wav, (list, tuple)):
+                wav = np.array(wav, dtype=np.float32)
+            elif not isinstance(wav, np.ndarray):
+                wav = np.array([wav] if wav is not None else [], dtype=np.float32)
+                
             return AudioChunk(audio=wav, sample_rate=24000, text=text)
 
         except Exception as e:
             print(f"    ✗ TTS synthesis error: {e}")
             import traceback
             traceback.print_exc()
+            # Log error for debugging
+            import logging
+            logging.error(f"TTS Fast Synthesis Error: {e}", exc_info=True)
             return None
 
     def _get_text_hash(self, text: str) -> str:

@@ -7,6 +7,27 @@ Microphone → Whisper STT → Ollama LLM → XTTS v2 → Speaker
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# Setup logging
+import logging
+import os
+from pathlib import Path
+
+# Create logs directory if it doesn't exist
+log_dir = Path(__file__).parent.parent / "logs"
+log_dir.mkdir(exist_ok=True)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_dir / "bt7274_system.log"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger("BT7274")
+
 import os
 import sys
 import json
@@ -29,7 +50,7 @@ from tts import XTTSClient
 from tts_fast import StreamingXTTSClient
 from actions import ActionHandler
 from location import LocationProvider
-from utils import play_audio, PersistentAudioRecorder, beep
+from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from interaction_logger import InteractionLogger
 
 
@@ -72,6 +93,7 @@ class BT7274Assistant:
     def _report_error(self, component: str, function: str, error: Exception, context: dict = None):
         """Report an error to the current interaction's error list for logging."""
         import traceback
+        from datetime import datetime
         error_entry = {
             "timestamp": datetime.now().isoformat(),
             "component": component,
@@ -80,11 +102,15 @@ class BT7274Assistant:
             "error_message": str(error),
             "traceback": traceback.format_exc(),
         }
-        if context:
+        if context and isinstance(context, dict):
             error_entry["context"] = context
         self.errors_this_interaction.append(error_entry)
         self.errors_this_session.append(error_entry)
         print(f"    ✗ Error in {component}.{function}: {error}")
+        
+        # Also log to system log for debugging
+        import logging
+        logging.error(f"BT-7274 Error - {component}.{function}: {error}", exc_info=True)
 
     def load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
@@ -319,8 +345,8 @@ class BT7274Assistant:
         import re
         lower = text.lower()
         # Match patterns like "weather in X", "weather for X", "temperature in X"
-        # Exclude common time words that shouldn't be treated as locations
-        time_words = {"today", "tomorrow", "yesterday", "now", "tonight"}
+        # Exclude common time words/phrases that shouldn't be treated as locations
+        time_words = {"today", "tomorrow", "yesterday", "now", "tonight", "next week", "this week", "next few days"}
         patterns = [
             r'weather\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
             r'temperature\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
@@ -339,6 +365,12 @@ class BT7274Assistant:
     def _is_weather_query(self, text: str) -> bool:
         """Detect if the user is asking for weather."""
         return any(kw in text.lower() for kw in ["weather", "temperature", "forecast"])
+
+    def _is_forecast_query(self, text: str) -> bool:
+        """Detect if the user is asking for a forecast (upcoming weather)."""
+        lower = text.lower()
+        forecast_keywords = ["forecast", "next week", "next few days", "upcoming", "will it rain", "will it snow", "weekend weather"]
+        return any(kw in lower for kw in forecast_keywords)
 
     def _is_location_query(self, text: str) -> bool:
         """Detect if the user is asking ONLY for their location (not as part of a larger question)."""
@@ -360,12 +392,17 @@ class BT7274Assistant:
 
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
+        lower = text.lower()
+
+        # Don't treat weather queries as search queries
+        if self._is_weather_query(text):
+            return False
+
         search_keywords = [
             "who won", "who was",
             "news", "latest",
             "search", "look up", "tell me about", "find", "what is", "what are"
         ]
-        lower = text.lower()
         
         # Check for basic search keywords
         if any(kw in lower for kw in search_keywords):
@@ -543,7 +580,7 @@ class BT7274Assistant:
                 if output_path.exists() and force_regenerate:
                     output_path.unlink()
                     
-                wav_path = self.tts.speak(phrase)
+                wav_path = self.tts.speak(phrase) if self.tts else None
                 if wav_path:
                     import shutil
                     shutil.move(wav_path, str(output_path))
@@ -570,7 +607,7 @@ class BT7274Assistant:
         else:
             print("\n  [STT] Transcribing...")
             try:
-                stt_result = self.stt.transcribe(audio_path)
+                stt_result = self.stt.transcribe(audio_path) if self.stt else {"text": "", "confidence": 0.0}
                 text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
                 stt_confidence = stt_result.get("confidence") if isinstance(stt_result, dict) else None
             except Exception as e:
@@ -690,7 +727,7 @@ class BT7274Assistant:
         if self._is_location_query(text):
             print("  📍 Locating Pilot...")
             try:
-                location_result = self.actions.execute("get_location")
+                location_result = self.actions.execute("get_location") if self.actions else "Location unavailable"
                 if location_result and not location_result.startswith("Location"):
                     print(f"  📍 {location_result}")
                     response_parts.append(f"Pilot, {location_result}")
@@ -707,8 +744,8 @@ class BT7274Assistant:
         if self._is_time_query(text):
             print("  🕐 Checking chronometer...")
             try:
-                time_result = self.actions.execute("tell_time")
-                date_result = self.actions.execute("tell_date")
+                time_result = self.actions.execute("tell_time") if self.actions else "Time unavailable"
+                date_result = self.actions.execute("tell_date") if self.actions else "Date unavailable"
                 if time_result and date_result:
                     print(f"  🕐 {time_result}")
                     print(f"  📅 {date_result}")
@@ -731,12 +768,24 @@ class BT7274Assistant:
             try:
                 # Check if user specified a location in the query
                 query_location = self._extract_location_from_query(text)
-                if query_location:
-                    print(f"    📍 Location from query: {query_location}")
-                    weather_result = self.actions.execute("get_weather_for_location", location=query_location)
+                is_forecast = self._is_forecast_query(text)
+
+                if is_forecast:
+                    # Use forecast action
+                    if query_location:
+                        print(f"    📍 Location from query: {query_location}")
+                        weather_result = self.actions.execute("get_weather_forecast", location=query_location) if self.actions else "Weather unavailable"
+                    else:
+                        weather_result = self.actions.execute("get_weather_forecast") if self.actions else "Weather unavailable"
                 else:
-                    weather_result = self.actions.execute("get_weather")
-                if weather_result and not weather_result.startswith("Weather data unavailable"):
+                    # Use current weather action
+                    if query_location:
+                        print(f"    📍 Location from query: {query_location}")
+                        weather_result = self.actions.execute("get_weather_for_location", location=query_location) if self.actions else "Weather unavailable"
+                    else:
+                        weather_result = self.actions.execute("get_weather") if self.actions else "Weather unavailable"
+
+                if weather_result and not weather_result.startswith("Weather data unavailable") and not weather_result.startswith("Forecast data unavailable"):
                     print(f"  🌤 {weather_result}")
                     print("  [LLM] Summarizing for Pilot...")
                     summary_prompt = (
@@ -747,7 +796,7 @@ class BT7274Assistant:
                         f"Only the response text. No quotes, no markdown, no extra text."
                     )
                     try:
-                        weather_response = self.llm.chat(summary_prompt)
+                        weather_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize weather: {weather_result}"
                         response_parts.append(weather_response)
                     except Exception as e:
                         self._report_error("llm", "chat_weather_summary", e)
@@ -769,7 +818,7 @@ class BT7274Assistant:
                 enriched_query = self.location.enrich_query(text) if self.location else text
                 if enriched_query != text:
                     print(f"    📍 Localized query: {enriched_query}")
-                search_result = self.actions.execute("search_web", query=enriched_query)
+                search_result = self.actions.execute("search_web", query=enriched_query) if self.actions else "Search unavailable"
                 if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
                     print(f"  🔍 Results: {search_result[:100]}...")
                     print("  [LLM] Summarizing for Pilot...")
@@ -793,7 +842,7 @@ class BT7274Assistant:
                             f"Only the response text. No quotes, no markdown, no extra text."
                         )
                     try:
-                        search_response = self.llm.chat(summary_prompt)
+                        search_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize search: {search_result}"
                         response_parts.append(search_response)
                     except Exception as e:
                         self._report_error("llm", "chat_search_summary", e)
@@ -823,7 +872,7 @@ class BT7274Assistant:
         if is_travel_related and "travel" not in handled_types and not is_information_query:
             # For travel queries, silently get user's location and inject it into the LLM prompt
             print("  📍 Checking your location for travel planning...")
-            location_result = self.actions.execute("get_location_structured")
+            location_result = self.actions.execute("get_location_structured") if self.actions else "Location unavailable"
             if location_result and not location_result.startswith("Location"):
                 try:
                     location_data = json.loads(location_result)
@@ -831,32 +880,32 @@ class BT7274Assistant:
                     # Add location context to the query - let LLM handle the full question
                     enriched_text = f"{text} {location_context} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                     print("  [LLM] Thinking with location context...")
-                    travel_response = self.llm.chat(enriched_text)
+                    travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
                     response_parts.append(travel_response)
                     handled_types.add("travel")
                 except json.JSONDecodeError:
                     # Fallback to simple location if JSON parsing fails
-                    simple_location = self.actions.execute("get_location")
+                    simple_location = self.actions.execute("get_location") if self.actions else "Location unavailable"
                     if simple_location and not simple_location.startswith("Location"):
                         enriched_text = f"{text} IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {simple_location} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                         print("  [LLM] Thinking with location context...")
-                        travel_response = self.llm.chat(enriched_text)
+                        travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
                         response_parts.append(travel_response)
                         handled_types.add("travel")
                     else:
                         print("  [LLM] Thinking...")
-                        normal_response = self.llm.chat(text)
+                        normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
                         response_parts.append(normal_response)
                         handled_types.add("travel")
             else:
                 print("  [LLM] Thinking...")
-                normal_response = self.llm.chat(text)
+                normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
                 response_parts.append(normal_response)
                 handled_types.add("travel")
         elif is_information_query and "travel" not in handled_types and is_travel_related:
             # For event information queries, process normally without location context
             print("  [LLM] Thinking...")
-            normal_response = self.llm.chat(text)
+            normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
             response_parts.append(normal_response)
             handled_types.add("travel")
 
@@ -870,7 +919,7 @@ class BT7274Assistant:
             print("  [LLM] Thinking...")
             llm_start = time.time()
             try:
-                response = self.llm.chat(text)
+                response = self.llm.chat(text) if self.llm else "Response unavailable"
             except Exception as e:
                 self._report_error("llm", "chat", e, {"pilot_message": text})
                 response = "Pilot, my neural network is experiencing interference. Please try again."
@@ -952,14 +1001,42 @@ class BT7274Assistant:
         else:
             # Use appropriate TTS method based on performance mode
             try:
-                if self.performance_mode == "performance":
+                if self.performance_mode == "performance" and self.tts:
                     # Performance mode: Use streaming TTS for sentence-level playback
                     print("    ⚡ Streaming TTS (sentence-level)...")
-                    self.tts.speak_streaming(clean_response)
-                    tts_success = True
-                else:
+                    if self.tts and hasattr(self.tts, 'speak_streaming') and callable(getattr(self.tts, 'speak_streaming', None)):
+                        try:
+                            self.tts.speak_streaming(clean_response)
+                            tts_success = True
+                        except Exception as e:
+                            self._report_error("tts", "speak_streaming", e, {"text": clean_response})
+                            tts_success = False
+                    elif self.tts and hasattr(self.tts, 'speak') and callable(getattr(self.tts, 'speak', None)):
+                        # Fallback to standard TTS if streaming not available
+                        try:
+                            output_wav = self.tts.speak(clean_response)
+                            if output_wav:
+                                try:
+                                    play_audio(output_wav)
+                                    tts_success = True
+                                except Exception as play_error:
+                                    self._report_error("tts", "play_audio", play_error, {"output_wav": output_wav})
+                                    tts_success = False
+                        except Exception as e:
+                            self._report_error("tts", "speak", e, {"text": clean_response})
+                            tts_success = False
+                    else:
+                        # Fallback to standard TTS if streaming not available
+                        output_wav = self.tts.speak(clean_response) if self.tts else None
+                        if output_wav:
+                            try:
+                                play_audio(output_wav)
+                                tts_success = True
+                            except Exception as play_error:
+                                self._report_error("tts", "play_audio", play_error, {"output_wav": output_wav})
+                elif self.tts:
                     # Standard mode: Full response synthesis then playback
-                    output_wav = self.tts.speak(clean_response)
+                    output_wav = self.tts.speak(clean_response) if self.tts else None
                     if output_wav:
                         try:
                             play_audio(output_wav)
@@ -981,11 +1058,12 @@ class BT7274Assistant:
         
         # Get audio file path
         audio_file_path = None
+        output_wav = None  # Initialize to prevent unbound variable error
         if not (standby_wav and Path(standby_wav).exists()):
             if self.performance_mode == "performance":
                 audio_file_path = "streaming"
             else:
-                audio_file_path = output_wav if 'output_wav' in locals() else None
+                audio_file_path = output_wav if 'output_wav' in locals() and output_wav else None
         
         # Get location context
         location_context = None
@@ -994,8 +1072,9 @@ class BT7274Assistant:
         
         # Get weather context (if weather was queried)
         weather_context = None
+        weather_result = None  # Initialize to prevent unbound variable error
         if "weather" in handled_types:
-            weather_context = weather_result if 'weather_result' in locals() else None
+            weather_context = weather_result if 'weather_result' in locals() and weather_result else None
         
         # Calculate mission elapsed time
         mission_elapsed_time = time.time() - self.session_start_time
@@ -1085,7 +1164,7 @@ class BT7274Assistant:
             return
 
         print("  [STT] Transcribing follow-up...")
-        stt_result = self.stt.transcribe(audio_path)
+        stt_result = self.stt.transcribe(audio_path) if self.stt else {"text": "", "confidence": 0.0}
         text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
 
         # Clean up temp file
