@@ -42,6 +42,15 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 
+# For semantic similarity matching
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    SEMANTIC_SIMILARITY_AVAILABLE = True
+except ImportError:
+    SEMANTIC_SIMILARITY_AVAILABLE = False
+    print("⚠ Semantic similarity matching not available. Install scikit-learn for this feature.")
+
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
 from stt import WhisperSTT
@@ -84,6 +93,15 @@ class BT7274Assistant:
         self.errors_this_interaction = []
         self.actions_this_session = []
         self.weather_context = None
+        
+        # For semantic similarity matching
+        self.semantic_vectorizer = None
+        self.semantic_clip_matrix = None
+        self.semantic_clip_phrases = []
+        
+        # For context-aware phrase selection
+        self.conversation_history = []  # List of (user_query, bot_response) tuples
+        self.current_context = {}       # Current context information
         
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
@@ -229,8 +247,11 @@ class BT7274Assistant:
         print("\n[6/9] Checking standby audio files...")
         self._check_and_generate_standby_clips()
         
-        print("\n[6.5/9] Loading BT-7274 original voice clips...")
+        print("\n[6.1/9] Loading BT-7274 original voice clips...")
         self._load_bt_original_clips()
+
+        print("\n[6.2/9] Initializing semantic matching for BT clips...")
+        self._initialize_semantic_matching()
 
         print("\n[7/9] Initializing Action Handler...")
         try:
@@ -407,6 +428,154 @@ class BT7274Assistant:
                 print(f"    ✓ Loaded {loaded} BT-7274 original voice clips from CSV.")
         except Exception as e:
             print(f"    ✗ Error loading BT-7274 original clips: {e}")
+
+    def _initialize_semantic_matching(self):
+        """Initialize semantic similarity matching for BT clips."""
+        if not SEMANTIC_SIMILARITY_AVAILABLE:
+            return
+            
+        if not self.bt_clips:
+            return
+            
+        try:
+            # Create TF-IDF vectorizer
+            self.semantic_vectorizer = TfidfVectorizer(
+                lowercase=True,
+                stop_words='english',
+                ngram_range=(1, 2),  # Use unigrams and bigrams
+                max_features=1000    # Limit vocabulary size
+            )
+            
+            # Get all phrases for semantic matching
+            self.semantic_clip_phrases = list(self.bt_clips.keys())
+            
+            # Fit the vectorizer on all BT clip phrases
+            self.semantic_clip_matrix = self.semantic_vectorizer.fit_transform(self.semantic_clip_phrases)
+            
+            print(f"    ✓ Semantic similarity matching initialized with {len(self.semantic_clip_phrases)} phrases")
+        except Exception as e:
+            print(f"    ⚠ Failed to initialize semantic similarity matching: {e}")
+            self.semantic_vectorizer = None
+            self.semantic_clip_matrix = None
+            self.semantic_clip_phrases = []
+
+    def _update_conversation_context(self, user_query: str, bot_response: str):
+        """Update conversation context with the latest interaction."""
+        # Add to conversation history
+        self.conversation_history.append((user_query, bot_response))
+        
+        # Keep only the last 10 interactions to avoid memory issues
+        if len(self.conversation_history) > 10:
+            self.conversation_history.pop(0)
+        
+        # Update current context based on keywords
+        user_lower = user_query.lower()
+        response_lower = bot_response.lower()
+        
+        # Detect conversation topics
+        if any(word in user_lower for word in ["weather", "temperature", "forecast"]):
+            self.current_context["topic"] = "weather"
+        elif any(word in user_lower for word in ["time", "date", "clock"]):
+            self.current_context["topic"] = "time"
+        elif any(word in user_lower for word in ["location", "where"]):
+            self.current_context["topic"] = "location"
+        elif any(word in user_lower for word in ["thank", "thanks", "appreciate"]):
+            self.current_context["topic"] = "gratitude"
+            
+        # Detect emotional tone from user
+        if any(word in user_lower for word in ["help", "assist", "support"]):
+            self.current_context["user_emotion"] = "seeking_help"
+        elif any(word in user_lower for word in ["danger", "careful", "warning"]):
+            self.current_context["user_emotion"] = "concerned"
+        elif any(word in user_lower for word in ["good", "great", "awesome", "perfect"]):
+            self.current_context["user_emotion"] = "positive"
+            
+        # Detect emotional tone from bot response
+        if any(word in response_lower for word in ["danger", "careful", "warning", "caution"]):
+            self.current_context["bot_emotion"] = "cautious"
+        elif any(word in response_lower for word in ["congratulations", "well done", "excellent"]):
+            self.current_context["bot_emotion"] = "positive"
+        elif any(word in response_lower for word in ["understood", "acknowledged", "copy that"]):
+            self.current_context["bot_emotion"] = "neutral"
+
+    def _get_context_aware_phrases(self) -> list[str]:
+        """Get phrases that match the current conversation context."""
+        context_phrases = []
+        
+        # Get current topic
+        topic = self.current_context.get("topic", "")
+        
+        # Define context-specific keywords for BT clips
+        context_keywords = {
+            "weather": ["weather", "atmospheric", "sensors", "storm", "rain", "wind", "temperature"],
+            "time": ["time", "chronometer", "clock", "date", "calendar"],
+            "location": ["location", "position", "coordinates", "navigation", "map"],
+            "gratitude": ["welcome", "pleasure", "assist", "help", "support"],
+            "combat": ["enemy", "hostile", "titan", "weapon", "combat", "attack"],
+            "mission": ["mission", "objective", "protocol", "orders", "task"],
+            "status": ["status", "condition", "systems", "operational", "functional"]
+        }
+        
+        # Get keywords for current topic
+        keywords = context_keywords.get(topic, [])
+        
+        # Find BT clips that match these keywords
+        for phrase, path in self.bt_clips.items():
+            if any(keyword in phrase for keyword in keywords):
+                context_phrases.append(phrase)
+        
+        return context_phrases
+
+    def _detect_emotional_tone(self, text: str) -> str:
+        """Detect the emotional tone of a text."""
+        text_lower = text.lower()
+        
+        # Define emotional tone indicators
+        tone_indicators = {
+            "urgent": ["danger", "warning", "alert", "emergency", "critical", "hurry", "quick"],
+            "cautious": ["careful", "caution", "beware", "watch out", "attention"],
+            "positive": ["good", "great", "excellent", "perfect", "wonderful", "amazing"],
+            "concerned": ["worry", "concern", "afraid", "scared", "nervous", "anxious"],
+            "determined": ["must", "will", "shall", "determined", "committed", "resolve"],
+            "neutral": ["understood", "acknowledged", "copy that", "roger", "affirmative"]
+        }
+        
+        # Count matches for each tone
+        tone_scores = {}
+        for tone, indicators in tone_indicators.items():
+            score = sum(1 for indicator in indicators if indicator in text_lower)
+            if score > 0:
+                tone_scores[tone] = score
+        
+        # Return the tone with highest score, or "neutral" if no matches
+        if tone_scores:
+            return max(tone_scores, key=tone_scores.get)
+        return "neutral"
+
+    def _get_emotion_matching_phrases(self, text: str) -> list[str]:
+        """Get phrases that match the emotional tone of the text."""
+        tone = self._detect_emotional_tone(text)
+        
+        # Define emotional tone keywords for BT clips
+        emotion_keywords = {
+            "urgent": ["danger", "warning", "alert", "emergency", "critical", "hurry"],
+            "cautious": ["careful", "caution", "beware", "watch out", "attention"],
+            "positive": ["good", "great", "excellent", "perfect", "wonderful", "congratulations"],
+            "concerned": ["worry", "concern", "careful", "safe", "protect"],
+            "determined": ["must", "will", "shall", "determined", "committed", "resolve", "protocol"],
+            "neutral": ["understood", "acknowledged", "copy that", "roger", "affirmative", "standing by"]
+        }
+        
+        # Get keywords for detected tone
+        keywords = emotion_keywords.get(tone, [])
+        
+        # Find BT clips that match these emotional keywords
+        matching_phrases = []
+        for phrase, path in self.bt_clips.items():
+            if any(keyword in phrase for keyword in keywords):
+                matching_phrases.append(phrase)
+        
+        return matching_phrases
 
     def _extract_location_from_query(self, text: str) -> Optional[str]:
         """Extract location from weather query like 'weather in Tucson, Arizona'."""
@@ -705,8 +874,21 @@ class BT7274Assistant:
             task_key = f"standby_phrases_{task}"
             phrases = self.config["pipeline"].get(task_key) or self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
             import random
-            phrase = random.choice(phrases)
-            print(f"  ⏳ {phrase}")
+            
+            # Try context-aware phrase selection first
+            context_phrases = self._get_context_aware_phrases()
+            if context_phrases:
+                # Filter to only phrases that are in our standby phrases
+                matching_phrases = [p for p in phrases if self._normalize_phrase(p) in context_phrases]
+                if matching_phrases:
+                    phrase = random.choice(matching_phrases)
+                    print(f"  ⏳ [Context-aware] {phrase}")
+                else:
+                    phrase = random.choice(phrases)
+                    print(f"  ⏳ {phrase}")
+            else:
+                phrase = random.choice(phrases)
+                print(f"  ⏳ {phrase}")
 
             # Try pre-recorded clip first (BT's original clips take priority)
             key = self._normalize_phrase(phrase)
@@ -723,7 +905,7 @@ class BT7274Assistant:
                 
         # Helper: try to find a suitable standby clip for common responses
         def try_standby_for_response(response_text: str) -> Optional[str]:
-            """Try to match a response to a pre-generated standby clip."""
+            """Try to match a response to a pre-generated standby clip with enhanced matching."""
             if not response_text:
                 return None
                 
@@ -743,6 +925,51 @@ class BT7274Assistant:
                 if normalized in key or key in normalized:
                     if Path(path).exists():
                         return path
+            
+            # Try semantic similarity matching if available
+            if self.semantic_vectorizer and self.semantic_clip_matrix is not None:
+                try:
+                    # Transform the input text
+                    response_vector = self.semantic_vectorizer.transform([normalized])
+                    
+                    # Calculate cosine similarities
+                    similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)
+                    
+                    # Find the best match above threshold
+                    best_match_idx = np.argmax(similarities)
+                    best_similarity = similarities[0][best_match_idx]
+                    
+                    # Use a threshold to avoid poor matches
+                    if best_similarity > 0.3:  # Adjust threshold as needed
+                        best_phrase = self.semantic_clip_phrases[best_match_idx]
+                        path = self.bt_clips.get(best_phrase)
+                        if path and Path(path).exists():
+                            print(f"    🧠 Semantic match found: '{best_phrase}' (similarity: {best_similarity:.2f})")
+                            return path
+                except Exception as e:
+                    print(f"    ⚠ Semantic matching failed: {e}")
+            
+            # Try context-aware phrase selection
+            context_phrases = self._get_context_aware_phrases()
+            if context_phrases:
+                # Try to find a match within context-aware phrases first
+                for phrase in context_phrases:
+                    if normalized in phrase or phrase in normalized:
+                        path = self.bt_clips.get(phrase)
+                        if path and Path(path).exists():
+                            print(f"    Context-aware match found: '{phrase}'")
+                            return path
+            
+            # Try emotional tone matching
+            emotion_phrases = self._get_emotion_matching_phrases(response_text)
+            if emotion_phrases:
+                # Try to find a match within emotion-matching phrases
+                for phrase in emotion_phrases:
+                    if normalized in phrase or phrase in normalized:
+                        path = self.bt_clips.get(phrase)
+                        if path and Path(path).exists():
+                            print(f"    Emotion match found: '{phrase}'")
+                            return path
             
             # Partial matches for common patterns
             common_patterns = {
@@ -803,6 +1030,8 @@ class BT7274Assistant:
                         if response_wav:
                             play_audio(response_wav)
             self.last_activity = time.time()
+            # Update conversation context
+            self._update_conversation_context(text, "You're welcome, Pilot.")
             return True
 
         # 2. Handle compound queries - detect all matching query types
@@ -1131,6 +1360,9 @@ class BT7274Assistant:
                             self._report_error("tts", "play_audio", e, {"output_wav": output_wav})
             except Exception as e:
                 self._report_error("tts", "speak", e, {"text": clean_response})
+
+        # Update conversation context with the current interaction
+        self._update_conversation_context(text, clean_response)
 
         # Log the interaction (after TTS so metrics are accurate)
         tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}

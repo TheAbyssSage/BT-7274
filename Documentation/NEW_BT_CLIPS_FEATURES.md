@@ -55,6 +55,11 @@ training_data/             # TTS training resources
 2. New `_load_bt_original_clips()` method for initialization
 3. Enhanced `try_standby_for_response()` with fuzzy matching
 4. Updated `speak_standby()` to prioritize BT clips
+5. **NEW**: `_initialize_semantic_matching()` for TF-IDF vectorization
+6. **NEW**: `_update_conversation_context()` for context tracking
+7. **NEW**: `_get_context_aware_phrases()` for topic-based selection
+8. **NEW**: `_detect_emotional_tone()` for tone detection
+9. **NEW**: `_get_emotion_matching_phrases()` for emotion-based matching
 
 ## Usage Examples
 
@@ -89,9 +94,9 @@ The dataset can be used to:
 ## Future Improvements
 
 ### Enhanced Matching
-1. Semantic similarity matching for conceptual responses
-2. Context-aware phrase selection
-3. Emotional tone matching
+1. **Semantic Similarity Matching** - Uses TF-IDF vectorization and cosine similarity to find conceptually similar phrases even when wording differs
+2. **Context-Aware Phrase Selection** - Tracks conversation topics (weather, location, combat, etc.) and prioritizes relevant phrases
+3. **Emotional Tone Matching** - Detects emotional tones (urgent, cautious, positive, concerned, determined, neutral) and matches appropriate responses
 
 ### Expanded Training Data
 1. Phoneme-level transcriptions
