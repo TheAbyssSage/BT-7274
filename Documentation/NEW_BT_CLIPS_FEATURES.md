@@ -99,9 +99,9 @@ The dataset can be used to:
 3. **Emotional Tone Matching** - Detects emotional tones (urgent, cautious, positive, concerned, determined, neutral) and matches appropriate responses
 
 ### Expanded Training Data
-1. Phoneme-level transcriptions
-2. Prosody annotations
-3. Character emotion tagging
+1. **Phoneme-level Transcriptions** - IPA phoneme sequences for each voice line using espeak phonemizer with fallback mapping
+2. **Prosody Annotations** - Pitch (mean/range), energy (mean/range), tempo, spectral features extracted via librosa
+3. **Character Emotion Tagging** - 8 emotion categories (urgent, cautious, positive, concerned, determined, neutral, questioning, commanding) with confidence scores
 
 ### Integration Ideas
 1. Dynamic clip selection based on conversation context

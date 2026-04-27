@@ -1,0 +1,80 @@
+{
+  "character_name": "BT-7274",
+  "source": "Titanfall 2",
+  "version": "2.0",
+  "features": [
+    "phoneme_transcription",
+    "prosody_analysis",
+    "emotion_tagging",
+    "speaking_style"
+  ],
+  "characteristics": {
+    "voice_type": "Deep, masculine synthetic voice",
+    "tone": "Calm, precise, tactical",
+    "personality": "Loyal, slightly literal, dry humor",
+    "speaking_style": "Concise, efficient, formal with pilot-directed phrases",
+    "common_phrases": [
+      "Pilot",
+      "Copy that",
+      "Understood",
+      "Acknowledged",
+      "Stand by",
+      "You're welcome",
+      "Roger that",
+      "Confirmed"
+    ]
+  },
+  "phoneme_info": {
+    "backend": "espeak",
+    "language": "en-us",
+    "stress_marks": true,
+    "phoneme_set": "IPA"
+  },
+  "prosody_info": {
+    "features": [
+      "mean_pitch_hz",
+      "pitch_range_hz",
+      "mean_energy",
+      "energy_range",
+      "tempo_bpm",
+      "spectral_centroid",
+      "spectral_rolloff"
+    ],
+    "analysis_tool": "librosa"
+  },
+  "emotion_categories": [
+    "urgent",
+    "cautious",
+    "positive",
+    "concerned",
+    "determined",
+    "neutral",
+    "questioning",
+    "commanding"
+  ],
+  "technical_specs": {
+    "sample_rate": "Unknown (game audio)",
+    "bit_depth": "Unknown",
+    "codec": "WAV"
+  },
+  "usage_notes": {
+    "context": "Military/sci-fi assistant AI",
+    "appropriate_for": [
+      "Gaming assistants",
+      "Sci-fi projects",
+      "Military-themed applications",
+      "Voice cloning research"
+    ],
+    "limitations": [
+      "Game-specific terminology",
+      "Limited emotional range",
+      "Synthetic voice only"
+    ],
+    "training_recommendations": [
+      "Use phoneme transcriptions for pronunciation accuracy",
+      "Use prosody features for natural speech patterns",
+      "Use emotion tags for expressive synthesis",
+      "Combine all features for best results"
+    ]
+  }
+}
