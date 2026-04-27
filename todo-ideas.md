@@ -1,125 +1,217 @@
-# BT-7274 Feature Ideas & Logging Plan
+# BT-7274 Feature Ideas & Logging Plan (with Log Paths)
+
+Current log folders:
+
+- logs/bt_brief
+- logs/bt_logs
+- logs/bt_vision
+- logs/bt_workstation
+- logs/bt-pilot_interactions
+- logs/pilot_health
+- logs/pilot_logs
+- logs/pilot_voice_commands
+- logs/system_logs
+
+---
 
 ## 1. Protocol Mode
 
 **Command:** “BT, protocol brief.”
 
-- Summarizes current goals, status, and suggestions (Titanfall-style protocol monologue).
+- Summarizes current goals, status, and suggestions.
 - Can:
   - Create / update a **pilot to-do list**.
   - Append **notes** to a personal log.
-- Config:
-  - Toggle at startup or via command: `protocol_mode: on/off`.
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log when protocol mode is enabled/disabled.
-  - Log each protocol brief (timestamp + summary) in `logs/system.log`.
+
+Config:
+
+- Toggle at startup or via command: `protocol_mode: on/off`.
+- Ask BT to enable/disable it.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+    - Example: `2025-04-28T10:12Z [protocol_mode] enabled`
+- Brief content:
+  - To `logs/bt_brief` (one file per day or rolling)
+    - Example: `2025-04-28T10:13Z PROTOCOL BRIEF: …`
+
+---
 
 ## 2. Combat Effectiveness Rating
 
-- Tracks a percentage rating that increases when you complete:
-  - Study sessions.
-  - Gym / workout.
-  - Coding sessions.
-  - Other habits you decide to track.
-- BT comments on changes (“Combat effectiveness has increased, Pilot.”).
-- Config:
-  - Toggle tracking at startup: `combat_rating: on/off`.
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log when tracking is enabled/disabled.
-  - Log each rating update (old → new value, reason) in `logs/system.log`.
+Tracks a % rating that increases when you complete:
+
+- Study sessions
+- Gym / workout
+- Coding sessions
+- Other habits
+
+Config:
+
+- Toggle at startup: `combat_rating: on/off`.
+- Ask BT to enable/disable it.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+- Rating updates (old → new, reason):
+  - To `logs/bt_logs`
+    - Example:  
+      `2025-04-28T11:00Z [combat_effectiveness] 72 → 76 (completed 25min focus session)`
+
+---
 
 ## 3. Travel Intel
 
-- When location changes significantly (e.g. new city):
-  - “Pilot, we appear to be in Brussels. Points of interest within 500 meters: …”
-- Optionally uses web search for nearby POIs.
-- Config:
-  - Ask at startup if BT should monitor travel intel: `travel_intel: on/off`.
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log toggle changes.
-  - Log each travel intel event (old location → new location, summary) in `logs/system.log`.
+When location changes significantly:
+
+- “Pilot, we appear to be in Brussels. Points of interest within 500 meters: …”
+
+Config:
+
+- Startup toggle: `travel_intel: on/off`.
+- Ask BT to enable/disable it.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+- Travel intel events:
+  - To `logs/bt_logs`
+    - Example:  
+      `2025-04-29T08:10Z [travel_intel] Genk → Brussels, 5 POIs`
+
+---
 
 ## 4. Environmental Warnings (Weather)
 
-- Uses weather + location to warn about:
-  - Rain / heavy rain.
-  - Hail.
-  - Thunderstorms.
-  - Extreme temperatures (optional).
-- Example line: “Heavy rain detected. Recommend you secure your equipment before deployment.”
-- Config:
-  - Ask at startup: `environmental_warnings: on/off`.
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log toggle changes.
-  - Log each warning (condition, location, severity) in `logs/system.log`.
+Uses weather + location to warn about:
+
+- Rain / heavy rain
+- Hail
+- Thunderstorms
+- Extreme temperatures
+
+Config:
+
+- Startup toggle: `environmental_warnings: on/off`.
+- Ask BT to enable/disable it.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+- Weather warnings:
+  - To `logs/pilot_health` (it’s about safety/conditions for the pilot)
+    - Example:  
+      `2025-04-29T09:02Z [weather_warning] heavy_rain, Genk, severity=medium`
+
+---
 
 ## 5. VPN Cloak (Proton VPN)
 
-- When VPN connects:
-  - “Cloak engaged. Network traffic obfuscated.”
-- When VPN disconnects:
-  - “Cloak offline. We are exposed, Pilot.”
-- BT must be able to **detect current VPN state**.
-- Config:
-  - Option to let BT auto-connect VPN in certain conditions (e.g. on public Wi-Fi).
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log all VPN state changes (connect/disconnect, server, network) in `logs/system.log`.
+When VPN connects/disconnects:
+
+- Connect: “Cloak engaged. Network traffic obfuscated.”
+- Disconnect: “Cloak offline. We are exposed, Pilot.”
+
+Config:
+
+- Option to auto‑connect on public Wi‑Fi.
+- Ask BT to enable/disable auto‑cloak.
+
+Logging:
+
+- All VPN state changes:
+  - To `logs/system_logs`
+    - Example:  
+      `2025-04-28T12:00Z [vpn] connected proton-be-01 wifi=Starbucks_Guest`
+
+---
 
 ## 6. Heart-Rate Style Monitoring (“Stress Mode”)
 
-- Approximates stress / fatigue based on:
-  - Continuous computer usage without a break.
-  - Time of day and duration of session.
-- Example line:
-  - “Your activity duration exceeds recommended limits. I suggest a short rest, Pilot.”
-- Config:
-  - Adjustable thresholds (e.g. warn after 50 minutes of continuous use).
-  - Toggle: `stress_monitoring: on/off`.
-- Logging:
-  - Log when monitoring is enabled/disabled.
-  - Log each warning event (duration, app context if possible) in `logs/system.log`.
+Approximates stress/fatigue from:
+
+- Continuous computer usage
+- Time of day + session length
+
+Config:
+
+- Adjustable thresholds.
+- Toggle: `stress_monitoring: on/off`.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+- Warnings:
+  - To `logs/pilot_health`
+    - Example:  
+      `2025-04-28T13:30Z [stress_warning] 90min continuous use, app=VSCode`
+
+---
 
 ## 7. Focus / Pomodoro Mode
 
-- Command: “BT, uphold the mission for 25 minutes.”
-  - Starts a Pomodoro timer.
-  - Optional short break message afterward.
-- Example:
-  - Start: “Objective accepted. 25-minute focus session initiated.”
-  - End: “Objective complete. You upheld the mission, Pilot.”
-- Config:
-  - Customizable durations (focus + break).
-- Logging:
-  - Log each session start/stop, outcome (completed / interrupted) in `logs/system.log`.
+Command: “BT, uphold the mission for 25 minutes.”
 
-## 8. Pilot Log (“BT, make log”)
+- Starts a Pomodoro timer.
+- Optional break message.
 
-- Command: “BT, make log: …”
-  - Appends free-form text to a **personal pilot log**.
-- Access:
-  - BT has read/write access to a dedicated logs folder.
-- Storage:
-  - Append to `logs/pilot_logs/<date>.log` or a single `logs/pilot_logs/pilot_log.md`.
-- Logging:
-  - Each entry includes timestamp + raw text.
-  - Optionally tag entries by type (mood, idea, task).
+Config:
+
+- Custom focus + break durations.
+
+Logging:
+
+- Session start/stop/outcome:
+  - To `logs/bt_workstation`
+    - Example:  
+      `2025-04-28T14:00Z [focus_session] start 25min task="Laravel API"`  
+      `2025-04-28T14:25Z [focus_session] complete`
+
+---
+
+## 8. Pilot Log (“BT, make log” / BT personal logs)
+
+Command: “BT, make log: …”
+
+- Appends free‑form text to pilot logs.
+
+Storage:
+
+- BT’s own internal logs (system‑style):
+  - To `logs/bt_logs/<name>_<date>.log`
+- Your personal pilot logs:
+  - To `logs/pilot_logs/<name>_<date>.log`
+  - Or a single `logs/pilot_logs/pilot_logs.md`
+
+Logging:
+
+- Each entry with timestamp + raw text (and optional tags).
+- No extra meta log needed beyond the file itself.
+
+---
 
 ## 9. Event-Driven BT Lines (Success / Error Hooks)
 
-- Success examples:
-  - On successful web search: “Data core reinitialized. Information acquired.”
-- Error examples:
-  - On command failure: “That would violate Protocol 3.”
-- Integration:
-  - Hook into your command dispatcher so BT always reacts.
-- Logging:
-  - Log all **errors** and failed commands in `logs/system.log` (command + reason).
-  - Optional: log major successes (e.g. long tasks completed).
+Examples:
+
+- Success (e.g. web search OK): “Data core reinitialized. Information acquired.”
+- Error (command failure): “That would violate Protocol 3.”
+
+Logging:
+
+- Errors and failed commands:
+  - To `logs/system_logs`
+    - Example:  
+      `2025-04-28T15:10Z [error] command="bt vpn on" reason="proton-cli not found"`
+- Optional: major successes (long tasks, big actions):
+  - Also to `logs/system_logs`
 
 ---
 
@@ -127,41 +219,64 @@
 
 ### 10.1 Calendar Awareness
 
-- BT can read your calendar and:
-  - List today’s events.
-  - Warn about upcoming events (“Pilot, you have a briefing in 30 minutes.”).
-  - Include events in protocol briefs and daily mission summaries.
-- Config:
-  - Toggle calendar access: `calendar_access: on/off`.
-  - Be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log when calendar access is enabled/disabled.
-  - Log reminders/alerts triggered (event, time, lead time) in `logs/system.log`.
+BT can:
+
+- List today’s events.
+- Warn about upcoming events.
+- Include events in briefs/debriefs.
+
+Config:
+
+- `calendar_access: on/off`.
+- Ask BT to enable/disable it.
+
+Logging:
+
+- State changes:
+  - To `logs/system_logs`
+- Alerts/reminders fired:
+  - To `logs/bt_logs`
+    - Example:  
+      `2025-04-29T08:30Z [calendar_alert] "Syntra class" starts in 30min`
 
 ### 10.2 Memory / Long-Term State
 
-- BT can “remember”:
-  - Preferences (e.g. study times, usual locations).
-  - Repeated logs (e.g. frequent stress, recurring tasks).
-  - Key facts you explicitly flag: “BT, remember that X.”
-- Usage:
-  - Feed memory into protocol briefs, debriefs, and combat effectiveness commentary.
-- Config:
-  - Toggle explicit memory: `memory_store: on/off`.
-- Logging:
-  - Log “remember” actions (what was stored) in `logs/system.log` or `logs/pilot_logs/memory.log`.
+BT can “remember”:
+
+- Preferences (study times, locations).
+- Repeated patterns from logs.
+- Explicit facts (“BT, remember that X”).
+
+Config:
+
+- Toggle: `memory_store: on/off`.
+
+Logging:
+
+- “Remember” actions (what was stored):
+  - To `logs/bt_logs`
+    - Example:  
+      `2025-04-28T16:00Z [memory_store] key="favorite_editor" value="VSCode"`
 
 ### 10.3 Voice Link / Identity Check
 
-- Command / ritual: “BT, link to pilot.”
-- BT:
-  - Records a voice embedding for you.
-  - On sensitive commands (e.g. shutting down servers, opening sensitive logs), checks that the current speaker roughly matches the stored embedding.
-- Config:
-  - Toggle voice-check requirement for high-privilege actions: `voice_link_required: on/off`.
-- Logging:
-  - Log link creation/updates (no raw audio, just metadata).
-  - Log allowed/denied sensitive actions with voice-check result in `logs/system.log`.
+Command: “BT, link to pilot.”
+
+- Stores a voice embedding.
+- Checks identity on high‑privilege actions.
+
+Config:
+
+- `voice_link_required: on/off`.
+
+Logging:
+
+- Link creation/updates:
+  - To `logs/pilot_voice_commands`
+- Allowed/denied privileged commands:
+  - To `logs/pilot_voice_commands`
+    - Example:  
+      `2025-04-28T17:10Z [voice_auth] action="shutdown_proxmox" result=denied score=0.62`
 
 ---
 
@@ -169,42 +284,51 @@
 
 ### 11.1 Object Recognition as Mission Intel
 
-- Command: “BT, analyze that.”
-  - Uses camera to detect object(s).
-  - Returns:
-    - Object label(s).
-    - Short “threat level / relevance” line.
-  - Optionally uses web search for extra context.
-- Logging:
-  - Log each analysis (object(s), confidence, threat level) in `logs/vision.log`.
+Command: “BT, analyze that.”
+
+- Detects objects.
+- Returns labels + threat/relevance.
+- Optionally web‑lookups.
+
+Logging:
+
+- Analyses:
+  - To `logs/bt_vision`
+    - Example:  
+      `2025-04-28T18:00Z [vision_analyze] object="stairs" conf=0.88 threat=low`
 
 ### 11.2 Augmented HUD
 
-- Display on laptop/phone:
-  - Live camera feed with bounding boxes or overlays.
-  - BT commentary (e.g. current target, warnings).
-- Optional modes:
-  - “Combat HUD” (only threats / people).
-  - “Explorer HUD” (POIs, items).
-- Config:
-  - Toggle HUD modes; be able to ask BT to turn this setting on or off.
-- Logging:
-  - Log HUD mode changes and notable detections in `logs/vision.log`.
+- Live feed with overlays + commentary.
+- Modes:
+  - “Combat HUD”
+  - “Explorer HUD”
+
+Config:
+
+- Toggle HUD on/off and switch modes.
+
+Logging:
+
+- HUD mode changes + notable detections:
+  - To `logs/bt_vision`
+    - Example:  
+      `2025-04-28T18:05Z [hud_mode] mode="combat"`
 
 ---
 
 ## 12. System Comments / Battery Warnings
 
-- Battery monitoring:
-  - Warns at **50%, 20%, 10%, 5%**:
-    - 50%: “Pilot, reserves at 50%.”
-    - 20%: “Battery at 20%. Recommend you locate a charging source.”
-    - 10%, 5%: more urgent variants.
-- Logging strategy:
-  - Log **critical levels** only (≤ 10%), to avoid spam.
-  - Optionally include whether action was taken (user plugged in, BT adjusted brightness, etc.).
-- Logging:
-  - `logs/system.log` entries only for 10% and 5% thresholds.
+Battery monitoring:
+
+- Warn at 50%, 20%, 10%, 5%.
+
+Logging:
+
+- Only **critical levels** (≤ 10%):
+  - To `logs/system_logs`
+    - Example:  
+      `2025-04-28T19:00Z [battery] level=10%`
 
 ---
 
@@ -212,31 +336,40 @@
 
 ### 13.1 Suit Integrity Monitoring
 
-- BT monitors:
-  - Approximate internal temperature (via sensors if available, or time-in-suit as a proxy).
-  - Time since last water break.
-- Lines:
-  - “Pilot, suit integrity stable.”
-  - “Pilot, hydration below recommended levels. I advise you locate water.”
-- Config:
-  - Toggle suit monitoring when entering/exiting cosplay mode: `suit_mode: on/off`.
-- Logging:
-  - Log suit mode on/off.
-  - Log hydration / overheating warnings in `logs/system.log` or a dedicated `logs/suit.log`.
+BT monitors:
+
+- Approx. internal temp (sensor or time‑in‑suit).
+- Time since last water break.
+
+Lines:
+
+- “Pilot, suit integrity stable.”
+- “Pilot, hydration below recommended levels. I advise you locate water.”
+
+Config:
+
+- `suit_mode: on/off` when entering/exiting cosplay.
+
+Logging:
+
+- Suit mode on/off:
+  - To `logs/system_logs`
+- Suit‑specific warnings and metrics:
+  - To `logs/system_logs`  
+    or, if you want separation, create & use `logs/suit.log` later.
 
 ---
 
-## 14. Global Logging Structure (Suggested)
+## 14. Interaction Meta (Optional)
 
-- `logs/system.log`
-  - Feature toggles (on/off).
-  - Errors and failed commands.
-  - System events (VPN, battery, environmental warnings, combat rating updates, focus sessions, calendar alerts, memory actions, voice-link checks, suit warnings).
-- `logs/pilot_logs/…`
-  - Your personal logs created via “BT, make log.”
-  - Optional dedicated `memory.log` if you separate explicit “remember” events.
-- `logs/vision.log`
-  - Camera detections, analyze-commands, HUD mode changes.
-- `logs/suit.log` (optional)
-  - Suit integrity monitoring events (time in suit, hydration/temperature warnings).
+You already have `logs/bt-pilot_interactions`:
 
+- Use it as a **high‑level conversation timeline** between you and BT:
+  - One file per day with:
+    - Commands issued.
+    - Short summaries of BT’s replies.
+    - Pointers to detailed logs (e.g. “see bt_workstation for session details”).
+
+Example entry in `logs/bt-pilot_interactions`:
+
+- `2025-04-28T20:00Z [interaction] "BT, uphold the mission for 25 minutes." → focus_session started (see bt_workstation)`
