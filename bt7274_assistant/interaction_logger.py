@@ -106,6 +106,20 @@ class InteractionLogger:
         if metadata:
             entry["metadata"] = metadata
 
+        # Enhanced matching and personality logging
+        if "match_type" in metadata:
+            entry["match_type"] = metadata["match_type"]
+        if "match_score" in metadata:
+            entry["match_score"] = metadata["match_score"]
+        if "personality_weights" in metadata:
+            entry["personality_weights"] = metadata["personality_weights"]
+        if "dialogue_state" in metadata:
+            entry["dialogue_state"] = metadata["dialogue_state"]
+        if "emotion_detected" in metadata:
+            entry["emotion_detected"] = metadata["emotion_detected"]
+        if "context_topic" in metadata:
+            entry["context_topic"] = metadata["context_topic"]
+
         with open(self.current_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 

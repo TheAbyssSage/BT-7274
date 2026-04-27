@@ -103,6 +103,20 @@ class BT7274Assistant:
         self.conversation_history = []  # List of (user_query, bot_response) tuples
         self.current_context = {}       # Current context information
         
+        # For personality-based response weighting
+        self.personality_weights = {
+            "loyalty": 1.0,      # Increases with pilot trust
+            "formality": 0.8,    # BT is generally formal
+            "tactical": 0.9,     # BT is tactical/military
+            "humor": 0.3,        # BT has dry humor
+            "urgency": 0.5       # Depends on situation
+        }
+        
+        # For dialogue trees
+        self.dialogue_state = "idle"    # Current dialogue state
+        self.dialogue_history = []      # Track dialogue tree progress
+        self.available_transitions = {} # Possible next lines in dialogue
+        
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
         if self.tts and hasattr(self.tts, '_response_cache') and self.tts._response_cache is not None:
@@ -577,6 +591,358 @@ class BT7274Assistant:
         
         return matching_phrases
 
+    def _select_dynamic_clip(self, response_text: str, context: dict = None) -> Optional[str]:
+        """Dynamically select the best BT clip based on conversation context.
+        
+        This method combines multiple factors to choose the most appropriate clip:
+        1. Exact match priority
+        2. Semantic similarity
+        3. Context relevance
+        4. Emotional tone matching
+        5. Conversation history
+        """
+        if not response_text:
+            return None
+            
+        normalized = self._normalize_phrase(response_text)
+        candidates = []
+        
+        # 1. Exact match (highest priority)
+        if normalized in self.bt_clips:
+            candidates.append((self.bt_clips[normalized], 1.0, "exact"))
+        
+        # 2. Semantic similarity matching
+        if self.semantic_vectorizer and self.semantic_clip_matrix is not None:
+            try:
+                response_vector = self.semantic_vectorizer.transform([normalized])
+                similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)
+                
+                # Get top 5 semantic matches
+                top_indices = np.argsort(similarities[0])[-5:][::-1]
+                for idx in top_indices:
+                    similarity = similarities[0][idx]
+                    if similarity > 0.3:
+                        phrase = self.semantic_clip_phrases[idx]
+                        path = self.bt_clips.get(phrase)
+                        if path:
+                            candidates.append((path, similarity * 0.8, "semantic"))
+            except Exception as e:
+                print(f"    ⚠ Semantic matching failed: {e}")
+        
+        # 3. Context-aware matching
+        context_phrases = self._get_context_aware_phrases()
+        if context_phrases:
+            for phrase in context_phrases:
+                if normalized in phrase or phrase in normalized:
+                    path = self.bt_clips.get(phrase)
+                    if path:
+                        candidates.append((path, 0.7, "context"))
+        
+        # 4. Emotional tone matching
+        emotion_phrases = self._get_emotion_matching_phrases(response_text)
+        if emotion_phrases:
+            for phrase in emotion_phrases:
+                if normalized in phrase or phrase in normalized:
+                    path = self.bt_clips.get(phrase)
+                    if path:
+                        candidates.append((path, 0.6, "emotion"))
+        
+        # 5. Conversation history boost
+        if self.conversation_history:
+            recent_topics = set()
+            for query, resp in self.conversation_history[-3:]:
+                recent_topics.update(self._extract_topics(query))
+            
+            for phrase, path in self.bt_clips.items():
+                phrase_topics = self._extract_topics(phrase)
+                if recent_topics & phrase_topics:  # Intersection
+                    candidates.append((path, 0.5, "history"))
+        
+        # Remove duplicates while keeping highest score
+        seen_paths = {}
+        for path, score, match_type in candidates:
+            if path not in seen_paths or seen_paths[path][0] < score:
+                seen_paths[path] = (score, match_type)
+        
+        if not seen_paths:
+            return None
+        
+        # Select best candidate
+        best_path = max(seen_paths.keys(), key=lambda p: seen_paths[p][0])
+        best_score, best_type = seen_paths[best_path]
+        
+        # Store match info for logging
+        self._last_match_type = best_type
+        self._last_match_score = round(best_score, 2)
+        
+        print(f"    Dynamic clip selected: {best_type} match (score: {best_score:.2f})")
+        return best_path
+
+    def _extract_topics(self, text: str) -> set:
+        """Extract topics from text for conversation history matching."""
+        text_lower = text.lower()
+        topics = set()
+        
+        topic_keywords = {
+            "combat": ["enemy", "titan", "weapon", "attack", "defend", "fight"],
+            "mission": ["mission", "objective", "protocol", "orders", "task"],
+            "status": ["status", "condition", "systems", "operational"],
+            "location": ["location", "position", "coordinates", "navigation"],
+            "pilot": ["pilot", "cooper", "jack"],
+            "danger": ["danger", "warning", "alert", "emergency"],
+            "support": ["help", "assist", "support", "aid"]
+        }
+        
+        for topic, keywords in topic_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                topics.add(topic)
+        
+        return topics
+
+    def _apply_personality_weights(self, phrases: list[str], response_text: str) -> list[tuple[str, float]]:
+        """Apply personality-based weighting to phrase candidates.
+        
+        BT-7274's personality traits:
+        - Loyal: Prioritizes pilot safety and trust
+        - Formal: Military protocol and proper address
+        - Tactical: Mission-focused, strategic thinking
+        - Dry humor: Occasional wit, literal interpretations
+        """
+        weighted_phrases = []
+        
+        for phrase in phrases:
+            weight = 1.0
+            phrase_lower = phrase.lower()
+            
+            # Loyalty weighting - boost phrases that show pilot care
+            if self.personality_weights["loyalty"] > 0.5:
+                loyalty_indicators = ["pilot", "protect", "safe", "trust", "link"]
+                loyalty_score = sum(1 for ind in loyalty_indicators if ind in phrase_lower)
+                weight += loyalty_score * self.personality_weights["loyalty"] * 0.2
+            
+            # Formality weighting - boost protocol and formal language
+            if self.personality_weights["formality"] > 0.5:
+                formal_indicators = ["protocol", "acknowledged", "confirmed", "standing by", "copy that"]
+                formal_score = sum(1 for ind in formal_indicators if ind in phrase_lower)
+                weight += formal_score * self.personality_weights["formality"] * 0.15
+            
+            # Tactical weighting - boost mission and strategic language
+            if self.personality_weights["tactical"] > 0.5:
+                tactical_indicators = ["mission", "objective", "tactical", "strategic", "analyze"]
+                tactical_score = sum(1 for ind in tactical_indicators if ind in phrase_lower)
+                weight += tactical_score * self.personality_weights["tactical"] * 0.15
+            
+            # Humor weighting - boost witty or literal interpretations
+            if self.personality_weights["humor"] > 0.3:
+                humor_indicators = ["trust me", "i am bt", "vanguard class", "protocol 3"]
+                humor_score = sum(1 for ind in humor_indicators if ind in phrase_lower)
+                weight += humor_score * self.personality_weights["humor"] * 0.1
+            
+            # Urgency weighting - depends on detected emotion
+            detected_emotion = self._detect_emotional_tone(response_text)
+            if detected_emotion == "urgent" and self.personality_weights["urgency"] > 0.5:
+                urgency_indicators = ["danger", "warning", "alert", "emergency", "critical"]
+                urgency_score = sum(1 for ind in urgency_indicators if ind in phrase_lower)
+                weight += urgency_score * self.personality_weights["urgency"] * 0.25
+            
+            weighted_phrases.append((phrase, weight))
+        
+        # Sort by weight descending
+        weighted_phrases.sort(key=lambda x: x[1], reverse=True)
+        return weighted_phrases
+
+    def _update_personality_weights(self, interaction_type: str = "neutral"):
+        """Update personality weights based on interaction type and trust level."""
+        # Increase loyalty with more interactions
+        self.personality_weights["loyalty"] = min(1.0, 0.5 + (self.pilot_trust_level * 0.1))
+        
+        # Adjust formality based on context
+        if interaction_type == "combat":
+            self.personality_weights["formality"] = 0.9
+            self.personality_weights["urgency"] = 0.9
+            self.personality_weights["humor"] = 0.1
+        elif interaction_type == "casual":
+            self.personality_weights["formality"] = 0.6
+            self.personality_weights["urgency"] = 0.3
+            self.personality_weights["humor"] = 0.5
+        elif interaction_type == "emergency":
+            self.personality_weights["formality"] = 0.95
+            self.personality_weights["urgency"] = 1.0
+            self.personality_weights["humor"] = 0.0
+        
+        # Tactical remains consistently high
+        self.personality_weights["tactical"] = 0.85
+
+    def _build_dialogue_tree(self, root_phrase: str = None) -> dict:
+        """Build an interactive dialogue tree using original game lines.
+        
+        Creates a tree structure where each node is a BT clip and edges
+        represent logical conversation transitions.
+        """
+        tree = {
+            "root": root_phrase or "protocol 1 link to pilot",
+            "nodes": {},
+            "edges": {}
+        }
+        
+        # Define dialogue categories and their related phrases
+        dialogue_categories = {
+            "greeting": [
+                "protocol 1 link to pilot",
+                "neural link established",
+                "you may call me bt",
+                "i am bt7274"
+            ],
+            "status_check": [
+                "systems operational",
+                "all systems nominal",
+                "standing by pilot",
+                "ready to proceed"
+            ],
+            "mission_brief": [
+                "our orders are to resume special operation 217",
+                "rendezvous with major anderson of the srs",
+                "the rendezvous point is 106 clicks northeast"
+            ],
+            "combat_ready": [
+                "weapon systems online",
+                "titanfall imminent",
+                "engaging enemy titans",
+                "defensive protocols active"
+            ],
+            "pilot_care": [
+                "be careful pilot",
+                "pilot our location has been compromised",
+                "are you alright pilot",
+                "i will not lose another pilot"
+            ],
+            "protocol_statements": [
+                "protocol 1 link to pilot",
+                "protocol 2 uphold the mission",
+                "protocol 3 protect the pilot"
+            ]
+        }
+        
+        # Build nodes from available clips
+        for category, phrases in dialogue_categories.items():
+            tree["nodes"][category] = []
+            for phrase in phrases:
+                normalized = self._normalize_phrase(phrase)
+                if normalized in self.bt_clips:
+                    tree["nodes"][category].append({
+                        "phrase": phrase,
+                        "path": self.bt_clips[normalized],
+                        "category": category
+                    })
+        
+        # Define logical transitions between categories
+        tree["edges"] = {
+            "greeting": ["status_check", "mission_brief"],
+            "status_check": ["mission_brief", "combat_ready", "pilot_care"],
+            "mission_brief": ["combat_ready", "protocol_statements"],
+            "combat_ready": ["pilot_care", "protocol_statements"],
+            "pilot_care": ["protocol_statements", "status_check"],
+            "protocol_statements": ["greeting", "mission_brief"]
+        }
+        
+        return tree
+
+    def _get_dialogue_response(self, user_input: str, current_state: str = "idle") -> Optional[str]:
+        """Get the next response in a dialogue tree based on user input.
+        
+        Uses keyword matching to determine the most appropriate next line
+        in the conversation flow.
+        """
+        # Build dialogue tree if not already done
+        if not hasattr(self, '_dialogue_tree') or self._dialogue_tree is None:
+            self._dialogue_tree = self._build_dialogue_tree()
+        
+        tree = self._dialogue_tree
+        user_lower = user_input.lower()
+        
+        # Determine intent from user input
+        intent = self._determine_dialogue_intent(user_input)
+        
+        # Get available transitions from current state
+        if current_state in tree["edges"]:
+            possible_categories = tree["edges"][current_state]
+        else:
+            possible_categories = list(tree["nodes"].keys())
+        
+        # Find best matching phrase based on intent
+        best_match = None
+        best_score = 0
+        
+        for category in possible_categories:
+            if category not in tree["nodes"]:
+                continue
+                
+            for node in tree["nodes"][category]:
+                phrase = node["phrase"].lower()
+                score = 0
+                
+                # Score based on intent matching
+                if intent == "greeting" and category == "greeting":
+                    score += 2
+                elif intent == "status" and category == "status_check":
+                    score += 2
+                elif intent == "mission" and category == "mission_brief":
+                    score += 2
+                elif intent == "combat" and category == "combat_ready":
+                    score += 2
+                elif intent == "concern" and category == "pilot_care":
+                    score += 2
+                elif intent == "protocol" and category == "protocol_statements":
+                    score += 2
+                
+                # Score based on keyword overlap
+                user_words = set(user_lower.split())
+                phrase_words = set(phrase.split())
+                overlap = len(user_words & phrase_words)
+                score += overlap
+                
+                if score > best_score:
+                    best_score = score
+                    best_match = node
+        
+        if best_match and best_score > 0:
+            self.dialogue_state = best_match["category"]
+            self.dialogue_history.append(best_match["phrase"])
+            print(f"    🌳 Dialogue transition: {current_state} -> {best_match['category']}")
+            return best_match["path"]
+        
+        return None
+
+    def _determine_dialogue_intent(self, text: str) -> str:
+        """Determine the user's intent for dialogue tree navigation."""
+        text_lower = text.lower()
+        
+        # Greeting intents
+        if any(word in text_lower for word in ["hello", "hi", "hey", "greetings", "bt"]):
+            return "greeting"
+        
+        # Status intents
+        if any(word in text_lower for word in ["status", "how are you", "systems", "operational"]):
+            return "status"
+        
+        # Mission intents
+        if any(word in text_lower for word in ["mission", "objective", "orders", "task", "plan"]):
+            return "mission"
+        
+        # Combat intents
+        if any(word in text_lower for word in ["fight", "attack", "defend", "enemy", "weapon", "combat"]):
+            return "combat"
+        
+        # Concern intents
+        if any(word in text_lower for word in ["careful", "safe", "protect", "danger", "worry"]):
+            return "concern"
+        
+        # Protocol intents
+        if any(word in text_lower for word in ["protocol", "link", "trust", "protocol 1", "protocol 2", "protocol 3"]):
+            return "protocol"
+        
+        return "general"
+
     def _extract_location_from_query(self, text: str) -> Optional[str]:
         """Extract location from weather query like 'weather in Tucson, Arizona'."""
         import re
@@ -875,20 +1241,41 @@ class BT7274Assistant:
             phrases = self.config["pipeline"].get(task_key) or self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
             import random
             
+            # Update personality weights based on current context
+            current_topic = self.current_context.get("topic", "neutral")
+            self._update_personality_weights(current_topic)
+            
+            # Apply personality-based weighting to phrases
+            weighted_phrases = self._apply_personality_weights(phrases, " ".join(phrases))
+            
             # Try context-aware phrase selection first
             context_phrases = self._get_context_aware_phrases()
             if context_phrases:
-                # Filter to only phrases that are in our standby phrases
+                # Filter to only phrases that are in our standby phrases and context-aware
                 matching_phrases = [p for p in phrases if self._normalize_phrase(p) in context_phrases]
                 if matching_phrases:
-                    phrase = random.choice(matching_phrases)
-                    print(f"  ⏳ [Context-aware] {phrase}")
+                    # Apply personality weighting to context matches
+                    weighted_context = self._apply_personality_weights(matching_phrases, " ".join(matching_phrases))
+                    if weighted_context:
+                        phrase = weighted_context[0][0]  # Take highest weighted
+                        print(f"  ⏳ [Context-aware + Personality] {phrase}")
+                    else:
+                        phrase = random.choice(matching_phrases)
+                        print(f"  ⏳ [Context-aware] {phrase}")
+                else:
+                    if weighted_phrases:
+                        phrase = weighted_phrases[0][0]  # Take highest weighted
+                        print(f"  ⏳ [Personality-weighted] {phrase}")
+                    else:
+                        phrase = random.choice(phrases)
+                        print(f"  ⏳ {phrase}")
+            else:
+                if weighted_phrases:
+                    phrase = weighted_phrases[0][0]  # Take highest weighted
+                    print(f"  ⏳ [Personality-weighted] {phrase}")
                 else:
                     phrase = random.choice(phrases)
                     print(f"  ⏳ {phrase}")
-            else:
-                phrase = random.choice(phrases)
-                print(f"  ⏳ {phrase}")
 
             # Try pre-recorded clip first (BT's original clips take priority)
             key = self._normalize_phrase(phrase)
@@ -911,36 +1298,34 @@ class BT7274Assistant:
                 
             normalized = self._normalize_phrase(response_text)
             
-            # First, check for exact BT clip match
+            # 1. First, try dynamic clip selection (combines all matching methods)
+            dynamic_clip = self._select_dynamic_clip(response_text)
+            if dynamic_clip and Path(dynamic_clip).exists():
+                return dynamic_clip
+            
+            # 2. Check for exact BT clip match
             if normalized in self.bt_clips:
                 return self.bt_clips[normalized]
             
-            # Then check for exact standby clip match
+            # 3. Check for exact standby clip match
             if normalized in self.standby_clips:
                 return self.standby_clips[normalized]
                 
-            # Try fuzzy matching for BT clips (partial matches)
-            # Look for partial matches in BT clips first
+            # 4. Try fuzzy matching for BT clips (partial matches)
             for key, path in self.bt_clips.items():
                 if normalized in key or key in normalized:
                     if Path(path).exists():
                         return path
             
-            # Try semantic similarity matching if available
+            # 5. Try semantic similarity matching if available
             if self.semantic_vectorizer and self.semantic_clip_matrix is not None:
                 try:
-                    # Transform the input text
                     response_vector = self.semantic_vectorizer.transform([normalized])
-                    
-                    # Calculate cosine similarities
                     similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)
-                    
-                    # Find the best match above threshold
                     best_match_idx = np.argmax(similarities)
                     best_similarity = similarities[0][best_match_idx]
                     
-                    # Use a threshold to avoid poor matches
-                    if best_similarity > 0.3:  # Adjust threshold as needed
+                    if best_similarity > 0.3:
                         best_phrase = self.semantic_clip_phrases[best_match_idx]
                         path = self.bt_clips.get(best_phrase)
                         if path and Path(path).exists():
@@ -949,10 +1334,9 @@ class BT7274Assistant:
                 except Exception as e:
                     print(f"    ⚠ Semantic matching failed: {e}")
             
-            # Try context-aware phrase selection
+            # 6. Try context-aware phrase selection
             context_phrases = self._get_context_aware_phrases()
             if context_phrases:
-                # Try to find a match within context-aware phrases first
                 for phrase in context_phrases:
                     if normalized in phrase or phrase in normalized:
                         path = self.bt_clips.get(phrase)
@@ -960,10 +1344,9 @@ class BT7274Assistant:
                             print(f"    Context-aware match found: '{phrase}'")
                             return path
             
-            # Try emotional tone matching
+            # 7. Try emotional tone matching
             emotion_phrases = self._get_emotion_matching_phrases(response_text)
             if emotion_phrases:
-                # Try to find a match within emotion-matching phrases
                 for phrase in emotion_phrases:
                     if normalized in phrase or phrase in normalized:
                         path = self.bt_clips.get(phrase)
@@ -971,7 +1354,12 @@ class BT7274Assistant:
                             print(f"    Emotion match found: '{phrase}'")
                             return path
             
-            # Partial matches for common patterns
+            # 8. Try dialogue tree navigation
+            dialogue_clip = self._get_dialogue_response(response_text, self.dialogue_state)
+            if dialogue_clip and Path(dialogue_clip).exists():
+                return dialogue_clip
+            
+            # 9. Partial matches for common patterns
             common_patterns = {
                 "you're welcome": ["thank you", "thanks", "thx"],
                 "copy that": ["acknowledged", "understood", "roger"],
@@ -983,11 +1371,9 @@ class BT7274Assistant:
             for standby_key, patterns in common_patterns.items():
                 for pattern in patterns:
                     if pattern in normalized:
-                        # Look for a BT clip that contains this pattern first
                         for key, path in self.bt_clips.items():
                             if standby_key in key and Path(path).exists():
                                 return path
-                        # Then check standby clips
                         for key, path in self.standby_clips.items():
                             if standby_key in key and Path(path).exists():
                                 return path
@@ -1427,6 +1813,20 @@ class BT7274Assistant:
                     wake_word = ww
                     break
         
+        # Prepare enhanced metadata for logging
+        enhanced_metadata = {
+            "handled_types": list(handled_types) if 'handled_types' in locals() else [],
+            "match_type": getattr(self, '_last_match_type', None),
+            "match_score": getattr(self, '_last_match_score', None),
+            "personality_weights": self.personality_weights.copy(),
+            "dialogue_state": self.dialogue_state,
+            "emotion_detected": self.current_context.get("bot_emotion", "neutral"),
+            "context_topic": self.current_context.get("topic", "general"),
+            "user_emotion": self.current_context.get("user_emotion", "neutral"),
+            "conversation_history_length": len(self.conversation_history),
+            "semantic_similarity_available": SEMANTIC_SIMILARITY_AVAILABLE,
+        }
+        
         self.logger.log_interaction(
             pilot_message=text,
             bt_response=clean_response,
@@ -1450,9 +1850,7 @@ class BT7274Assistant:
             errors=errors,
             location_context=location_context,
             weather_context=weather_context,
-            metadata={
-                "handled_types": list(handled_types) if 'handled_types' in locals() else [],
-            },
+            metadata=enhanced_metadata,
         )
 
         self.last_activity = time.time()

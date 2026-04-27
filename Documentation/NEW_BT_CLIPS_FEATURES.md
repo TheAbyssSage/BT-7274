@@ -60,6 +60,13 @@ training_data/             # TTS training resources
 7. **NEW**: `_get_context_aware_phrases()` for topic-based selection
 8. **NEW**: `_detect_emotional_tone()` for tone detection
 9. **NEW**: `_get_emotion_matching_phrases()` for emotion-based matching
+10. **NEW**: `_select_dynamic_clip()` for multi-factor clip selection
+11. **NEW**: `_apply_personality_weights()` for personality-based weighting
+12. **NEW**: `_update_personality_weights()` for dynamic personality adjustment
+13. **NEW**: `_build_dialogue_tree()` for interactive dialogue trees
+14. **NEW**: `_get_dialogue_response()` for dialogue tree navigation
+15. **NEW**: `_determine_dialogue_intent()` for intent classification
+16. **NEW**: Enhanced logging with match types, scores, personality weights, and dialogue states
 
 ## Usage Examples
 
@@ -104,9 +111,10 @@ The dataset can be used to:
 3. **Character Emotion Tagging** - 8 emotion categories (urgent, cautious, positive, concerned, determined, neutral, questioning, commanding) with confidence scores
 
 ### Integration Ideas
-1. Dynamic clip selection based on conversation context
-2. Personality-based response weighting
-3. Interactive dialogue trees using original game lines
+1. **Dynamic Clip Selection** - Combines exact match, semantic similarity, context-aware, emotional tone, and conversation history to select the best clip
+2. **Personality-Based Response Weighting** - Adjusts phrase selection based on BT's personality traits (loyalty, formality, tactical, humor, urgency)
+3. **Interactive Dialogue Trees** - Creates structured conversation flows using original game lines with logical transitions between topics
+4. **Comprehensive Logging** - Logs match types, scores, personality weights, dialogue states, emotions, and context topics for analysis
 
 ## Testing
 
