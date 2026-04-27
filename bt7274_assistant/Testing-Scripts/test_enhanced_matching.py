@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "bt7274_assistant"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Try to import sklearn
 try:

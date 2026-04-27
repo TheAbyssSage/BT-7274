@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Regenerate all standby phrases using BT-7274's voice.
-Run: source venv/bin/activate && python scripts/regenerate_standby_bt_voice.py
+Run: source venv/bin/activate && python bt7274_assistant/scripts/regenerate_standby_bt_voice.py
 """
 
 import sys
@@ -12,14 +12,14 @@ import shutil
 
 # Add the project directory to the path
 project_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(project_dir / "bt7274_assistant"))
+sys.path.insert(0, str(project_dir))
 
 from tts import XTTSClient
 
 
 def load_phrases_from_config():
     """Load all standby phrases from config.yaml."""
-    config_path = project_dir / "bt7274_assistant" / "config.yaml"
+    config_path = project_dir / "config.yaml"
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -62,10 +62,10 @@ def load_phrases_from_config():
 def regenerate_standby_phrases(force_regenerate: bool = False):
     config = {
         "model": "tts_models/multilingual/multi-dataset/xtts_v2",
-        "reference_wav": "dataset/reference_speaker.wav",
+        "reference_wav": "bt7274_assistant/dataset/reference_speaker.wav",
         "language": "en",
         "speed": 1.0,
-        "output_dir": "standby",
+        "output_dir": "bt7274_assistant/standby",
     }
 
     tts = XTTSClient(config)

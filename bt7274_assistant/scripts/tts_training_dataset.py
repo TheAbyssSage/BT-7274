@@ -27,7 +27,7 @@ def create_training_dataset():
         return
     
     # Create training data directory
-    training_dir = Path(__file__).parent.parent / "training_data"
+    training_dir = Path(__file__).parent / "training_data"
     training_dir.mkdir(exist_ok=True)
     
     # Create dataset structure
@@ -139,7 +139,7 @@ def create_character_model_card():
     }
     
     # Save model card
-    training_dir = Path(__file__).parent.parent / "training_data"
+    training_dir = Path(__file__).parent / "training_data"
     with open(training_dir / "bt7274_model_card.json", "w") as f:
         json.dump(model_card, f, indent=2)
     

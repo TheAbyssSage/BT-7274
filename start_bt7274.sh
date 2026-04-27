@@ -13,12 +13,12 @@ fi
 
 
 echo ""
-echo "██████████████████████████████████████████"
-echo "█                                        █"
-echo "█      BT-7274 AI ASSISTANT            █"
-echo "█      Protocol 1: Link to Pilot        █"
-echo "█                                        █"
-echo "██████████████████████████████████████████"
+echo "======================================"
+echo "                                        "
+echo "      BT-7274 AI ASSISTANT            "
+echo "      Protocol 1: Link to Pilot        "
+echo "                                        "
+echo "======================================"
 echo ""
 echo "  Enhanced with TTS optimizations:"
 echo "    - Response caching for faster repeats"

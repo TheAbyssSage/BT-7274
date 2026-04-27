@@ -62,12 +62,18 @@ BT-7274/
 │   ├── tts.py                 # TTS engine (XTTS v2)
 │   ├── llm.py                 # Ollama LLM client
 │   ├── actions.py             # Task execution handler
-│   └── utils.py               # Audio helpers
-├── scripts/                   # Setup & utility scripts
-│   ├── prepare_dataset.py     # Dataset cleaning & splitting
-│   ├── train_voice.py         # XTTS v2 voice cloning setup
-│   ├── test_tts.py            # Quick TTS test
-│   └── install_deps.sh        # Dependency installer
+│   ├── utils.py               # Audio helpers
+│   ├── scripts/               # Setup & utility scripts
+│   │   ├── prepare_dataset.py # Dataset cleaning & splitting
+│   │   ├── train_voice.py     # XTTS v2 voice cloning setup
+│   │   ├── test_tts.py        # Quick TTS test
+│   │   └── install_deps.sh    # Dependency installer
+│   ├── dataset/               # Voice dataset
+│   ├── outputs/               # TTS output files
+│   ├── standby/               # Pre-recorded standby phrases
+│   ├── mappings/              # Generated phrase-to-file mappings
+│   ├── training_data/         # TTS training resources
+│   └── Testing-Scripts/       # Testing utilities
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
@@ -150,18 +156,18 @@ Your `metadata.csv` already has transcriptions — great! But we need to clean a
 
 ```bash
 source venv/bin/activate
-python scripts/prepare_dataset.py
+python bt7274_assistant/scripts/prepare_dataset.py
 ```
 
 This script will:
 1. Convert all MP3/WAV files to 22050 Hz mono WAV
 2. Split long files (like the compilation) into shorter clips using voice activity detection (VAD)
 3. Normalize audio levels
-4. Create a `dataset/` folder with clean, training-ready audio
+4. Create a `bt7274_assistant/dataset/` folder with clean, training-ready audio
 
 ### 2.3 Manual Cleanup (Recommended)
 
-After running the script, listen to the clips in `dataset/wavs/` and remove any that:
+After running the script, listen to the clips in `bt7274_assistant/dataset/wavs/` and remove any that:
 - Contain music, gunfire, or heavy SFX
 - Have overlapping dialogue
 - Are too quiet or distorted
@@ -191,16 +197,16 @@ For the best results, concatenate your best 5–10 clean clips into one referenc
 
 ```bash
 # Use the preparation script to create a reference speaker file
-python scripts/prepare_dataset.py --create-reference
+python bt7274_assistant/scripts/prepare_dataset.py --create-reference
 ```
 
-This creates `dataset/reference_speaker.wav` (~30–60 seconds of clean BT-7274 speech).
+This creates `bt7274_assistant/dataset/reference_speaker.wav` (~30–60 seconds of clean BT-7274 speech).
 
 ### 3.3 Test Voice Cloning
 
 ```bash
 # Generate a test phrase in BT-7274's voice
-python scripts/test_tts.py --text "Pilot, I am standing by."
+python bt7274_assistant/scripts/test_tts.py --text "Pilot, I am standing by."
 ```
 
 This will:
@@ -281,7 +287,7 @@ llm:
 
 tts:
   model: tts_models/multilingual/multi-dataset/xtts_v2
-  reference_wav: dataset/reference_speaker.wav
+  reference_wav: bt7274_assistant/dataset/reference_speaker.wav
   language: en
   speed: 1.0
 

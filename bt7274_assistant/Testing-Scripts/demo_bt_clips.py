@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # Add the assistant directory to the path
-sys.path.insert(0, str(Path(__file__).parent / "bt7274_assistant"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Simple demo without importing heavy dependencies
 import csv
@@ -23,7 +23,7 @@ def normalize_phrase(phrase: str) -> str:
 
 def load_bt_clips():
     """Load BT-7274's original voice clips."""
-    voicepack_dir = Path(__file__).parent / "BT-7274.Voicepack"
+    voicepack_dir = Path(__file__).parent.parent / "BT-7274.Voicepack"
     csv_file = voicepack_dir / "bt_clips_index.csv"
     bt_clips_dir = voicepack_dir / "bt_clips"
     

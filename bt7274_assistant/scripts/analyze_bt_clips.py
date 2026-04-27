@@ -122,7 +122,7 @@ def analyze_clips():
         print(f"⚠ {len(missing_files)} audio files missing from clips directory")
     
     # Save mappings to files
-    output_dir = Path(__file__).parent.parent / "mappings"
+    output_dir = Path(__file__).parent / "mappings"
     output_dir.mkdir(exist_ok=True)
     
     # Save phrase to file mapping

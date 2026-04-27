@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "bt7274_assistant"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from interaction_logger import InteractionLogger
 
@@ -19,7 +19,7 @@ def test_enhanced_logging():
     print("=" * 60)
     
     # Create a test logger
-    test_log_dir = Path(__file__).parent.parent / "logs" / "test"
+    test_log_dir = Path(__file__).parent.parent.parent / "logs" / "test"
     logger = InteractionLogger(log_dir=str(test_log_dir))
     
     # Simulate an interaction with enhanced metadata

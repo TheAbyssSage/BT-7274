@@ -17,7 +17,7 @@ def normalize_phrase(phrase: str) -> str:
 
 def load_bt_original_clips():
     """Load BT-7274's original voice clips from the game for instant responses."""
-    voicepack_dir = Path(__file__).parent / "BT-7274.Voicepack"
+    voicepack_dir = Path(__file__).parent.parent / "BT-7274.Voicepack"
     bt_clips_dir = voicepack_dir / "bt_clips"
     csv_file = voicepack_dir / "bt_clips_index.csv"
     

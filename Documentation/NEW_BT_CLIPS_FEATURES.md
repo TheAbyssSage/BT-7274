@@ -34,21 +34,21 @@ BT-7274.Voicepack/
 ├── bt_clips_index.csv     # Index with timestamps and transcriptions
 └── metadata.csv           # Additional metadata
 
-mappings/                  # Generated mappings for quick lookup
+bt7274_assistant/mappings/           # Generated mappings for quick lookup
 ├── bt_phrases_to_files.json
 ├── bt_files_to_phrases.json
 └── bt_phrase_variants.json
 
-training_data/             # TTS training resources
+bt7274_assistant/training_data/      # TTS training resources
 ├── bt7274_dataset.json
 ├── bt7274_dataset.csv
 └── bt7274_model_card.json
 ```
 
 ### Key Scripts
-1. `scripts/analyze_bt_clips.py` - Analyze and map all clips
-2. `scripts/tts_training_dataset.py` - Create training datasets
-3. `test_bt_clips.py` - Test clip loading and matching
+1. `bt7274_assistant/scripts/analyze_bt_clips.py` - Analyze and map all clips
+2. `bt7274_assistant/scripts/tts_training_dataset.py` - Create training datasets
+3. `bt7274_assistant/Testing-Scripts/test_bt_clips.py` - Test clip loading and matching
 
 ### Pipeline Modifications
 1. Added `bt_clips` and `bt_clip_texts` dictionaries to `BT7274Assistant`
@@ -121,13 +121,13 @@ The dataset can be used to:
 To verify the implementation:
 ```bash
 # Test clip loading
-python test_bt_clips.py
+python bt7274_assistant/Testing-Scripts/test_bt_clips.py
 
 # Analyze all clips
-python scripts/analyze_bt_clips.py
+python bt7274_assistant/scripts/analyze_bt_clips.py
 
 # Create training dataset
-python scripts/tts_training_dataset.py
+python bt7274_assistant/scripts/tts_training_dataset.py
 ```
 
 ## Troubleshooting

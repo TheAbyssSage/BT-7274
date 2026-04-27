@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "bt7274_assistant"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from tts import XTTSClient
 
 
 def load_phrases_from_config():
     """Load all standby phrases from config.yaml."""
-    config_path = Path(__file__).parent.parent / "bt7274_assistant" / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -41,14 +41,14 @@ def load_phrases_from_config():
 def generate_standby_phrases():
     config = {
         "model": "tts_models/multilingual/multi-dataset/xtts_v2",
-        "reference_wav": "dataset/reference_speaker.wav",
+        "reference_wav": "bt7274_assistant/dataset/reference_speaker.wav",
         "language": "en",
         "speed": 1.0,
-        "output_dir": "standby",
+        "output_dir": "bt7274_assistant/standby",
     }
 
     tts = XTTSClient(config)
-    output_dir = Path(__file__).parent.parent / "standby"
+    output_dir = Path(__file__).parent / "standby"
     output_dir.mkdir(exist_ok=True)
 
     phrases = load_phrases_from_config()

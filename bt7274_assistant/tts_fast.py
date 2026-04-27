@@ -57,9 +57,9 @@ class StreamingXTTSClient:
     def __init__(self, config: dict):
         self.config = config
         self.model_name = config.get("model", "tts_models/multilingual/multi-dataset/xtts_v2")
-        self.reference_wav = config.get("reference_wav", "dataset/reference_speaker.wav")
+        self.reference_wav = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
         self.language = config.get("language", "en")
-        self.output_dir = Path(config.get("output_dir", "outputs"))
+        self.output_dir = Path(config.get("output_dir", "bt7274_assistant/outputs"))
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Model state

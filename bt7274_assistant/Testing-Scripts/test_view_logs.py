@@ -17,7 +17,7 @@ def test_view_logs():
         sys.executable, 
         "view_logs.py", 
         "--logs"
-    ], capture_output=True, text=True, cwd=Path(__file__).parent)
+    ], capture_output=True, text=True, cwd=Path(__file__).parent.parent.parent)
     
     if result.returncode == 0:
         print("✓ --logs option works correctly")
@@ -34,7 +34,7 @@ def test_view_logs():
         sys.executable, 
         "view_logs.py", 
         "--all"
-    ], capture_output=True, text=True, cwd=Path(__file__).parent)
+    ], capture_output=True, text=True, cwd=Path(__file__).parent.parent.parent)
     
     if result_all.returncode == 0:
         print("✓ --all option works correctly")

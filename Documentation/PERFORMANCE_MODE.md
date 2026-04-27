@@ -141,7 +141,7 @@ The `start_bt7274.sh` script now asks which mode to use:
 
 ```bash
 source venv/bin/activate
-python scripts/test_performance_mode.py
+python bt7274_assistant/scripts/test_performance_mode.py
 ```
 
 This synthesizes the same test phrase in both modes and shows timing comparison.
@@ -150,7 +150,7 @@ This synthesizes the same test phrase in both modes and shows timing comparison.
 
 ```bash
 source venv/bin/activate
-python scripts/test_tts_optimizations.py
+python bt7274_assistant/scripts/test_tts_optimizations.py
 ```
 
 Tests caching, text preprocessing, and cache management.

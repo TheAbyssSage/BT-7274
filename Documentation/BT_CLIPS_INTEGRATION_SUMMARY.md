@@ -23,14 +23,14 @@ We've successfully integrated all 885 original BT-7274 voice lines from Titanfal
 #### New Files Created
 1. `NEW_BT_CLIPS_FEATURES.md` - Feature documentation
 2. `BT_CLIPS_USAGE.md` - Usage guide
-3. `scripts/analyze_bt_clips.py` - Analysis tool
-4. `scripts/tts_training_dataset.py` - Dataset creation
-5. `demo_bt_clips.py` - Demonstration script
-6. `test_bt_clips.py` - Testing utility
+3. `bt7274_assistant/scripts/analyze_bt_clips.py` - Analysis tool
+4. `bt7274_assistant/scripts/tts_training_dataset.py` - Dataset creation
+5. `bt7274_assistant/Testing-Scripts/demo_bt_clips.py` - Demonstration script
+6. `bt7274_assistant/Testing-Scripts/test_bt_clips.py` - Testing utility
 
 #### New Directories
-1. `mappings/` - Generated phrase-to-file mappings
-2. `training_data/` - TTS training resources
+1. `bt7274_assistant/mappings/` - Generated phrase-to-file mappings
+2. `bt7274_assistant/training_data/` - TTS training resources
 
 ### Key Features Implemented
 
@@ -92,9 +92,9 @@ The dataset enables:
 ## Integration Testing
 
 ### Verification Scripts
-1. `test_bt_clips.py` - Basic loading and matching test
-2. `demo_bt_clips.py` - Comprehensive demonstration
-3. `scripts/analyze_bt_clips.py` - Full dataset analysis
+1. `bt7274_assistant/Testing-Scripts/test_bt_clips.py` - Basic loading and matching test
+2. `bt7274_assistant/Testing-Scripts/demo_bt_clips.py` - Comprehensive demonstration
+3. `bt7274_assistant/scripts/analyze_bt_clips.py` - Full dataset analysis
 
 ### Test Results
 - ✅ 744/885 clips successfully loaded (some files may be missing)

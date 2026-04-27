@@ -2,7 +2,7 @@
 """
 Generate pre-recorded standby phrases using macOS 'say' command.
 No heavy TTS dependencies needed — just uses the built-in system voice.
-Run: python scripts/generate_standby_simple.py
+Run: python bt7274_assistant/scripts/generate_standby_simple.py
 """
 
 import subprocess
@@ -12,7 +12,7 @@ import yaml
 
 def load_phrases_from_config():
     """Load all standby phrases from config.yaml."""
-    config_path = Path(__file__).parent.parent / "bt7274_assistant" / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -35,7 +35,7 @@ def load_phrases_from_config():
 
 
 def generate_standby_phrases():
-    output_dir = Path(__file__).parent.parent / "standby"
+    output_dir = Path(__file__).parent / "standby"
     output_dir.mkdir(exist_ok=True)
 
     phrases = load_phrases_from_config()

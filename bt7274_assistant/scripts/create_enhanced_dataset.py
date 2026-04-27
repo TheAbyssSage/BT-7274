@@ -288,7 +288,7 @@ def create_enhanced_training_dataset():
         return
     
     # Create training data directory
-    training_dir = Path(__file__).parent.parent / "training_data"
+    training_dir = Path(__file__).parent / "training_data"
     training_dir.mkdir(exist_ok=True)
     
     # Create enhanced dataset structure
@@ -576,7 +576,7 @@ def create_enhanced_model_card():
     }
     
     # Save enhanced model card
-    training_dir = Path(__file__).parent.parent / "training_data"
+    training_dir = Path(__file__).parent / "training_data"
     with open(training_dir / "bt7274_enhanced_model_card.json", "w") as f:
         json.dump(model_card, f, indent=2)
     

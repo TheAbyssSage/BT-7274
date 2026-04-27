@@ -314,7 +314,7 @@ class BT7274Assistant:
 
     def _check_and_generate_standby_clips(self):
         """Check all standby phrases from config and generate missing .wav files."""
-        standby_dir = Path(__file__).parent.parent / "standby"
+        standby_dir = Path(__file__).parent / "standby"
         standby_dir.mkdir(exist_ok=True)
 
         # Collect all phrases from config
@@ -391,7 +391,7 @@ class BT7274Assistant:
         csv_file = voicepack_dir / "bt_clips_index.csv"
         
         # Try to load precomputed mappings first
-        mappings_dir = Path(__file__).parent.parent / "mappings"
+        mappings_dir = Path(__file__).parent / "mappings"
         phrases_to_files = mappings_dir / "bt_phrases_to_files.json"
         
         if phrases_to_files.exists():
@@ -1201,7 +1201,7 @@ class BT7274Assistant:
         
         generated_count = 0
         skipped_count = 0
-        output_dir = Path(__file__).parent.parent / "standby"
+        output_dir = Path(__file__).parent / "standby"
         output_dir.mkdir(exist_ok=True)
         
         for phrase in phrases:

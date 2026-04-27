@@ -66,7 +66,7 @@ def test_enhanced_metadata_fields():
     print("\nTesting enhanced metadata fields...")
     
     # Read the pipeline.py file and check for the new fields
-    pipeline_file = Path(__file__).parent.parent / "bt7274_assistant" / "pipeline.py"
+    pipeline_file = Path(__file__).parent.parent / "pipeline.py"
     with open(pipeline_file, 'r') as f:
         content = f.read()
     
@@ -91,7 +91,7 @@ def test_logger_fields():
     """Test that interaction_logger extracts new fields."""
     print("\nTesting interaction_logger fields...")
     
-    logger_file = Path(__file__).parent.parent / "bt7274_assistant" / "interaction_logger.py"
+    logger_file = Path(__file__).parent.parent / "interaction_logger.py"
     with open(logger_file, 'r') as f:
         content = f.read()
     
@@ -117,7 +117,7 @@ def test_status_response_clip():
     print("\nTesting status response clip availability...")
     
     # Check if BT clips exist
-    bt_clips_dir = Path(__file__).parent.parent / "BT-7274.Voicepack" / "bt_clips"
+    bt_clips_dir = Path(__file__).parent.parent.parent / "BT-7274.Voicepack" / "bt_clips"
     
     expected_clips = [
         "044_Ready_to_proceed.wav",
