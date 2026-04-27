@@ -29,6 +29,13 @@ A fully local AI assistant based on BT-7274 from Titanfall 2, designed to run on
 
 ## Recent Improvements
 
+### Authentic BT-7274 Voice Clips Integration
+Integrated all 885 original BT-7274 voice lines from Titanfall 2 for instant, authentic responses:
+- Zero-latency playback for matched phrases
+- Priority given to original game voice over generated responses
+- Complete TTS training dataset for voice model fine-tuning
+- See [NEW_BT_CLIPS_FEATURES.md](NEW_BT_CLIPS_FEATURES.md) and [BT_CLIPS_USAGE.md](BT_CLIPS_USAGE.md) for details.
+
 ### Noise Resistance Enhancements
 The system now includes advanced noise reduction and adaptive audio processing to work effectively in noisy environments. See [NOISE_IMPROVEMENTS.md](NOISE_IMPROVEMENTS.md) for technical details.
 
