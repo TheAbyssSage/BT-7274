@@ -1,0 +1,886 @@
+line_number,start_time,end_time,filename,text
+1,00:00.000,00:02.420,001_Standing_by_pilot_Climb_onto_my.wav,"Standing by, pilot. Climb onto my hand."
+2,00:02.640,00:06.080,002_Pilot_I_advise_against_turning_yourself.wav,"Pilot, I advise against turning yourself over to the IMC."
+3,00:06.580,00:09.060,003_Voice_pattern_analysis_indicates_they_ar.wav,Voice pattern analysis indicates they are lying.
+4,00:09.500,00:11.740,004_Understood_but_I_do_recommend_you.wav,"Understood, but I do recommend you move."
+5,00:11.980,00:14.100,005_IMC_salvage_teams_are_not_far.wav,IMC salvage teams are not far away.
+6,00:14.480,00:18.920,006_It_is_a_common_requirement_for.wav,It is a common requirement for pilots to maneuver in situations without a linked Titan.
+7,00:19.400,00:20.400,007_Be_careful_pilot.wav,"Be careful, pilot."
+8,00:21.060,00:26.280,008_Undetermined_I_will_not_know_the.wav,"Undetermined, I will not know the full extent of your brain function until we establish a neural link."
+9,00:26.280,00:32.420,009_This_is_the_commander_of_the.wav,"This is the commander of the Marauder Corps, a section of the Militia's Special Recon Squadron, or SRS."
+10,00:33.040,00:34.600,010_Her_name_is_Sarah_Briggs.wav,Her name is Sarah Briggs.
+11,00:35.020,00:39.780,011_No_scans_do_not_detect_any.wav,"No, scans do not detect any life signs within the NCS James McAllen."
+12,00:40.200,00:42.780,012_But_90_of_the_lifeboats_have.wav,But 90% of the lifeboats have been ejected.
+13,00:43.360,00:44.360,013_There_is_still_hope.wav,There is still hope.
+14,00:44.680,00:45.960,014_IMC_Titan_acquired.wav,IMC Titan acquired.
+15,00:46.400,00:48.680,015_Lastimosa_hostile_Titans_inbound.wav,"Lastimosa, hostile Titans inbound."
+16,00:49.080,00:49.920,016_Apex_Predators.wav,Apex Predators.
+17,00:50.460,00:52.980,017_Lastimosa_we_have_unmarked_Titans_inboun.wav,"Lastimosa, we have unmarked Titans inbound."
+18,00:53.420,00:55.420,018_Lastimosa_we_have_Titans_inbound.wav,"Lastimosa, we have Titans inbound."
+19,00:55.420,00:56.740,019_Apex_Predators.wav,Apex Predators.
+20,00:57.160,00:59.100,020_Pilot_our_location_has_been_compromised.wav,"Pilot, our location has been compromised."
+21,00:59.680,01:01.440,021_Those_drones_are_IMC_scouts.wav,Those drones are IMC scouts.
+22,01:01.840,01:03.620,022_Enemy_reinforcements_will_be_on_their.wav,Enemy reinforcements will be on their way.
+23,01:04.020,01:05.960,023_We_must_complete_the_neural_link.wav,We must complete the neural link immediately.
+24,01:06.360,01:07.840,024_Please_install_the_final_battery.wav,Please install the final battery.
+25,01:08.320,01:09.280,025_Are_you_alright_pilot.wav,"Are you alright, pilot?"
+26,01:09.680,01:10.080,026_Yes.wav,Yes.
+27,01:10.560,01:14.320,027_The_late_Captain_Lastimosa_gave_you.wav,The late Captain Lastimosa gave you the provisional rank of acting pilot.
+28,01:15.160,01:16.740,028_Congratulations_on_your_promotion.wav,Congratulations on your promotion.
+29,01:17.460,01:18.520,029_You_may_call_me_BT.wav,You may call me BT.
+30,01:18.520,01:20.520,030_I_am_BT-7274.wav,I am BT-7274.
+31,01:21.380,01:24.960,031_A_Vanguard_Class_Titan_of_the.wav,A Vanguard Class Titan of the Militia SRS Marauder Corps.
+32,01:25.400,01:26.440,032_You_may_call_me_BT.wav,You may call me BT.
+33,01:27.040,01:27.880,033_Protocol_1.wav,Protocol 1.
+34,01:28.360,01:29.140,034_Link_to_pilot.wav,Link to pilot.
+35,01:29.600,01:30.900,035_Neural_link_established.wav,Neural link established.
+36,01:31.620,01:32.680,036_Rifleman_Jack_Cooper.wav,Rifleman Jack Cooper.
+37,01:33.180,01:37.180,037_You_are_now_confirmed_as_acting.wav,You are now confirmed as acting pilot of BT-7274.
+38,01:37.560,01:38.400,038_Protocol_2.wav,Protocol 2.
+39,01:38.860,01:39.740,039_Uphold_the_mission.wav,Uphold the mission.
+40,01:40.280,01:43.680,040_Our_orders_are_to_resume_Special.wav,Our orders are to resume Special Operation 217.
+41,01:44.120,01:45.000,041_Protocol_3.wav,Protocol 3.
+42,01:45.000,01:46.420,042_Protect_the_pilot.wav,Protect the pilot.
+43,01:46.860,01:49.840,043_I_will_support_you_in_the.wav,I will support you in the pursuit of valid mission objectives.
+44,01:50.580,01:51.460,044_Ready_to_proceed.wav,Ready to proceed.
+45,01:51.860,01:55.280,045_Our_orders_are_to_resume_Special.wav,Our orders are to resume Special Operation 217.
+46,01:55.760,01:58.400,046_Rendezvous_with_Major_Anderson_of_the.wav,Rendezvous with Major Anderson of the SRS.
+47,01:58.760,02:02.680,047_Anderson_is_a_member_of_the.wav,"Anderson is a member of the SRS, the Special Reconnaissance Squadron."
+48,02:03.540,02:07.640,048_The_unit_was_created_to_perform.wav,The unit was created to perform direct action raids on IMC installations.
+49,02:08.340,02:09.780,049_Detailed_access_is_restricted.wav,Detailed access is restricted.
+50,02:10.820,02:12.840,050_Major_Andersons_authorization_is_require.wav,Major Anderson's authorization is required.
+51,02:12.840,02:16.420,051_Our_orders_were_to_rendezvous_with.wav,Our orders were to rendezvous with him post-Titanfall.
+52,02:16.820,02:20.900,052_The_rendezvous_point_is_106_clicks.wav,The rendezvous point is 106 clicks northeast of our current position.
+53,02:21.580,02:22.020,053_Prediction.wav,Prediction.
+54,02:22.480,02:25.360,054_A_substantial_IMC_presence_lies_along.wav,A substantial IMC presence lies along our route.
+55,02:25.740,02:27.380,055_This_would_violate_Protocol_2.wav,This would violate Protocol 2.
+56,02:28.100,02:30.640,056_We_are_a_Pilot_Titan_Unified.wav,We are a Pilot Titan Unified Combat System.
+57,02:31.020,02:33.220,057_Our_orders_are_to_rendezvous_with.wav,Our orders are to rendezvous with Major Anderson.
+58,02:33.820,02:34.160,058_Yes.wav,Yes.
+59,02:34.540,02:38.020,059_I_have_taken_significant_damage_but.wav,"I have taken significant damage, but my data core is intact."
+60,02:38.460,02:38.800,060_Yes.wav,Yes.
+61,02:39.280,02:39.920,061_Trust_me.wav,Trust me.
+62,02:39.920,02:40.640,062_Correct.wav,Correct.
+63,02:41.140,02:46.520,063_We_are_deployed_on_operations_that.wav,We are deployed on operations that strongly benefit from the cooperation of both Pilot and Titan.
+64,02:47.020,02:47.440,064_Correct.wav,Correct.
+65,02:48.000,02:54.280,065_However_an_SRS_mission_is_frequently.wav,"However, an SRS mission is frequently challenging, requiring the highest qualified pilots to achieve success."
+66,02:54.860,02:58.720,066_Due_to_your_limited_experience_as.wav,"Due to your limited experience as a Pilot, success is uncertain."
+67,02:58.720,03:03.460,067_Nevertheless_my_second_protocol_dictates.wav,"Nevertheless, my second protocol dictates that we uphold the mission."
+68,03:03.900,03:06.600,068_A_positive_attitude_can_only_improve.wav,A positive attitude can only improve our situation.
+69,03:07.080,03:10.300,069_Pilot_we_must_establish_a_neural.wav,"Pilot, we must establish a neural link in order to proceed."
+70,03:10.720,03:11.680,070_Embark_when_ready.wav,Embark when ready.
+71,03:12.100,03:13.320,071_Please_embark_when_ready.wav,Please embark when ready.
+72,03:13.680,03:16.160,072_Pilot_Im_detecting_incoming_enemy_forces.wav,"Pilot, I'm detecting incoming enemy forces."
+73,03:16.580,03:18.200,073_I_advise_you_prepare_for_combat.wav,I advise you prepare for combat.
+74,03:18.620,03:19.380,074_Power_low.wav,Power low.
+75,03:20.380,03:21.500,075_Insufficient_power.wav,Insufficient power.
+76,03:21.960,03:23.140,076_Power_at_two-thirds.wav,Power at two-thirds.
+77,03:23.460,03:24.940,077_Data_core_reinitialized.wav,Data core reinitialized.
+78,03:24.940,03:26.760,078_Ocular_system_online.wav,"Ocular system, online."
+79,03:27.200,03:28.180,079_Adjusting_focus.wav,Adjusting focus.
+80,03:28.580,03:31.500,080_I_will_continue_repairing_myself_to.wav,I will continue repairing myself to the extent I am capable.
+81,03:32.200,03:34.400,081_A_third_battery_will_help_me.wav,"A third battery will help me greatly, Pilot."
+82,03:34.820,03:38.600,082_Until_I_am_mobile_I_will.wav,"Until I am mobile, I will assist you through your helmet radio when possible."
+83,03:39.140,03:39.940,083_Battery_at_100.wav,Battery at 100%.
+84,03:40.720,03:42.200,084_Power_at_full_capacity.wav,Power at full capacity.
+85,03:42.820,03:44.240,085_Establishing_neural_link.wav,Establishing neural link.
+86,03:44.860,03:46.440,086_Reinitializing_critical_systems.wav,Reinitializing critical systems.
+87,03:46.880,03:47.920,087_Vortex_Shield_online.wav,"Vortex Shield, online."
+88,03:48.420,03:51.100,088_The_Vortex_Shield_catches_incoming_round.wav,The Vortex Shield catches incoming rounds and missiles.
+89,03:51.100,03:54.700,089_Release_the_button_to_launch_any.wav,Release the button to launch any captured objects back at the enemy.
+90,03:55.220,03:57.260,090_Pilot_the_Acolyte_pod_is_online.wav,"Pilot, the Acolyte pod is online."
+91,03:57.640,04:00.940,091_This_shoulder-mounted_rocket_pod_will_lo.wav,This shoulder-mounted rocket pod will lock onto multiple enemy targets.
+92,04:01.220,04:04.380,092_The_longer_you_hold_down_the.wav,"The longer you hold down the button, the more locks you will achieve."
+93,04:04.800,04:05.880,093_Neural_link_complete.wav,Neural link complete.
+94,04:06.300,04:09.080,094_Primary_weapon_control_and_motion_link.wav,Primary weapon control and motion link reestablished.
+95,04:09.460,04:10.280,095_We_are_linked_Pilot.wav,"We are linked, Pilot."
+96,04:10.640,04:12.100,096_You_now_have_full_control.wav,You now have full control.
+97,04:12.500,04:14.480,097_Pilot_enemy_Titanfall_detected.wav,"Pilot, enemy Titanfall detected."
+98,04:14.980,04:18.920,098_Picking_up_weapons_from_enemy_Titans.wav,"Picking up weapons from enemy Titans gives us access to their full loadouts,"
+99,04:19.140,04:20.540,099_should_we_choose_to_equip_them.wav,should we choose to equip them.
+100,04:20.540,04:22.760,100_We_will_have_to_fight_our.wav,We will have to fight our way to safety.
+101,04:23.200,04:23.680,101_Get_ready.wav,Get ready.
+102,04:24.160,04:25.540,102_My_systems_are_rebooting.wav,My systems are rebooting.
+103,04:25.980,04:28.440,103_But_a_third_battery_will_accelerate.wav,But a third battery will accelerate the process.
+104,04:29.300,04:30.320,104_I_will_remain_here.wav,I will remain here.
+105,04:30.680,04:31.820,105_I_will_remain_here.wav,I will remain here.
+106,04:32.200,04:34.520,106_Pilot_my_mapping_systems_have_been.wav,"Pilot, my mapping systems have been restored."
+107,04:35.040,04:39.700,107_The_ambush_of_the_9th_Militia.wav,The ambush of the 9th Militia Fleet has landed us far off course from our original destination.
+108,04:40.320,04:42.180,108_We_are_located_in_hostile_territory.wav,We are located in hostile territory.
+109,04:42.520,04:44.440,109_Be_careful_we_cannot_stay_here.wav,"Be careful, we cannot stay here long."
+110,04:44.940,04:47.580,110_Pilot_your_suit_has_an_emergency.wav,"Pilot, your suit has an emergency cloaking ability."
+111,04:47.900,04:50.040,111_This_can_help_you_survive_dangerous.wav,This can help you survive dangerous situations.
+112,04:50.040,04:52.100,112_We_have_no_other_options.wav,We have no other options.
+113,04:52.500,04:55.540,113_We_will_have_to_improvise_and.wav,We will have to improvise and adapt if we wish to survive.
+114,04:55.980,04:57.160,114_Enemy_targets_inbound.wav,Enemy targets inbound.
+115,04:57.520,04:58.340,115_Well_done_Pilot.wav,"Well done, Pilot."
+116,04:58.760,05:01.040,116_Our_combat_effectiveness_rating_has_incr.wav,Our combat effectiveness rating has increased.
+117,05:01.440,05:05.360,117_Pilot_I_am_detecting_militia_forces.wav,"Pilot, I am detecting militia forces 10 clicks south of our location."
+118,05:05.880,05:09.060,118_Pilot_there_are_more_IMC_salvage.wav,"Pilot, there are more IMC salvage teams on the way."
+119,05:09.060,05:14.600,119_Pilot_our_only_chance_of_survival.wav,"Pilot, our only chance of survival is to rendezvous with Major Anderson and reconnect with the fleet."
+120,05:14.600,05:18.120,120_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+121,05:18.120,05:23.080,121_Pilot_our_only_chance_of_survival.wav,"Pilot, our only chance of survival will be to rendezvous with Major Anderson and reconnect with the fleet."
+122,05:23.460,05:25.880,122_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+123,05:26.240,05:31.360,123_Pilot_our_only_chance_of_survival.wav,"Pilot, our only chance of survival is to rendezvous with Major Anderson and reconnect with the fleet."
+124,05:31.740,05:33.960,124_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+125,05:34.300,05:37.540,125_Pilot_I_detect_more_IMC_salvage.wav,"Pilot, I detect more IMC salvage teams on the way."
+126,05:37.540,05:42.620,126_Our_only_chance_of_survival_is.wav,Our only chance of survival is to uphold the original mission and rendezvous with Major Anderson.
+127,05:43.040,05:45.380,127_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+128,05:45.380,05:50.120,128_Pilot_our_only_chance_of_survival.wav,"Pilot, our only chance of survival is to uphold our mission of rendezvousing with Major Anderson."
+129,05:50.520,05:52.900,129_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+130,05:53.260,05:55.440,130_Marking_your_HUD_we_must_move.wav,"Marking your HUD, we must move quickly."
+131,05:55.920,06:01.120,131_If_we_wish_to_survive_our.wav,"If we wish to survive, our only chance will be to uphold the mission and rendezvous with Major Anderson."
+132,06:01.620,06:04.080,132_Until_then_you_and_I_are.wav,"Until then, you and I are on our own."
+133,06:04.440,06:04.880,133_Power.wav,Power.
+134,06:05.560,06:05.960,134_Low.wav,Low.
+135,06:06.460,06:07.540,135_Insufficient_power.wav,Insufficient power.
+136,06:07.960,06:11.500,136_Pilot_I_am_detecting_friendly_militia.wav,"Pilot, I am detecting friendly militia forces along your path."
+137,06:11.760,06:12.840,137_They_may_need_assistance.wav,They may need assistance.
+138,06:12.840,06:15.360,138_In_order_to_survive_we_must.wav,"In order to survive, we must keep moving."
+139,06:15.840,06:16.540,139_Well_done_Pilot.wav,"Well done, Pilot."
+140,06:17.100,06:18.960,140_Kanes_helmet_radio_is_still_intact.wav,Kane's helmet radio is still intact.
+141,06:19.240,06:20.160,141_We_should_retrieve_it.wav,We should retrieve it.
+142,06:20.440,06:22.460,142_Pilot_avoid_any_pools_of_thermite.wav,"Pilot, avoid any pools of thermite."
+143,06:22.620,06:23.680,143_They_cause_heavy_damage.wav,They cause heavy damage.
+144,06:24.040,06:26.180,144_Pilot_stay_out_of_Kanes_thermite.wav,"Pilot, stay out of Kane's thermite residue."
+145,06:26.500,06:27.700,145_It_causes_heavy_damage.wav,It causes heavy damage.
+146,06:28.100,06:31.900,146_The_ability_to_decrypt_enemy_communicati.wav,The ability to decrypt enemy communications has a strong history in warfare.
+147,06:32.580,06:34.080,147_This_will_work_to_our_advantage.wav,This will work to our advantage.
+148,06:34.780,06:37.420,148_Pilot_by_now_the_IMC_will.wav,"Pilot, by now the IMC will be searching for us."
+149,06:37.680,06:41.040,149_Our_best_chance_of_survival_lies.wav,Our best chance of survival lies in rendezvousing with Major Anderson.
+150,06:41.040,06:44.100,150_It_will_be_a_long_journey.wav,It will be a long journey through enemy-occupied territory.
+151,06:44.100,06:45.380,151_We_must_move_quickly.wav,We must move quickly.
+152,06:45.880,06:47.540,152_I_advise_we_proceed_with_caution.wav,I advise we proceed with caution.
+153,06:48.000,06:48.800,153_Be_careful_Pilot.wav,"Be careful, Pilot."
+154,06:49.260,06:52.400,154_This_toxic_sludge_appears_corrosive_to.wav,This toxic sludge appears corrosive to organic life.
+155,06:52.720,06:54.680,155_Pilot_I_advise_you_to_re-enter.wav,"Pilot, I advise you to re-enter the cockpit."
+156,06:55.160,06:58.120,156_This_toxic_sludge_appears_corrosive_to.wav,This toxic sludge appears corrosive to organic life.
+157,06:58.480,07:02.860,157_Pilot_this_titan_weapon_is_an.wav,"Pilot, this titan weapon is an advanced design and may give us a tactical advantage."
+158,07:03.420,07:07.960,158_Pilot_this_titan_sword_is_of.wav,"Pilot, this titan sword is of an advanced design and may give us a tactical advantage."
+159,07:07.960,07:13.780,159_A_humans_concept_of_love_requires.wav,"A human's concept of love requires admiration, attraction, devotion, and respect."
+160,07:14.500,07:17.620,160_Conclusion_I_am_50_in_love.wav,Conclusion I am 50% in love.
+161,07:17.960,07:18.420,161_Agreed.wav,Agreed.
+162,07:18.820,07:21.700,162_The_IMC_is_well_equipped_with.wav,The IMC is well equipped with advanced titan weaponry.
+163,07:22.120,07:24.140,163_They_will_be_most_beneficial_to.wav,They will be most beneficial to our success.
+164,07:24.580,07:26.940,164_A_basic_melee_attack_will_actuate.wav,A basic melee attack will actuate the sword.
+165,07:27.300,07:30.520,165_However_a_fully_charged_core_will.wav,"However, a fully charged core will deliver maximum damage."
+166,07:30.940,07:33.700,166_We_will_need_to_deactivate_the.wav,We will need to deactivate the sludge flows in order to regroup.
+167,07:33.700,07:35.860,167_I_have_marked_the_controls_on.wav,I have marked the controls on your HUD.
+168,07:36.220,07:38.120,168_Visual_contact_re-established_with_Pilot.wav,Visual contact re-established with Pilot.
+169,07:38.400,07:39.600,169_Commencing_supporting_fire.wav,Commencing supporting fire.
+170,07:39.920,07:40.660,170_Danger_close.wav,Danger close.
+171,07:41.060,07:42.700,171_Pilot_exercise_caution.wav,"Pilot, exercise caution."
+172,07:43.420,07:45.080,172_Pilot_exercise_caution.wav,"Pilot, exercise caution."
+173,07:45.820,07:47.740,173_I_am_following_the_stream_of.wav,I am following the stream of sludge.
+174,07:48.180,07:50.880,174_The_current_is_strong_up_ahead.wav,"The current is strong up ahead, suggesting an exit."
+175,07:51.480,07:52.360,175_Keep_moving_forward.wav,Keep moving forward.
+176,07:53.040,08:02.220,176_As_on_many_other_worlds_in.wav,"As on many other worlds in the frontier, this IMC facility does not follow standard protocols and is discharging toxins without regard for the health of this planet."
+177,08:02.740,08:07.580,177_It_will_not_take_long_for.wav,It will not take long for these toxic fumes and sludge to completely destroy Typhon.
+178,08:08.240,08:11.020,178_Pilot_our_paths_will_intersect_just.wav,"Pilot, our paths will intersect just up ahead."
+179,08:11.480,08:14.200,179_Scans_indicate_multiple_IMC_security_for.wav,Scans indicate multiple IMC security forces.
+180,08:14.600,08:15.600,180_Prepare_yourself_Pilot.wav,"Prepare yourself, Pilot."
+181,08:16.020,08:17.280,181_I_was_not_shooting_at_you.wav,I was not shooting at you.
+182,08:17.680,08:19.740,182_That_would_be_in_violation_of.wav,That would be in violation of Protocol 3.
+183,08:19.740,08:23.900,183_On_the_contrary_your_helmet_provided.wav,"On the contrary, your helmet provided me with a live feed of your actions."
+184,08:24.600,08:25.760,184_You_fought_well_out_there_Pilot.wav,"You fought well out there, Pilot."
+185,08:26.160,08:27.680,185_It_is_good_to_see_you.wav,"It is good to see you too, Pilot."
+186,08:28.020,08:32.000,186_The_controls_to_deactivate_the_sludge.wav,"The controls to deactivate the sludge flow are in the next chamber, marking your HUD."
+187,08:32.320,08:35.060,187_The_sludge_falls_contain_a_high.wav,The sludge falls contain a high concentration of heavy metals.
+188,08:35.440,08:37.360,188_They_are_interfering_with_my_targeting.wav,They are interfering with my targeting systems.
+189,08:37.720,08:41.920,189_Blind_firing_into_my_Pilots_combat.wav,Blind firing into my Pilot's combat zone would be a violation of Protocol 3.
+190,08:42.360,08:43.540,190_For_now_yes.wav,"For now, yes."
+191,08:43.940,08:45.800,191_Pilot_that_was_a_difficult_battle.wav,"Pilot, that was a difficult battle."
+192,08:46.140,08:47.360,192_You_handled_yourself_well.wav,You handled yourself well.
+193,08:47.740,08:49.040,193_I_have_noted_it_for_the.wav,I have noted it for the record.
+194,08:49.040,08:51.240,194_I_have_identified_an_exit_on.wav,I have identified an exit on this side.
+195,08:52.000,08:52.520,195_This_way.wav,This way.
+196,08:52.840,08:55.800,196_Pilot_the_IMC_are_intensifying_their.wav,"Pilot, the IMC are intensifying their search efforts."
+197,08:56.320,08:56.980,197_We_should_hurry.wav,We should hurry.
+198,08:57.360,09:01.360,198_Pilot_our_path_through_this_facility.wav,"Pilot, our path through this facility is blocked by a flow regulation gate."
+199,09:01.700,09:03.460,199_There_should_be_a_control_interface.wav,There should be a control interface nearby.
+200,09:04.140,09:07.300,200_Pilot_the_safety_airlock_has_sealed.wav,"Pilot, the safety airlock has sealed you in the control room."
+201,09:07.560,09:09.000,201_You_must_find_another_way_out.wav,You must find another way out.
+202,09:09.400,09:11.100,202_We_have_no_choice_but_to.wav,We have no choice but to split up.
+203,09:11.460,09:14.860,203_Given_our_dire_circumstances_this_is.wav,"Given our dire circumstances, this is a risk worth taking."
+204,09:14.860,09:19.080,204_A_nearby_exit_will_most_likely.wav,A nearby exit will most likely lead further into the reclamation facility.
+205,09:19.560,09:20.860,205_Exercise_caution_Pilot.wav,"Exercise caution, Pilot."
+206,09:21.180,09:24.280,206_Pilot_our_path_is_blocked_by.wav,"Pilot, our path is blocked by a flow regulation gate."
+207,09:24.820,09:26.600,207_There_should_be_a_control_interface.wav,There should be a control interface nearby.
+208,09:27.240,09:29.620,208_I_recommend_you_disembark_and_proceed.wav,I recommend you disembark and proceed on foot.
+209,09:29.940,09:30.900,209_Accessing_files.wav,Accessing files.
+210,09:30.900,09:36.380,210_Cane_a_mercenary_commonly_affiliated_wit.wav,"Cane, a mercenary, commonly affiliated with the Apex Predators."
+211,09:37.020,09:39.360,211_A_well-known_narcotics_user_and_supplier.wav,A well-known narcotics user and supplier.
+212,09:39.860,09:40.300,212_Agreed.wav,Agreed.
+213,09:40.760,09:43.400,213_Scans_indicate_the_source_is_somewhere.wav,Scans indicate the source is somewhere in this facility.
+214,09:44.060,09:45.380,214_We_should_not_waste_time_here.wav,We should not waste time here.
+215,09:45.820,09:47.580,215_Pilot_I_am_tracking_your_location.wav,"Pilot, I am tracking your location."
+216,09:48.100,09:49.340,216_Recommend_you_seek_an_exit.wav,Recommend you seek an exit.
+217,09:49.740,09:50.540,217_Copy_that_Pilot.wav,"Copy that, Pilot."
+218,09:50.540,09:52.780,218_I_have_no_wish_to_incite.wav,I have no wish to incite fear.
+219,09:53.440,09:55.420,219_That_is_reserved_for_our_enemies.wav,That is reserved for our enemies.
+220,09:55.860,10:00.940,220_Pilot_I_do_not_know_what.wav,"Pilot, I do not know what you did, but a series of explosions just weakened the manipulator arm."
+221,10:01.220,10:02.160,221_I_have_broken_free.wav,I have broken free.
+222,10:02.580,10:03.880,222_This_place_is_falling_apart.wav,This place is falling apart.
+223,10:04.140,10:05.240,223_I_suggest_we_leave.wav,I suggest we leave.
+224,10:05.400,10:06.900,224_You_are_not_far_from_my.wav,You are not far from my location.
+225,10:07.300,10:08.100,225_Marking_your_HUD.wav,Marking your HUD.
+226,10:08.440,10:08.760,226_Pilot.wav,Pilot.
+227,10:10.040,10:10.320,227_Cooper.wav,Cooper.
+228,10:11.220,10:14.340,228_If_you_read_me_I_am.wav,"If you read me, I am being taken to this facility's substation."
+229,10:14.340,10:23.000,229_You_must_follow_the_pipes_to.wav,You must follow the pipes to the lower levels.
+230,10:23.500,10:23.760,230_Warning.wav,Warning.
+231,10:24.200,10:25.080,231_Losing_contact.wav,Losing contact.
+232,10:29.580,10:31.320,232_Perhaps_Lastimosa_was_right.wav,Perhaps Lastimosa was right.
+233,10:31.760,10:33.760,233_No_plan_survives_first_contact.wav,No plan survives first contact.
+234,10:37.980,10:40.640,234_Pilot_I_am_being_taken_down.wav,"Pilot, I am being taken down an assembly line."
+235,10:41.120,10:42.320,235_There_may_be_a_common_exit.wav,There may be a common exit.
+236,10:42.320,10:45.140,236_Pilot_I_recommend_you_follow_the.wav,"Pilot, I recommend you follow the flow of the platforms."
+237,10:52.500,10:52.980,237_Pilot.wav,Pilot.
+238,10:53.480,10:54.800,238_Pilot_are_you_alright.wav,"Pilot, are you alright?"
+239,10:57.300,10:58.380,239_I_am_undamaged.wav,I am undamaged.
+240,10:58.760,11:01.600,240_However_I_do_not_believe_this.wav,"However, I do not believe this is a food processing plant."
+241,11:05.860,11:08.780,241_Or_upside_down_considering_the_circumsta.wav,"Or upside down, considering the circumstances."
+242,11:08.780,11:15.220,242_I_can_see_IMC_infantry_scattered.wav,I can see IMC infantry scattered throughout this facility.
+243,11:15.700,11:16.540,243_Be_careful_Pilot.wav,"Be careful, Pilot."
+244,11:21.400,11:21.920,244_Pilot.wav,Pilot.
+245,11:22.140,11:24.040,245_This_facility_is_extremely_dangerous.wav,This facility is extremely dangerous.
+246,11:24.320,11:26.460,246_Watch_for_crushing_hazards_on_the.wav,Watch for crushing hazards on the assembly line.
+247,11:31.320,11:31.840,247_Pilot.wav,Pilot.
+248,11:32.120,11:35.200,248_I_am_being_taken_through_an.wav,I am being taken through an area stocked with prefabricated structures.
+249,11:35.600,11:36.660,249_We_are_not_far_apart.wav,We are not far apart.
+250,11:37.100,11:37.620,250_Keep_moving.wav,Keep moving.
+251,11:37.620,11:38.680,251_Knowing.wav,Knowing.
+252,11:44.080,11:44.600,252_Unknown.wav,Unknown.
+253,11:44.980,11:47.540,253_But_I_doubt_the_IMC_are.wav,But I doubt the IMC are mass-producing homes.
+254,11:48.220,11:49.580,254_They_usually_destroy_them.wav,They usually destroy them.
+255,11:55.180,11:57.840,255_Your_confidence_that_we_will_reconnect.wav,Your confidence that we will reconnect is encouraging.
+256,11:58.500,12:01.420,256_This_ability_to_stay_positive_is.wav,This ability to stay positive is the mark of a good pilot.
+257,12:01.420,12:01.620,257_Pilot.wav,Pilot.
+258,12:01.620,12:02.120,258_Pilot.wav,Pilot.
+259,12:02.120,12:02.620,259_I_need_assistance.wav,I need assistance.
+260,12:02.620,12:03.160,260_Good_work_Pilot.wav,"Good work, Pilot."
+261,12:03.160,12:18.080,261_Your_skills_are_greatly_improving.wav,Your skills are greatly improving.
+262,12:18.080,12:18.580,262_Pilot.wav,Pilot.
+263,12:18.580,12:19.080,263_Pilot.wav,Pilot.
+264,12:19.080,12:22.460,264_This_loading_docks_cargo_lift_offers.wav,This loading dock's cargo lift offers a shortcut through the facility.
+265,12:23.000,12:24.620,265_Check_your_HUD_for_the_control.wav,Check your HUD for the control panel.
+266,12:25.080,12:25.740,266_Thank_you_Pilot.wav,"Thank you, Pilot."
+267,12:26.100,12:26.680,267_Trust_me.wav,Trust me.
+268,12:27.000,12:29.900,268_We_cannot_proceed_through_this_facility.wav,We cannot proceed through this facility without the cargo lift.
+269,12:30.320,12:32.760,269_I_am_marking_your_HUD_with.wav,I am marking your HUD with the location of the controls.
+270,12:33.200,12:33.480,270_Pilot.wav,Pilot.
+271,12:33.640,12:34.760,271_I_require_assistance.wav,I require assistance.
+272,12:35.120,12:35.400,272_Pilot.wav,Pilot.
+273,12:35.400,12:35.900,273_Pilot.wav,Pilot.
+274,12:35.900,12:37.320,274_I_cannot_free_myself.wav,I cannot free myself.
+275,12:38.060,12:38.580,275_Cooper.wav,Cooper.
+276,12:38.580,12:43.520,276_He_is_a_war_criminal_wanted.wav,"He is a war criminal, wanted by the militia, commonly employed by the IMC."
+277,12:44.000,12:48.320,277_Blisk_was_responsible_for_the_death.wav,"Blisk was responsible for the death of my previous pilot, Captain Lastimosa."
+278,12:48.780,12:49.260,278_Doubtful.wav,Doubtful.
+279,12:49.700,12:54.720,279_His_faction_the_Apex_Predators_is.wav,"His faction, the Apex Predators, is one of the most ruthless mercenary units in the frontier."
+280,12:55.420,12:56.340,280_They_are_war_criminals.wav,They are war criminals.
+281,12:56.900,12:57.180,281_Pilot.wav,Pilot.
+282,12:57.380,12:59.300,282_I_detect_an_exit_beyond_this.wav,I detect an exit beyond this dome.
+283,12:59.660,13:00.360,283_Check_your_HUD.wav,Check your HUD.
+284,13:00.660,13:02.380,284_This_is_a_highly_dangerous_environment.wav,This is a highly dangerous environment.
+285,13:02.680,13:04.080,285_I_suggest_you_embark_Pilot.wav,"I suggest you embark, Pilot."
+286,13:04.420,13:04.720,286_Pilot.wav,Pilot.
+287,13:04.920,13:07.080,287_The_security_lockdown_has_been_disengage.wav,The security lockdown has been disengaged.
+288,13:07.320,13:08.880,288_I_recommend_we_leave_through_the.wav,I recommend we leave through the tunnel.
+289,13:09.320,13:09.600,289_Pilot.wav,Pilot.
+290,13:09.600,13:12.260,290_I_have_concluded_we_should_take.wav,I have concluded we should take no further shortcuts.
+291,13:12.680,13:15.140,291_Next_time_I_suggest_we_take.wav,"Next time, I suggest we take the long way."
+292,13:15.480,13:15.720,292_Pilot.wav,Pilot.
+293,13:15.800,13:17.140,293_Your_heart_rate_is_accelerating.wav,Your heart rate is accelerating.
+294,13:17.580,13:18.380,294_Are_you_in_distress.wav,Are you in distress?
+295,13:18.920,13:20.880,295_If_in_combat_utilize_your_cloak.wav,"If in combat, utilize your cloak."
+296,13:21.040,13:22.720,296_It_will_temporarily_make_you_invisible.wav,It will temporarily make you invisible.
+297,13:23.260,13:26.360,297_Your_heart_rate_is_exceeding_170.wav,Your heart rate is exceeding 170 beats per minute.
+298,13:26.800,13:29.160,298_If_possible_you_should_find_a.wav,"If possible, you should find a place to rest."
+299,13:29.700,13:31.840,299_Pilot_to_Titan_video_feed_re-established.wav,Pilot to Titan video feed re-established.
+300,13:32.300,13:32.560,300_Cooper.wav,Cooper.
+301,13:32.840,13:34.440,301_The_houses_contain_weapon_caches.wav,The houses contain weapon caches.
+302,13:34.820,13:36.820,302_I_saw_them_being_loaded_on.wav,I saw them being loaded on the assembly line.
+303,13:37.300,13:37.580,303_Cooper.wav,Cooper.
+304,13:37.880,13:39.520,304_The_houses_contain_weapon_caches.wav,The houses contain weapon caches.
+305,13:39.860,13:41.920,305_I_saw_them_being_loaded_on.wav,I saw them being loaded on the assembly line.
+306,13:42.280,13:42.500,306_Cooper.wav,Cooper.
+307,13:42.740,13:46.200,307_If_you_see_any_prefabricated_houses.wav,"If you see any prefabricated houses, check them for weapon caches."
+308,13:46.520,13:48.760,308_I_saw_them_being_installed_on.wav,I saw them being installed on the assembly line.
+309,13:49.160,13:49.400,309_Cooper.wav,Cooper.
+310,13:49.800,13:51.940,310_I_have_detected_an_opening_in.wav,I have detected an opening in the outer wall.
+311,13:51.940,13:53.820,311_You_should_get_out_of_there.wav,You should get out of there while you can.
+312,13:54.320,13:55.120,312_Marking_your_HUD.wav,Marking your HUD.
+313,13:55.420,13:56.040,313_Pilot_Cooper.wav,Pilot Cooper.
+314,13:56.340,13:56.900,314_Are_you_alright.wav,Are you alright?
+315,13:57.360,13:59.580,315_You_will_have_to_explain_that.wav,You will have to explain that expression later.
+316,14:00.220,14:01.420,316_Get_out_of_there_while_you.wav,Get out of there while you can.
+317,14:01.760,14:03.740,317_I_have_detected_an_opening_in.wav,I have detected an opening in the outer wall.
+318,14:04.280,14:05.060,318_Marking_your_HUD.wav,Marking your HUD.
+319,14:05.440,14:07.680,319_Still_operational_but_unable_to_escape.wav,"Still operational, but unable to escape."
+320,14:08.160,14:10.180,320_I_have_detected_an_opening_in.wav,I have detected an opening in the outer wall.
+321,14:10.500,14:12.060,321_You_should_get_out_of_there.wav,You should get out of there while you can.
+322,14:12.620,14:13.440,322_Marking_your_HUD.wav,Marking your HUD.
+323,14:13.880,14:15.400,323_Major_Anderson_went_this_way.wav,Major Anderson went this way.
+324,14:15.900,14:18.020,324_It_could_be_a_shortcut_to.wav,It could be a shortcut to the rendezvous point.
+325,14:18.440,14:19.620,325_I_recommend_we_proceed.wav,I recommend we proceed.
+326,14:20.080,14:20.820,326_Watch_your_step.wav,Watch your step.
+327,14:20.820,14:21.940,327_Watch_our_step.wav,Watch our step.
+328,14:22.260,14:22.900,328_Careful_pilot.wav,"Careful, pilot."
+329,14:23.340,14:23.740,329_Understood.wav,Understood.
+330,14:24.380,14:25.160,330_Adding_to_memory.wav,Adding to memory.
+331,14:25.660,14:28.280,331_Recreational_activities_are_non-essentia.wav,Recreational activities are non-essential to the mission.
+332,14:28.700,14:29.120,332_Impressive.wav,Impressive.
+333,14:29.780,14:32.140,333_Your_mobility_skills_are_showing_marked.wav,Your mobility skills are showing marked improvement.
+334,14:32.640,14:32.920,334_Pilot.wav,Pilot.
+335,14:33.220,14:35.080,335_I_detect_an_exit_in_the.wav,I detect an exit in the dome above.
+336,14:35.280,14:36.400,336_It_is_your_only_option.wav,It is your only option.
+337,14:36.820,14:38.140,337_Recommend_you_get_to_the_top.wav,Recommend you get to the top.
+338,14:38.440,14:38.740,338_Pilot.wav,Pilot.
+339,14:39.060,14:42.780,339_Scans_indicate_the_dome_above_is.wav,Scans indicate the dome above is your best course of action to find an exit.
+340,14:43.140,14:45.500,340_I_recommend_getting_there_by_any.wav,I recommend getting there by any means necessary.
+341,14:45.980,14:46.800,341_Objective_complete.wav,Objective complete.
+342,14:47.200,14:48.900,342_We_have_rendezvoused_with_Major_Anderson.wav,We have rendezvoused with Major Anderson.
+343,14:48.900,14:49.880,343_Correct.wav,Correct.
+344,14:50.620,14:55.440,344_Andersons_current_temperature_is_17_degr.wav,"Anderson's current temperature is 17 degrees Celsius, below the threshold of human survival."
+345,14:55.900,14:56.420,345_Well_done.wav,Well done.
+346,14:56.820,14:59.920,346_If_you_bring_it_to_me.wav,"If you bring it to me, I can analyze his helmet for important data."
+347,15:00.360,15:00.660,347_Pilot.wav,Pilot.
+348,15:00.900,15:01.780,348_Bring_me_his_helmet.wav,Bring me his helmet.
+349,15:01.780,15:03.040,349_I_will_analyze_it.wav,I will analyze it.
+350,15:03.300,15:03.600,350_Pilot.wav,Pilot.
+351,15:03.760,15:06.360,351_There_may_be_important_data_within.wav,There may be important data within Major Anderson's helmet.
+352,15:06.700,15:08.100,352_You_should_retrieve_it_for_analysis.wav,You should retrieve it for analysis.
+353,15:08.700,15:11.720,353_I_will_analyze_Major_Andersons_helmet.wav,I will analyze Major Anderson's helmet for mission critical data.
+354,15:12.180,15:13.540,354_I_recommend_you_retrieve_it.wav,I recommend you retrieve it.
+355,15:13.820,15:14.100,355_Pilot.wav,Pilot.
+356,15:14.300,15:16.940,356_If_you_hand_me_Andersons_helmet.wav,"If you hand me Anderson's helmet, I will analyze it."
+357,15:16.940,15:23.000,357_With_the_death_of_Anderson_command.wav,"With the death of Anderson, command of Special Operation 217 now transfers to you."
+358,15:23.360,15:23.640,358_Pilot.wav,Pilot.
+359,15:23.800,15:25.760,359_I_can_decode_Major_Andersons_logs.wav,I can decode Major Anderson's logs.
+360,15:25.960,15:27.080,360_They_might_be_of_some_use.wav,They might be of some use.
+361,15:28.040,15:28.560,361_Decrypting.wav,Decrypting.
+362,15:28.900,15:29.200,362_Pilot.wav,Pilot.
+363,15:29.200,15:29.680,363_Pilot.wav,Pilot.
+364,15:29.680,15:31.940,364_I_will_attempt_to_decrypt_Major.wav,I will attempt to decrypt Major Anderson's logs.
+365,15:32.180,15:33.320,365_They_might_be_of_some_use.wav,They might be of some use.
+366,15:33.700,15:35.060,366_My_intention_was_not_humor.wav,My intention was not humor.
+367,15:35.580,15:40.000,367_There_are_distortions_throughout_this_fa.wav,"There are distortions throughout this facility, and they appear to be causing a rift in time."
+368,15:40.720,15:43.200,368_I_advise_caution_until_we_have.wav,I advise caution until we have further information.
+369,15:43.720,15:44.520,369_I_wish_you_luck.wav,I wish you luck.
+370,15:44.860,15:45.240,370_Unknown.wav,Unknown.
+371,15:46.000,15:49.520,371_Militia_SRS_has_documented_several_cases.wav,Militia SRS has documented several cases on other planets.
+372,15:50.220,15:53.240,372_A_common_feature_of_such_rifts.wav,A common feature of such rifts is a massive energy surge.
+373,15:53.720,15:54.620,373_Be_careful_Pilot.wav,"Be careful, Pilot."
+374,15:54.620,15:58.460,374_The_time_disturbances_in_the_area.wav,The time disturbances in the area are a plausible cause of your ailment.
+375,15:58.940,16:02.080,375_Medical_routine_J-12_suggests_slow_and.wav,Medical routine J-12 suggests slow and deep breaths.
+376,16:02.540,16:02.980,376_Strange.wav,Strange.
+377,16:03.520,16:06.880,377_I_am_picking_up_traces_of.wav,I am picking up traces of my own data signature within this area.
+378,16:07.520,16:09.860,378_The_distortions_must_be_affecting_my.wav,The distortions must be affecting my scans.
+379,16:10.260,16:11.620,379_There_is_a_data_terminal_nearby.wav,There is a data terminal nearby.
+380,16:12.320,16:15.920,380_Recommend_you_download_any_intel_that.wav,Recommend you download any intel that can be passed on to SRS.
+381,16:16.540,16:17.360,381_Uphold_the_mission.wav,Uphold the mission.
+382,16:17.980,16:18.240,382_Pilot.wav,Pilot.
+383,16:18.440,16:19.820,383_There_is_a_data_terminal_nearby.wav,There is a data terminal nearby.
+384,16:20.400,16:22.800,384_Recommend_you_run_a_bypass_on.wav,Recommend you run a bypass on it to gather intel.
+385,16:23.300,16:23.820,385_Pilot.wav,Pilot.
+386,16:23.820,16:27.280,386_A_fragment_of_Andersons_damaged_log.wav,A fragment of Anderson's damaged log may be relevant here.
+387,16:27.880,16:29.040,387_Activating_log_playback.wav,Activating log playback.
+388,16:29.720,16:30.080,388_Pilot.wav,Pilot.
+389,16:30.340,16:32.140,389_I_detect_another_data_terminal_nearby.wav,I detect another data terminal nearby.
+390,16:32.740,16:33.040,390_Pilot.wav,Pilot.
+391,16:33.320,16:35.740,391_It_appears_Anderson_made_it_at.wav,It appears Anderson made it at least this far.
+392,16:36.020,16:38.020,392_His_log_might_contain_useful_intel.wav,His log might contain useful intel.
+393,16:38.660,16:39.480,393_Activating_playback.wav,Activating playback.
+394,16:40.060,16:43.240,394_Residual_energy_within_this_facility_mat.wav,Residual energy within this facility matches that of the arc.
+395,16:43.600,16:47.820,395_It_is_plausible_that_it_destabilized.wav,"It is plausible that it destabilized, causing the energy blast detected by SRS."
+396,16:48.760,16:51.080,396_I_recommend_you_check_the_main.wav,I recommend you check the main lobby of reception.
+397,16:51.080,16:55.520,397_I_would_accompany_you_but_unfortunately.wav,"I would accompany you, but unfortunately my chassis will not fit through the door."
+398,16:55.520,16:56.520,398_I_detect_sarcasm.wav,I detect sarcasm.
+399,16:56.520,16:57.080,399_I_detect_sarcasm.wav,I detect sarcasm.
+400,16:57.080,16:58.100,400_On_the_contrary.wav,On the contrary.
+401,16:58.640,17:01.940,401_You_are_proving_yourself_to_be.wav,You are proving yourself to be much more than a class 3 rifleman.
+402,17:02.340,17:04.580,402_I_suspect_Major_Anderson_will_be.wav,I suspect Major Anderson will be impressed.
+403,17:05.120,17:05.880,403_Uphold_the_mission.wav,Uphold the mission.
+404,17:06.340,17:09.980,404_I_am_detecting_a_faint_biosignature.wav,I am detecting a faint biosignature on the upper level of the reception lobby.
+405,17:10.460,17:11.520,405_Recommend_you_investigate.wav,Recommend you investigate.
+406,17:12.080,17:14.300,406_Major_Andersons_exact_location_is_unknow.wav,Major Anderson's exact location is unknown.
+407,17:14.300,17:17.540,407_It_is_possible_he_proceeded_through.wav,It is possible he proceeded through the entrance of the reception lobby.
+408,17:18.060,17:22.300,408_The_following_is_Andersons_mission_brief.wav,The following is Anderson's mission briefing from Commander Sarah Briggs of the Militia SRS.
+409,17:23.280,17:25.720,409_Congratulations_on_your_field_promotion_.wav,"Congratulations on your field promotion, Pilot Cooper."
+410,17:26.240,17:26.540,410_Pilot.wav,Pilot.
+411,17:26.820,17:29.520,411_The_data_Major_Anderson_collected_appear.wav,The data Major Anderson collected appears to be incomplete.
+412,17:30.320,17:34.140,412_We_are_duty_bound_to_uphold.wav,We are duty bound to uphold and fulfill Special Operation 217.
+413,17:34.700,17:37.900,413_Recommend_we_locate_Andersons_wrist-moun.wav,Recommend we locate Anderson's wrist-mounted device before proceeding.
+414,17:38.400,17:40.300,414_It_must_be_on_the_other.wav,It must be on the other half of his corpse.
+415,17:40.300,17:43.020,415_I_detect_a_breach_in_the.wav,I detect a breach in the Security Services Building.
+416,17:43.560,17:44.760,416_I_will_provide_access.wav,I will provide access.
+417,17:45.200,17:47.960,417_The_breach_in_the_Security_Services.wav,The breach in the Security Services Building is now accessible.
+418,17:48.500,17:50.700,418_Recommend_you_start_your_search_for.wav,Recommend you start your search for the device there.
+419,17:51.100,17:53.460,419_I_will_continue_scanning_the_ringed.wav,I will continue scanning the ringed structure here.
+420,17:53.880,17:59.760,420_I_will_remain_here_and_scan.wav,I will remain here and scan the ringed structure while you investigate the facility for Intel and the missing device.
+421,18:00.180,18:00.600,421_Advisory.wav,Advisory.
+422,18:01.160,18:04.800,422_Use_the_zipline_to_access_the.wav,Use the zipline to access the upper section of the Security Services Building.
+423,18:05.260,18:07.000,423_I_will_remain_here_until_you.wav,I will remain here until you return.
+424,18:07.000,18:11.280,424_I_suspect_the_ringed_structure_is.wav,I suspect the ringed structure is somehow related to the devastation here.
+425,18:11.940,18:13.420,425_Further_analysis_is_required.wav,Further analysis is required.
+426,18:13.980,18:17.020,426_Recommend_you_locate_Andersons_wrist-mou.wav,Recommend you locate Anderson's wrist-mounted device in the meantime.
+427,18:17.540,18:18.240,427_Well_done_Pilot.wav,"Well done, Pilot."
+428,18:18.760,18:19.520,428_Scan_complete.wav,Scan complete.
+429,18:19.940,18:22.980,429_This_version_of_the_fold_weapon.wav,This version of the fold weapon was only a small-scale test.
+430,18:23.420,18:26.440,430_Finding_Andersons_wrist-mounted_device_s.wav,Finding Anderson's wrist-mounted device should be our top priority.
+431,18:26.840,18:30.660,431_I_suggest_you_navigate_to_the.wav,I suggest you navigate to the breach in Security Services to continue the search.
+432,18:30.660,18:38.000,432_As_Anderson_discovered_the_IMC_intend.wav,"As Anderson discovered, the IMC intend to destroy the Militia Planet of Harmony using the full-scale version of this weapon."
+433,18:38.440,18:39.020,433_Pilot_Cooper.wav,Pilot Cooper.
+434,18:39.560,18:41.340,434_Our_journey_is_far_from_over.wav,Our journey is far from over.
+435,18:41.920,18:43.640,435_We_must_get_this_data_to.wav,We must get this data to the fleet.
+436,18:44.020,18:45.380,436_I_am_still_working_on_it.wav,"I am still working on it, Pilot."
+437,18:45.760,18:46.160,437_Noted.wav,Noted.
+438,18:46.400,18:54.160,438_It_appears_that_whatever_actions_you.wav,It appears that whatever actions you took in the past have caused the remaining automated security systems to be quite hostile towards us in the present.
+439,18:54.540,18:55.420,439_Tactical_Analysis.wav,Tactical Analysis.
+440,18:55.420,18:59.260,440_We_will_be_more_effective_in.wav,We will be more effective in this situation as a combined unit.
+441,18:59.780,19:01.200,441_Overwhelming_hostile_forces.wav,Overwhelming hostile forces.
+442,19:01.600,19:02.560,442_Recommend_you_embark.wav,Recommend you embark.
+443,19:02.960,19:03.240,443_Pilot.wav,Pilot.
+444,19:03.560,19:07.960,444_If_you_embark_your_wrist-mounted_device.wav,"If you embark, your wrist-mounted device may work to transport both of us to the past."
+445,19:08.300,19:08.580,445_Pilot.wav,Pilot.
+446,19:08.760,19:11.580,446_I_have_located_the_controls_to.wav,I have located the controls to extend the bridge to the rings.
+447,19:11.780,19:12.960,447_I_have_marked_it_on_your.wav,I have marked it on your HUD.
+448,19:13.360,19:14.140,448_Uphold_the_mission.wav,Uphold the mission.
+449,19:14.600,19:16.580,449_I_have_marked_the_bridge_controls.wav,I have marked the bridge controls on your HUD.
+450,19:16.880,19:20.680,450_You_will_need_to_extend_the.wav,You will need to extend the bridge before the fold weapon test pad explodes.
+451,19:21.020,19:23.740,451_The_effects_of_close_proximity_to.wav,The effects of close proximity to the arc are unknown.
+452,19:23.740,19:25.580,452_Use_caution_when_scanning.wav,Use caution when scanning.
+453,19:26.420,19:30.100,453_There_is_some_data_that_suggests.wav,There is some data that suggests your wrist-mounted device will protect you.
+454,19:30.480,19:31.260,454_Uphold_the_mission.wav,Uphold the mission.
+455,19:31.840,19:35.340,455_You_will_need_to_get_as.wav,You will need to get as close as possible to the center of the rings in the past.
+456,19:35.860,19:38.240,456_Use_the_bridge_to_access_and.wav,Use the bridge to access and scan the arc.
+457,19:38.560,19:38.840,457_Pilot.wav,Pilot.
+458,19:39.000,19:40.360,458_We_must_uphold_the_mission.wav,We must uphold the mission.
+459,19:41.000,19:44.060,459_I_advise_you_get_as_close.wav,I advise you get as close as possible to the center of the rings.
+460,19:44.520,19:49.840,460_To_uphold_the_mission_you_will.wav,"To uphold the mission, you will need to get as close as possible to the center of the active rings in the past."
+461,19:49.840,19:54.440,461_Pilot_I_recommend_you_scan_the.wav,"Pilot, I recommend you scan the center of the rings in order to uphold the mission."
+462,19:55.080,19:57.800,462_Use_the_service_bridge_in_the.wav,Use the service bridge in the past to access the arc.
+463,19:58.100,19:58.440,463_Pilot.wav,Pilot.
+464,19:58.740,20:00.140,464_After_you_complete_the_scan.wav,After you complete the scan.
+465,20:00.520,20:01.140,465_Pilot_Cooper.wav,Pilot Cooper.
+466,20:01.640,20:04.860,466_Scan_the_arc_and_record_its.wav,Scan the arc and record its energy signature for the militia.
+467,20:05.300,20:06.680,467_We_are_currently_in_the_past.wav,We are currently in the past.
+468,20:06.680,20:12.160,468_If_we_can_deliver_the_scan.wav,"If we can deliver the scan data to the fleet, they will be able to track the arc in the present."
+469,20:12.580,20:15.700,469_You_must_get_to_the_center.wav,You must get to the center of those rings across the bridge.
+470,20:16.100,20:16.400,470_No.wav,No.
+471,20:16.960,20:20.380,471_But_a_true_militia_pilot_takes.wav,But a true militia pilot takes risks for the welfare of others.
+472,20:21.020,20:24.580,472_As_did_Major_Anderson_and_Captain.wav,As did Major Anderson and Captain Lestamosa before you.
+473,20:24.920,20:25.200,473_Pilot.wav,Pilot.
+474,20:25.200,20:28.580,474_The_rings_at_my_location_contain.wav,The rings at my location contain a large amount of residual energy.
+475,20:29.040,20:30.720,475_This_was_the_arcs_final_destination.wav,This was the arc's final destination.
+476,20:31.200,20:37.360,476_If_we_can_obtain_the_arcs.wav,"If we can obtain the arc's energy signature, the militia fleet will be able to track its current location in the present day."
+477,20:37.760,20:43.000,477_Andersons_plan_indicated_a_recon_mission.wav,Anderson's plan indicated a recon mission within close proximity to the center of the active rings.
+478,20:43.380,20:43.680,478_Pilot.wav,Pilot.
+479,20:43.960,20:47.780,479_I_recommend_you_meet_me_at.wav,I recommend you meet me at the rings in order to scan the arc's energy signature.
+480,20:48.280,20:50.360,480_That_was_Major_Andersons_final_recording.wav,That was Major Anderson's final recording.
+481,20:51.020,20:51.280,481_Cooper.wav,Cooper.
+482,20:51.400,20:54.360,482_Based_on_your_recon_of_this.wav,"Based on your recon of this facility, I may have a plan."
+483,20:54.360,20:55.660,483_Meet_me_outside.wav,Meet me outside.
+484,20:56.020,20:56.960,484_I_will_work_on_it.wav,I will work on it.
+485,20:57.240,20:58.240,485_Tactical_recommendation.wav,Tactical recommendation.
+486,20:58.780,21:02.400,486_Pilot_should_embark_the_Titan_against.wav,Pilot should embark the Titan against overwhelming hostile forces.
+487,21:02.900,21:03.500,487_Hypothesis.wav,Hypothesis.
+488,21:03.920,21:08.120,488_The_time_traversal_device_may_work.wav,The time traversal device may work to transport my chassis to the past as well.
+489,21:08.580,21:10.560,489_You_must_get_to_the_center.wav,You must get to the center of those rings.
+490,21:11.040,21:11.860,490_Cross_the_bridge.wav,Cross the bridge.
+491,21:12.240,21:12.520,491_Pilot.wav,Pilot.
+492,21:12.980,21:14.160,492_Major_Anderson_is_here.wav,Major Anderson is here.
+493,21:14.640,21:15.740,493_Investigate_this_facility.wav,Investigate this facility.
+494,21:16.320,21:17.760,494_I_will_meet_you_on_the.wav,I will meet you on the other side.
+495,21:18.140,21:19.400,495_Major_Anderson_is_here.wav,Major Anderson is here.
+496,21:19.840,21:22.280,496_In_order_to_find_him_we.wav,"In order to find him, we should search this complex."
+497,21:22.280,21:24.420,497_I_will_meet_you_on_the.wav,I will meet you on the other side.
+498,21:24.760,21:26.320,498_We_should_investigate_this_facility.wav,We should investigate this facility.
+499,21:27.080,21:28.560,499_I_will_meet_you_on_the.wav,I will meet you on the other side.
+500,21:28.900,21:29.580,500_You_too_pilot.wav,"You too, pilot."
+501,21:29.900,21:31.520,501_I_will_avoid_all_shortcuts.wav,I will avoid all shortcuts.
+502,21:32.020,21:32.440,502_Agreed.wav,Agreed.
+503,21:32.780,21:36.340,503_However_close_quarters_recon_is_the.wav,"However, close quarters recon is the sole domain of the pilot."
+504,21:36.760,21:37.660,504_Proceed_with_caution.wav,Proceed with caution.
+505,21:38.160,21:38.620,505_Agreed.wav,Agreed.
+506,21:38.940,21:40.560,506_Titans_were_not_built_for_stealth.wav,Titans were not built for stealth.
+507,21:40.940,21:41.300,507_Interesting.wav,Interesting.
+508,21:41.300,21:45.740,508_Im_detecting_traces_of_a_massive.wav,I'm detecting traces of a massive energy explosion throughout this facility.
+509,21:46.220,21:49.880,509_However_your_helmet_data_does_not.wav,"However, your helmet data does not detect the same in the other timeline."
+510,21:50.460,21:53.160,510_Something_has_shattered_the_nature_of.wav,Something has shattered the nature of time at this facility.
+511,21:53.720,21:57.080,511_None_of_these_remains_match_the.wav,None of these remains match the genetic profile of Major Anderson.
+512,21:57.640,21:58.980,512_He_may_still_be_alive.wav,He may still be alive.
+513,21:59.360,22:02.920,513_The_large_rings_within_the_main.wav,The large rings within the main campus are not an IMC technology.
+514,22:03.440,22:06.120,514_Its_design_is_foreign_and_its.wav,"Its design is foreign, and its function is unknown."
+515,22:06.120,22:09.980,515_Your_fear_is_justified_but_I.wav,"Your fear is justified, but I will do my best to protect you."
+516,22:10.280,22:10.720,516_It_might.wav,It might.
+517,22:11.080,22:13.060,517_Anderson_is_a_veteran_SRS_pilot.wav,Anderson is a veteran SRS pilot.
+518,22:13.400,22:16.520,518_He_has_survived_multiple_covert_missions.wav,He has survived multiple covert missions within enemy territory.
+519,22:17.060,22:20.900,519_The_IMC_has_multiple_scientific_research.wav,The IMC has multiple scientific research facilities throughout the frontier.
+520,22:21.300,22:24.960,520_However_this_particular_one_is_unlike.wav,"However, this particular one is unlike any known to the militia."
+521,22:24.960,22:32.860,521_In_the_eight_standard_months_prior.wav,"In the eight standard months prior to Operation Broadsword, the 9th Militia Fleet captured or destroyed over 29 such installations."
+522,22:33.460,22:35.120,522_Their_bodies_have_aged_unusually.wav,Their bodies have aged unusually.
+523,22:35.500,22:37.660,523_However_some_show_signs_of_weapon.wav,"However, some show signs of weapon fire."
+524,22:38.120,22:38.860,524_Well_done_pilot.wav,"Well done, pilot."
+525,22:39.180,22:40.920,525_You_located_the_wrist-mounted_device.wav,You located the wrist-mounted device.
+526,22:41.620,22:46.240,526_SRS_intel_suggests_if_equipped_you.wav,"SRS intel suggests if equipped, you can withstand and manipulate the time shifts."
+527,22:46.640,22:48.680,527_Pilot_recommend_you_equip_the_device.wav,"Pilot, recommend you equip the device."
+528,22:49.040,22:50.840,528_The_wrist-mounted_device_may_be_useful.wav,The wrist-mounted device may be useful.
+529,22:51.220,22:52.660,529_Recommend_you_equip_the_device.wav,Recommend you equip the device.
+530,22:53.060,22:53.460,530_Advisory.wav,Advisory.
+531,22:53.460,22:56.780,531_Pilot_I_recommend_you_equip_the.wav,"Pilot, I recommend you equip the wrist-mounted device."
+532,22:57.180,23:03.520,532_Pilot_Cooper_I_have_transferred_some.wav,"Pilot Cooper, I have transferred some of my AI functions into your helmet in order to permit communication across time shifts."
+533,23:03.920,23:06.580,533_Pilot_communication_has_transferred_to_y.wav,"Pilot, communication has transferred to your device."
+534,23:06.900,23:12.060,534_I_recommend_retracing_Major_Andersons_st.wav,I recommend retracing Major Anderson's steps so he can determine the best way to complete his mission.
+535,23:12.440,23:14.600,535_Captain_what_is_the_status_of.wav,"Captain, what is the status of the beacon?"
+536,23:15.280,23:15.840,536_Designation.wav,Designation.
+537,23:16.400,23:17.020,537_Arc_tool.wav,Arc tool.
+538,23:17.760,23:18.220,538_Function.wav,Function.
+539,23:18.840,23:21.020,539_Generates_power_up_to_5_megajoules.wav,Generates power up to 5 megajoules.
+540,23:21.360,23:22.280,540_Can_you_repair_it.wav,Can you repair it?
+541,23:22.280,23:24.620,541_Pilot_you_must_recover_the_arc.wav,"Pilot, you must recover the arc tool."
+542,23:25.440,23:28.520,542_I_advise_caution_while_navigating_this.wav,I advise caution while navigating this facility's substation.
+543,23:28.980,23:29.680,543_Good_luck_pilot.wav,"Good luck, pilot."
+544,23:30.020,23:34.420,544_Pilot_the_beacon_power_substation_is.wav,"Pilot, the beacon power substation is through that door marked power grid."
+545,23:34.780,23:36.600,545_Pilot_recommend_you_disembark.wav,"Pilot, recommend you disembark."
+546,23:36.940,23:37.500,546_Got_you.wav,Got you.
+547,23:37.880,23:39.240,547_Protocol_2_mission_update.wav,Protocol 2 mission update.
+548,23:39.700,23:40.980,548_Replace_the_uplink_module.wav,Replace the uplink module.
+549,23:41.440,23:43.900,549_The_socket_for_the_module_is.wav,The socket for the module is at the top of this dish.
+550,23:44.380,23:47.180,550_A_throw_combined_with_additional_climbin.wav,A throw combined with additional climbing is required.
+551,23:47.660,23:49.400,551_Pilot_we_must_install_the_module.wav,"Pilot, we must install the module."
+552,23:49.400,23:51.860,552_When_you_are_ready_climb_onto.wav,"When you are ready, climb onto my hand."
+553,23:52.160,23:53.060,553_Standing_by_pilot.wav,"Standing by, pilot."
+554,23:53.400,23:54.520,554_Climb_onto_my_hand.wav,Climb onto my hand.
+555,23:54.780,23:55.420,555_Hypothesis.wav,Hypothesis.
+556,23:55.860,23:59.860,556_The_dish_will_automatically_reorient_its.wav,The dish will automatically reorient itself once the new module is installed.
+557,24:00.360,24:00.760,557_Caution.wav,Caution.
+558,24:01.140,24:02.020,558_Anomaly_detected.wav,Anomaly detected.
+559,24:02.500,24:03.740,559_Possible_hostile_Titan.wav,Possible hostile Titan.
+560,24:04.240,24:04.900,560_Militia_forces.wav,Militia forces.
+561,24:05.340,24:06.580,561_Lock_down_the_control_room.wav,Lock down the control room.
+562,24:06.860,24:07.580,562_Threats_detected.wav,Threats detected.
+563,24:08.100,24:08.940,563_Reapers_inbound.wav,Reapers inbound.
+564,24:09.300,24:10.060,564_Unlikely_pilot.wav,"Unlikely, pilot."
+565,24:10.060,24:12.260,565_Pilot_the_fog_is_deadly_to.wav,"Pilot, the fog is deadly to organic life."
+566,24:12.680,24:14.560,566_We_cannot_uphold_the_mission_if.wav,We cannot uphold the mission if you are dead.
+567,24:15.140,24:16.520,567_You_will_be_safe_in_the.wav,You will be safe in the cockpit.
+568,24:17.140,24:18.060,568_Hostiles_confirmed.wav,Hostiles confirmed.
+569,24:18.580,24:21.460,569_The_stalkers_appear_to_be_programmed.wav,The stalkers appear to be programmed to attack the control room.
+570,24:21.800,24:25.460,570_Pilot_Im_detecting_militia_forces_inside.wav,"Pilot, I'm detecting militia forces inside that beacon control room."
+571,24:25.900,24:27.020,571_They_are_signaling_distress.wav,They are signaling distress.
+572,24:27.580,24:28.140,572_Patching_in.wav,Patching in.
+573,24:28.440,24:33.560,573_I_recommend_we_help_eliminate_these.wav,I recommend we help eliminate these stalkers and then make direct contact with the militia riflemen.
+574,24:33.780,24:34.860,574_Interesting_tactic_pilot.wav,"Interesting tactic, pilot."
+575,24:34.860,24:38.940,575_The_40_ton_mass_of_my.wav,The 40 ton mass of my chassis can eliminate stalkers more efficiently.
+576,24:39.500,24:40.280,576_Tactical_option.wav,Tactical option.
+577,24:40.840,24:41.480,577_Run_them_over.wav,Run them over.
+578,24:42.060,24:44.720,578_My_40_ton_chassis_can_eliminate.wav,My 40 ton chassis can eliminate smaller enemies.
+579,24:45.260,24:46.220,579_Threat_neutralized.wav,Threat neutralized.
+580,24:46.640,24:47.180,580_Well_done.wav,Well done.
+581,24:47.640,24:50.160,581_This_victory_has_raised_our_combat.wav,This victory has raised our combat efficiency rating.
+582,24:50.560,24:52.880,582_BT-7274_to_militia_forces.wav,BT-7274 to militia forces.
+583,24:53.460,24:54.740,583_All_threats_have_been_eliminated.wav,All threats have been eliminated.
+584,24:55.220,24:57.680,584_We_can_attempt_to_activate_the.wav,We can attempt to activate the beacon from the control room.
+585,24:58.160,24:59.380,585_I_recommend_we_go_there.wav,I recommend we go there.
+586,24:59.760,25:01.160,586_We_should_get_moving_pilot.wav,"We should get moving, pilot."
+587,25:01.580,25:03.200,587_Embark_and_we_will_move_out.wav,"Embark and we will move out, pilot."
+588,25:03.200,25:04.600,588_Thank_you_pilot.wav,"Thank you, pilot."
+589,25:05.400,25:06.600,589_Youre_welcome_pilot.wav,"You're welcome, pilot."
+590,25:07.200,25:08.180,590_Good_luck_over_there.wav,Good luck over there.
+591,25:08.480,25:09.020,591_Copy_that.wav,Copy that.
+592,25:09.380,25:10.740,592_Noted_for_the_next_supply_drop.wav,Noted for the next supply drop.
+593,25:11.080,25:11.480,593_Caution.wav,Caution.
+594,25:11.920,25:14.740,594_I_detect_traces_of_poisonous_chemicals.wav,I detect traces of poisonous chemicals within the fog.
+595,25:15.160,25:15.640,595_Scanning.wav,Scanning.
+596,25:16.940,25:20.100,596_The_ground_fog_is_a_toxic.wav,The ground fog is a toxic byproduct of the beacon power grid.
+597,25:21.180,25:27.120,597_I_recommend_you_embark_when_operating.wav,I recommend you embark when operating in hazardous environments with greater than 1 ppm tungsten hexafluoride.
+598,25:27.480,25:28.040,598_Pilot_Cooper.wav,Pilot Cooper.
+599,25:28.460,25:32.880,599_Anderson_is_dead_but_we_can.wav,"Anderson is dead, but we can complete his mission if we can reestablish contact with the fleet."
+600,25:33.200,25:35.880,600_The_interstellar_beacon_ahead_will_serve.wav,The interstellar beacon ahead will serve our needs.
+601,25:36.420,25:39.360,601_40_million_souls_on_the_planet.wav,40 million souls on the planet Harmony will be lost.
+602,25:39.800,25:43.060,602_We_must_get_this_information_to.wav,We must get this information to SRS Commander Sarah Briggs.
+603,25:43.460,25:45.280,603_There_is_only_one_way_to.wav,There is only one way to find out.
+604,25:45.640,25:47.060,604_We_must_uphold_the_mission.wav,We must uphold the mission.
+605,25:47.460,25:47.740,605_Pilot.wav,Pilot.
+606,25:48.020,25:49.400,606_I_see_the_beacon_up_ahead.wav,I see the beacon up ahead.
+607,25:49.840,25:51.760,607_Scans_detect_minimal_power_functionality.wav,Scans detect minimal power functionality.
+608,25:52.220,25:53.340,608_It_may_need_repairs.wav,It may need repairs.
+609,25:53.740,25:54.100,609_Caution.wav,Caution.
+610,25:54.100,25:56.100,610_Im_picking_up_multiple_contacts.wav,I'm picking up multiple contacts.
+611,25:56.500,25:56.860,611_Understood.wav,Understood.
+612,25:57.720,25:58.040,612_Pilot.wav,Pilot.
+613,25:58.260,25:58.520,613_Cooper.wav,Cooper.
+614,25:59.040,26:02.080,614_I_advise_caution_while_navigating_this.wav,I advise caution while navigating this facility's substation.
+615,26:02.720,26:04.120,615_You_must_recover_the_arc_tool.wav,You must recover the arc tool.
+616,26:04.700,26:05.080,616_Understood.wav,Understood.
+617,26:05.960,26:06.280,617_Pilot.wav,Pilot.
+618,26:06.520,26:06.840,618_Jack.wav,Jack.
+619,26:06.980,26:07.260,619_Cooper.wav,Cooper.
+620,26:07.260,26:10.800,620_I_advise_caution_while_navigating_this.wav,I advise caution while navigating this facility's substation.
+621,26:11.440,26:12.840,621_You_must_recover_the_arc_tool.wav,You must recover the arc tool.
+622,26:13.440,26:13.740,622_Pilot.wav,Pilot.
+623,26:14.180,26:16.000,623_The_power_chamber_relays_are_offline.wav,The power chamber relays are offline.
+624,26:16.560,26:19.000,624_The_arc_tool_should_be_able.wav,The arc tool should be able to jumpstart them manually.
+625,26:19.520,26:22.160,625_The_captain_will_open_the_chamber.wav,The captain will open the chamber door for you when you are ready.
+626,26:22.600,26:23.020,626_Caution.wav,Caution.
+627,26:23.480,26:25.560,627_High_radiation_levels_detected_ahead.wav,High radiation levels detected ahead.
+628,26:26.100,26:29.300,628_Your_suit_will_only_protect_you.wav,Your suit will only protect you for a limited time inside the chamber.
+629,26:29.840,26:31.220,629_I_suggest_you_move_quickly.wav,I suggest you move quickly.
+630,26:31.680,26:33.100,630_Power_at_100.wav,Power at 100%.
+631,26:33.100,26:35.420,631_I_recommend_you_exit_the_chamber.wav,I recommend you exit the chamber immediately.
+632,26:35.940,26:36.880,632_Good_work_Pilot_Cooper.wav,"Good work, Pilot Cooper."
+633,26:37.300,26:39.920,633_Now_we_can_jumpstart_the_power.wav,Now we can jumpstart the power to get the beacon functional.
+634,26:40.400,26:41.120,634_Stalker_down.wav,Stalker down.
+635,26:41.500,26:42.240,635_Target_eliminated.wav,Target eliminated.
+636,26:42.640,26:43.220,636_Good_shot.wav,Good shot.
+637,26:43.580,26:44.200,637_Reaper_down.wav,Reaper down.
+638,26:44.560,26:45.320,638_Welcome_back_Cooper.wav,"Welcome back, Cooper."
+639,26:45.740,26:48.660,639_Recommend_we_secure_this_area_before.wav,Recommend we secure this area before proceeding with the repairs.
+640,26:49.120,26:50.220,640_All_threats_eliminated.wav,All threats eliminated.
+641,26:50.840,26:51.620,641_Area_secure.wav,Area secure.
+642,26:52.020,26:53.000,642_Are_you_okay_Pilot.wav,"Are you okay, Pilot?"
+643,26:53.400,26:54.100,643_Damage_report.wav,Damage report.
+644,26:54.660,26:56.420,644_Critical_systems_are_functioning_properl.wav,Critical systems are functioning properly.
+645,26:56.700,27:02.060,645_And_despite_your_self-evaluation_I_am.wav,"And despite your self-evaluation, I am certain Captain Lastimosa would have said you fought well, Cooper."
+646,27:02.060,27:04.660,646_Your_vitals_do_not_indicate_a.wav,Your vitals do not indicate a temperature problem.
+647,27:05.220,27:08.500,647_Do_you_wish_for_me_to.wav,Do you wish for me to investigate this hot streak sensation further?
+648,27:08.960,27:09.320,648_Understood.wav,Understood.
+649,27:09.900,27:11.960,649_I_have_added_hot_streak_to.wav,I have added hot streak to my vocabulary.
+650,27:12.840,27:16.600,650_I_have_had_numerous_hot_streaks.wav,I have had numerous hot streaks within the past 38 standard hours.
+651,27:16.920,27:17.360,651_Apparently.wav,Apparently.
+652,27:17.960,27:19.220,652_Broadcasting_data_stream.wav,Broadcasting data stream.
+653,27:19.560,27:20.460,653_Awaiting_response.wav,Awaiting response.
+654,27:20.840,27:21.560,654_Commander_Briggs.wav,Commander Briggs.
+655,27:21.840,27:23.740,655_This_is_BT-7274.wav,This is BT-7274.
+656,27:24.140,27:24.840,656_Protocol_2.wav,Protocol 2.
+657,27:25.140,27:25.920,657_Uphold_the_mission.wav,Uphold the mission.
+658,27:26.300,27:29.200,658_Report_intel_to_the_fleet_attached.wav,Report intel to the fleet attached to the SRS unit.
+659,27:29.460,27:29.860,659_Correct.wav,Correct.
+660,27:29.860,27:32.760,660_Captain_Ty_Lastimosa_was_killed_in.wav,Captain Ty Lastimosa was killed in action.
+661,27:33.140,27:35.020,661_I_am_now_linked_to_an.wav,I am now linked to an acting pilot.
+662,27:35.420,27:36.560,662_Rifleman_Jack_Cooper.wav,Rifleman Jack Cooper.
+663,27:37.020,27:37.380,663_Yes.wav,Yes.
+664,27:37.740,27:39.160,664_He_had_no_other_options.wav,He had no other options.
+665,27:39.620,27:40.140,665_Objection.wav,Objection.
+666,27:40.680,27:41.980,666_Cooper_is_my_pilot.wav,Cooper is my pilot.
+667,27:41.980,27:45.900,667_Our_combat_effectiveness_rating_now_exce.wav,Our combat effectiveness rating now exceeds 90%.
+668,27:45.900,27:48.060,668_Request_permission_to_retain_this_link.wav,Request permission to retain this link.
+669,27:48.420,27:49.340,669_Do_not_be_afraid.wav,Do not be afraid.
+670,27:49.840,27:51.500,670_Your_jump_kit_can_take_that.wav,Your jump kit can take that fall.
+671,27:51.820,27:52.080,671_Pilot.wav,Pilot.
+672,27:52.500,27:55.380,672_There_appears_to_be_an_override.wav,There appears to be an override switch on the central turbine.
+673,27:55.820,27:57.840,673_Try_using_the_arc_tool_on.wav,Try using the arc tool on that switch.
+674,27:58.360,28:01.180,674_That_should_enable_you_to_run.wav,That should enable you to run across the face of the turbine.
+675,28:01.700,28:02.220,675_Scanning.wav,Scanning.
+676,28:02.220,28:03.980,676_Exposed_power_circuits.wav,Exposed power circuits.
+677,28:04.420,28:06.000,677_You_should_avoid_physical_contact.wav,You should avoid physical contact.
+678,28:06.360,28:07.740,678_Proceed_forward_with_caution.wav,Proceed forward with caution.
+679,28:08.200,28:10.080,679_Your_mission_is_to_obtain_an.wav,Your mission is to obtain an arc tool.
+680,28:10.540,28:14.460,680_Using_it_we_can_jump_start.wav,"Using it, we can jump start the power systems and get the beacon back online."
+681,28:14.960,28:18.340,681_Scans_detect_its_signature_further_withi.wav,Scans detect its signature further within this facility's substation.
+682,28:18.860,28:21.820,682_Scans_reveal_a_maximum_depth_of.wav,Scans reveal a maximum depth of 300 meters.
+683,28:21.820,28:27.580,683_The_stations_computer_details_this_locat.wav,The station's computer details this location as the power grid for an IMC interstellar beacon.
+684,28:27.960,28:28.220,684_Pilot.wav,Pilot.
+685,28:28.620,28:31.700,685_I_have_patched_into_your_helmet.wav,I have patched into your helmet display to monitor your progress.
+686,28:32.100,28:33.960,686_The_channel_is_open_if_you.wav,The channel is open if you need assistance.
+687,28:34.360,28:38.180,687_Sensors_detect_a_power_control_room.wav,Sensors detect a power control room located at the top of the silo.
+688,28:38.720,28:40.460,688_The_fan_exhaust_is_non-lethal.wav,The fan exhaust is non-lethal.
+689,28:40.860,28:41.920,689_Bypass_successful.wav,Bypass successful.
+690,28:42.420,28:43.880,690_The_fan_exhaust_is_offline.wav,The fan exhaust is offline.
+691,28:44.400,28:46.060,691_Arc_tool_detected_at_30_meters.wav,Arc tool detected at 30 meters.
+692,28:46.600,28:47.340,692_Well_done_pilot.wav,"Well done, pilot."
+693,28:47.660,28:49.100,693_You_have_acquired_the_arc_tool.wav,You have acquired the arc tool.
+694,28:49.620,28:50.760,694_Return_to_the_control_room.wav,Return to the control room.
+695,28:50.760,28:52.720,695_We_are_ready_to_jump_start.wav,We are ready to jump start the system.
+696,28:53.080,28:53.720,696_Trust_me.wav,Trust me.
+697,28:54.020,28:54.320,697_Wind.wav,Wind.
+698,28:54.740,28:55.380,698_3_knots.wav,3 knots.
+699,28:55.580,28:56.760,699_Heading_274.wav,Heading 274.
+700,28:57.060,28:57.440,700_Range.wav,Range.
+701,28:57.620,28:58.520,701_95_meters.wav,95 meters.
+702,28:58.880,28:59.820,702_Projectile_mass.wav,Projectile mass.
+703,29:00.180,29:01.080,703_89_kilograms.wav,89 kilograms.
+704,29:01.780,29:02.100,704_Good.wav,Good.
+705,29:02.420,29:03.480,705_You_are_at_the_controls.wav,You are at the controls.
+706,29:04.040,29:06.980,706_Move_the_dish_to_the_far.wav,Move the dish to the far right to bring it within your reach.
+707,29:07.360,29:09.300,707_IMC_dropships_headed_to_your_location.wav,IMC dropships headed to your location.
+708,29:09.820,29:11.340,708_Uplink_targeting_module_detected.wav,Uplink targeting module detected.
+709,29:12.080,29:12.820,709_Check_your_HUD.wav,Check your HUD.
+710,29:13.180,29:13.480,710_Pilot.wav,Pilot.
+711,29:13.700,29:15.880,711_The_module_is_in_the_projector.wav,The module is in the projector of that dish.
+712,29:16.240,29:17.540,712_Protocol_2_mission_update.wav,Protocol 2 mission update.
+713,29:17.960,29:19.120,713_Uplink_module_acquired.wav,Uplink module acquired.
+714,29:19.120,29:21.300,714_Standing_by_for_your_return_Cooper.wav,"Standing by for your return, Cooper."
+715,29:21.680,29:24.520,715_Anti-Titan_squads_have_arrived_requestin.wav,"Anti-Titan squads have arrived, requesting assistance."
+716,29:24.980,29:26.720,716_Scans_indicate_a_fallen_pilot.wav,Scans indicate a fallen pilot.
+717,29:27.300,29:30.100,717_My_memory_recalls_this_pilot_as.wav,My memory recalls this pilot as an exceptional fighter.
+718,29:30.680,29:32.600,718_Proven_well_during_the_Fracture_operatio.wav,Proven well during the Fracture operation.
+719,29:33.140,29:38.880,719_Fracture_was_the_codename_of_a.wav,Fracture was the codename of a major combat refueling operation conducted by the militia on the planet Victor.
+720,29:38.880,29:42.720,720_We_sustained_many_casualties_but_the.wav,"We sustained many casualties, but the fleet survived."
+721,29:43.100,29:47.460,721_My_records_indicate_you_received_a.wav,My records indicate you received a concussion during fracture and suffered some memory loss.
+722,29:48.100,29:52.660,722_It_was_a_major_combat_refueling.wav,It was a major combat refueling operation and one of your first assignments as a rifleman.
+723,29:52.660,29:58.060,723_My_scans_detect_a_functioning_uplink.wav,"My scans detect a functioning uplink targeting module, 428 meters northeast."
+724,29:58.500,30:01.440,724_My_analysis_indicates_a_throw_is.wav,My analysis indicates a throw is our only option here.
+725,30:01.900,30:03.380,725_I_can_throw_you_across_the.wav,I can throw you across the gap.
+726,30:03.700,30:05.860,726_There_is_a_68_chance_of.wav,There is a 68% chance of success.
+727,30:06.240,30:14.160,727_There_is_a_32_chance_of.wav,"There is a 32% chance of an incomplete traversal, resulting in catastrophic trauma, massive internal bleeding, and multiple compound fractures."
+728,30:14.160,30:16.420,728_Dismemberment_may_also_occur.wav,Dismemberment may also occur.
+729,30:17.020,30:21.780,729_There_is_also_the_possibility_of.wav,There is also the possibility of electrocution and disintegration within the toxic fog below.
+730,30:22.160,30:24.440,730_That_sentiment_is_not_100_true.wav,That sentiment is not 100% true.
+731,30:24.820,30:27.040,731_However_it_does_fit_this_current.wav,"However, it does fit this current scenario."
+732,30:27.600,30:29.500,732_I_am_incapable_of_insanity_pilot.wav,"I am incapable of insanity, pilot."
+733,30:29.900,30:32.580,733_Captain_the_uplink_targeting_module_is.wav,"Captain, the uplink targeting module is offline."
+734,30:33.100,30:34.380,734_That_is_a_reasonable_assumption.wav,That is a reasonable assumption.
+735,30:34.900,30:37.600,735_Pilot_this_situation_could_use_your.wav,"Pilot, this situation could use your skills."
+736,30:38.020,30:41.000,736_I_suggest_we_relocate_to_the.wav,I suggest we relocate to the beacon platform for repairs.
+737,30:41.640,30:43.260,737_Embark_and_we_will_move_out.wav,"Embark and we will move out, pilot."
+738,30:43.260,30:44.120,738_Good_luck.wav,Good luck.
+739,30:44.540,30:45.500,739_Copy_that_6-4.wav,"Copy that, 6-4."
+740,30:45.840,30:46.820,740_You_can_do_this_Cooper.wav,"You can do this, Cooper."
+741,30:47.280,30:50.400,741_Climb_into_my_hand_and_I.wav,Climb into my hand and I will throw you to Blackbird 6-4.
+742,30:50.800,30:51.520,742_Not_exactly.wav,Not exactly.
+743,30:52.040,30:56.020,743_There_are_significantly_more_variables_t.wav,There are significantly more variables to throwing between two moving platforms.
+744,30:56.520,30:57.120,744_Trust_me.wav,Trust me.
+745,30:57.440,30:58.860,745_Cooper_aim_for_the_cockpit.wav,"Cooper, aim for the cockpit."
+746,30:59.300,31:00.000,746_Take_the_shot.wav,Take the shot.
+747,31:00.380,31:01.380,747_Left_arm_severed.wav,Left arm severed.
+748,31:01.740,31:03.480,748_However_I_am_still_operational.wav,"However, I am still operational."
+749,31:04.080,31:05.480,749_We_must_uphold_the_mission.wav,We must uphold the mission.
+750,31:05.980,31:07.840,750_This_ship_is_rapidly_losing_altitude.wav,This ship is rapidly losing altitude.
+751,31:08.440,31:09.540,751_It_is_up_to_us_Cooper.wav,"It is up to us, Cooper."
+752,31:09.960,31:11.100,752_Airborne_bogey_acquired.wav,Airborne bogey acquired.
+753,31:11.100,31:12.520,753_North_Star_Class_Titan.wav,North Star Class Titan.
+754,31:12.740,31:13.460,754_Heavily_modified.wav,Heavily modified.
+755,31:13.920,31:15.100,755_Airborne_bogey_acquired.wav,Airborne bogey acquired.
+756,31:15.600,31:16.680,756_North_Star_Class_Titan.wav,North Star Class Titan.
+757,31:17.120,31:17.860,757_Heavily_modified.wav,Heavily modified.
+758,31:18.340,31:19.780,758_Adjusting_for_wind_resistance.wav,Adjusting for wind resistance.
+759,31:20.540,31:21.140,759_Calculating.wav,Calculating.
+760,31:21.560,31:22.160,760_Down_here.wav,Down here.
+761,31:22.500,31:24.420,761_We_are_approaching_the_ARCs_containment.wav,We are approaching the ARC's containment unit.
+762,31:24.820,31:26.840,762_The_containment_unit_is_too_large.wav,The containment unit is too large to carry.
+763,31:27.300,31:28.480,763_We_must_improvise.wav,We must improvise.
+764,31:28.880,31:30.460,764_Ready_to_transfer_control_to_pilot.wav,Ready to transfer control to pilot.
+765,31:30.960,31:31.760,765_Commander_Briggs.wav,Commander Briggs.
+766,31:32.040,31:34.080,766_This_is_BT-7274.wav,This is BT-7274.
+767,31:34.420,31:35.420,767_Viper_is_down.wav,Viper is down.
+768,31:35.880,31:36.140,768_Cooper.wav,Cooper.
+769,31:36.660,31:37.720,769_Ready_for_fastball.wav,Ready for fastball.
+770,31:38.120,31:39.340,770_Recommend_you_disembark.wav,Recommend you disembark.
+771,31:39.340,31:39.780,771_Cooper.wav,Cooper.
+772,31:39.780,31:39.900,772_Cooper.wav,Cooper.
+773,31:40.180,31:43.280,773_I_recommend_you_disembark_so_I.wav,I recommend you disembark so I may throw you to the Draconis.
+774,31:43.600,31:46.500,774_Climb_into_my_hand_and_I.wav,Climb into my hand and I will throw you to the Draconis.
+775,31:46.840,31:47.100,775_Cooper.wav,Cooper.
+776,31:47.380,31:48.400,776_Use_the_cargo_lift.wav,Use the cargo lift.
+777,31:48.760,31:51.700,777_There_are_still_anti-air_cannons_active.wav,There are still anti-air cannons active on the deck of the Malta.
+778,31:51.960,31:54.620,778_They_must_be_disabled_from_the.wav,They must be disabled from the bridge before we can approach.
+779,31:55.040,31:56.300,779_I_cannot_reach_the_ARC.wav,I cannot reach the ARC.
+780,31:56.760,31:57.000,780_Cooper.wav,Cooper.
+781,31:57.400,31:58.280,781_I_need_your_help.wav,I need your help.
+782,31:58.620,31:59.900,782_I_cannot_reach_the_ARC.wav,I cannot reach the ARC.
+783,32:00.240,32:01.180,783_I_need_your_help.wav,I need your help.
+784,32:01.480,32:01.740,784_Quickly.wav,Quickly.
+785,32:02.020,32:03.280,785_We_need_to_get_off_the.wav,We need to get off the ship.
+786,32:03.480,32:04.600,786_We_are_running_out_of_time.wav,We are running out of time.
+787,32:04.960,32:05.680,787_This_way_Cooper.wav,"This way, Cooper."
+788,32:06.100,32:06.380,788_Negative.wav,Negative.
+789,32:06.820,32:07.520,789_We_are_trapped.wav,We are trapped.
+790,32:07.520,32:09.560,790_I_will_not_lose_another_pilot.wav,I will not lose another pilot.
+791,32:09.940,32:10.700,791_Protocol_3.wav,Protocol 3.
+792,32:11.200,32:13.040,792_I_will_not_lose_another_pilot.wav,I will not lose another pilot.
+793,32:13.460,32:14.360,793_Brace_for_impact.wav,Brace for impact.
+794,32:14.740,32:15.740,794_Brace_for_impact.wav,Brace for impact.
+795,32:16.080,32:17.880,795_C-c-c-cooper.wav,C-c-c-cooper.
+796,32:18.080,32:24.200,796_The_injector_backblast_has_overloaded_my.wav,The injector backblast has overloaded my critical internal systems.
+797,32:24.720,32:27.480,797_Attempting_to_restore_ocular_systems.wav,Attempting to restore ocular systems.
+798,32:28.900,32:31.100,798_Neural_link_pathways_deteriorating.wav,Neural link pathways deteriorating.
+799,32:31.540,32:32.340,799_Reactor_core.wav,Reactor core.
+800,32:32.340,32:40.340,800_Unstable_Weapon_systems_offline_Auto_nav.wav,Unstable. Weapon systems offline. Auto navigation system offline. Ocular killer systems restored.
+801,32:40.340,32:42.340,801_Warning_Hostile.wav,Warning. Hostile.
+802,32:42.340,32:46.340,802_Hostile_Titan_detect.wav,Hostile. Titan detect.
+803,32:46.340,32:53.340,803_I_require_your_assistance_My_auto.wav,I require your assistance. My auto navigation systems are offline.
+804,32:53.340,32:57.340,804_Get_me_into_that_injector_assembly.wav,Get me into that injector assembly. We must do this together.
+805,32:57.340,33:07.340,805_Commander_Briggs_I_believe_I_have.wav,"Commander Briggs, I believe I have a solution. In its exposed state, my reactor core may be able to destabilize the arc at the center of the full weapon."
+806,33:07.340,33:12.340,806_We_can_blow_it_up_Im.wav,We can blow it up. I'm sending you coordinates for a dropship rendezvous.
+807,33:14.340,33:18.340,807_Trust_me_I_have_double_done.wav,"Trust me, I have double done the math."
+808,33:18.340,33:23.340,808_We_must_keep_going_Cooper_Our.wav,"We must keep going, Cooper. Our reactor core has become very, very, very unstable."
+809,33:23.340,33:30.340,809_I_do_not_know_how_long.wav,I do not know how long we have. The full weapon has energized its final phase using the arc.
+810,33:30.340,33:33.340,810_We_are_running_out_of_time.wav,"We are running out of time. Move, Cooper. Move."
+811,33:33.340,33:35.340,811_Not_for_me.wav,Not for me.
+812,33:37.340,33:40.340,812_That_is_not_in_the_plan.wav,That is not in the plan.
+813,33:41.340,33:44.340,813_Goodbye_Jack_Good_luck.wav,"Goodbye, Jack. Good luck."
+814,33:44.340,33:57.340,814_Pilot_Analysis_Low_clearance_Pilot_I.wav,"Pilot. Analysis. Low clearance. Pilot, I will be able to fit with a lowered stance. Pilot. If positioned to a lower stance, I will be able to fit through this doorway. Hello, Jack. We must uphold our mission."
+815,33:58.340,34:03.340,815_Incorrect_Im_constructed_from_a_multitud.wav,"Incorrect. I'm constructed from a multitude of machined parts. Over 25,000, actually."
+816,34:03.340,34:10.340,816_BT-7274_online_and_ready_for_combat.wav,BT-7274 online and ready for combat. Old paint. Same data core.
+817,34:10.340,34:20.340,817_BT-7274_good_to_go_New_chassis.wav,BT-7274 good to go. New chassis. Same data core. BT-7274 good to go. New paint. Same data core.
+818,34:20.340,34:30.340,818_BT-7274_good_to_go_I_detect.wav,BT-7274 good to go. I detect joy. BT-7274 online and ready for combat. It is good to see you as well.
+819,34:30.340,34:35.340,819_It_is_time_to_complete_our.wav,"It is time to complete our mission. Pilot, we must keep advancing."
+820,34:35.340,34:50.340,820_Voice_command_Not_recognized_Pilot_in.wav,Voice command. Not recognized. Pilot in jeopardy. Ocular systems. Marginal. Cannot visually acquire. Pilot. Functions. Compromised by severe crash damage.
+821,34:50.340,34:58.340,821_Cooper_Over_here_Cooper_I_can.wav,Cooper. Over here. Cooper. I can no longer uphold the mission. But you still can.
+822,34:58.340,35:05.340,822_Take_the_seer_kit_It_is.wav,Take the seer kit. It is your best chance for survival.
+823,35:05.340,35:13.340,823_I_do_not_Sleep_is_not.wav,"I do not. Sleep is not in my programming. But if I am programmed to sleep, then I will. As long as it does not interfere with my protocols."
+824,35:13.340,35:22.340,824_We_are_going_to_the_rendezvous.wav,We are going to the rendezvous point set by Major Anderson. Further information on our original intended mission is classified by the SRS for operational security.
+825,35:22.340,35:33.340,825_Captain_Lastimosa_linked_with_me_973.wav,Captain Lastimosa linked with me 973 days ago. He was an excellent pilot. And a good friend. Do you require rest? Your vitals appear to be stable.
+826,35:33.340,35:44.340,826_We_must_uphold_the_mission_Your.wav,"We must uphold the mission. Your vitals appear to be stable. There is no time for rest. Good. There is no time for rest. We must uphold the mission. Follow me, pilot."
+827,35:44.340,35:56.340,827_This_way_pilot_I_detect_an.wav,"This way, pilot. I detect an exit up ahead. I'm detecting incoming enemy forces. We must hurry. With the militia growing in numbers, the IMC are prepared to do anything to defeat us."
+828,35:56.340,36:03.340,828_Pilot_the_dash_maneuver_will_allow.wav,"Pilot, the dash maneuver will allow you to get to cover quickly. I recommend you use the vortex shield to block incoming fire, pilot."
+829,36:03.340,36:09.340,829_Pilot_there_are_several_loadouts_availab.wav,"Pilot, there are several loadouts available for your use. I recommend you familiarize yourself with all of them."
+830,36:09.340,36:16.340,830_Pilot_the_tracking_rockets_require_three.wav,"Pilot, the tracking rockets require three locks from the tracker cannon. These incendiary traps may be ignited with thermite."
+831,36:16.340,36:26.340,831_The_ion_abilities_draw_from_a.wav,The ion abilities draw from a stored energy pool. Conserve your energy. The predator cannon has two range settings. Long and short.
+832,36:26.340,36:32.340,832_Pilot_recommend_you_switch_to_short.wav,"Pilot, recommend you switch to short range mode. Pilot, recommend you switch to long range mode."
+833,36:32.340,36:37.340,833_These_tether_traps_are_restricting_our.wav,These tether traps are restricting our movement. Destroying their anchor points should restore our mobility.
+834,36:37.340,36:44.340,834_Pilot_we_have_picked_up_the.wav,"Pilot, we have picked up the Legion loadout. Its main cannon is powerful, but has a delay when spooling up."
+835,36:44.340,36:49.340,835_Pilot_this_is_a_scorched_loadout.wav,"Pilot, this is a scorched loadout. It is designed to lock down areas with thermite."
+836,36:49.340,36:54.340,836_Ion_loadout_acquired_These_versatile_ene.wav,Ion loadout acquired. These versatile energy weapons are precise. They will be useful.
+837,36:54.340,37:01.340,837_Ronin_loadout_picked_up_The_Ronin.wav,Ronin loadout picked up. The Ronin Titan is equipped with a powerful sword and is built on speed and close range combat.
+838,37:01.340,37:10.340,838_Pilot_the_plasma_railgun_in_the.wav,"Pilot, the plasma railgun in the North Star loadout can deal massive damage when fully charged. Its flight core can give us the advantage from above."
+839,37:10.340,37:17.340,839_Pilot_with_the_Tone_loadout_we.wav,"Pilot, with the Tone loadout, we can lock onto enemies and target them with tracking rockets. This will be useful in direct combat."
+840,37:17.340,37:24.340,840_Multi-lock_missiles_are_a_key_component.wav,"Multi-lock missiles are a key component to the brute loadout. I have seen this in battle, and it was very effective."
+841,37:24.340,37:29.340,841_You_have_lock_Recommend_you_fire.wav,You have lock. Recommend you fire your rockets. These tether traps are restricting our movement.
+842,37:29.340,37:36.340,842_Pilot_you_have_not_used_your.wav,"Pilot, you have not used your alternate loadouts. It is important you familiarize yourself with the full complement of weapons."
+843,37:36.340,37:46.340,843_Pilot_hold_down_the_ordnance_button.wav,"Pilot, hold down the ordnance button longer to fire more missiles. Your vortex shield is disengaging too quickly. Holding down the button has a longer lasting effect."
+844,37:46.340,37:53.340,844_There_is_a_battery_nearby_Pick.wav,There is a battery nearby. Pick it up to repair some damage. Our hull is compromised. I recommend you find a battery.
+845,37:53.340,37:58.340,845_Picking_up_weapons_from_destroyed_enemy.wav,Picking up weapons from destroyed enemy titans gives us access to those titans full loadouts.
+846,37:58.340,38:05.340,846_Pilot_we_have_picked_up_an.wav,"Pilot, we have picked up an enemy titan weapon loadout. Pilot, we have picked up an enemy titan weapon."
+847,38:05.340,38:09.340,847_It_is_now_in_our_weapon.wav,It is now in our weapon loadout database. It is now in our database.
+848,38:09.340,38:16.340,848_Pilot_you_do_not_have_enough.wav,"Pilot, you do not have enough lock ons to fire your tracking rockets. You must first tag a target three times with a tracker cannon."
+849,38:16.340,38:23.340,849_You_may_equip_any_of_the.wav,You may equip any of the weapon loadouts within our database at any time. I require a third battery for full power.
+850,38:23.340,38:26.340,850_Without_it_we_may_not_survive.wav,"Without it, we may not survive through enemy territory."
+851,38:26.340,38:31.340,851_We_must_proceed_through_this_facility.wav,We must proceed through this facility and continue to the rendezvous point with Major Anderson.
+852,38:31.340,38:38.340,852_It_is_our_only_chance_of.wav,"It is our only chance of survival. With the IMC searching for us, this shortcut will reduce our exposure to the enemy."
+853,38:38.340,38:45.340,853_We_must_continue_to_our_rendezvous.wav,We must continue to our rendezvous point with Major Anderson. We must locate and rendezvous with Major Anderson.
+854,38:45.340,38:50.340,854_He_will_have_detailed_mission_orders.wav,He will have detailed mission orders. The rendezvous coordinates match the location of this research facility.
+855,38:50.340,38:56.340,855_We_must_send_a_message_to.wav,We must send a message to the militia fleet and inform them of the IMC's recent fold weapon experiment.
+856,38:56.340,39:00.340,856_40_million_souls_on_the_planet.wav,40 million souls on the planet Harmony are at stake.
+857,39:00.340,39:08.340,857_We_must_capture_the_Ark_before.wav,We must capture the Ark before it is taken away aboard the IMS Draconis. The Ark is the critical power source needed to operate the fold weapon.
+858,39:08.340,39:15.340,858_We_must_recover_the_Ark_If.wav,"We must recover the Ark. If stripped of this power source, the IMC will be unable to use the fold weapon to destroy Harmony."
+859,39:15.340,39:23.340,859_We_must_stop_the_IMC_from.wav,"We must stop the IMC from using the fold weapon at all costs. If we fail, the militia planet of Harmony will be destroyed."
+860,39:23.340,39:31.340,860_Pilot_the_IMC_will_continue_to.wav,"Pilot the IMC will continue to search for us. Our only chance of survival is to rendezvous with Major Anderson, 60 clicks from our current location."
+861,39:31.340,39:39.340,861_Improvisation_and_adaptation_are_importa.wav,Improvisation and adaptation are important traits of a pilot. We must accumulate weapons and intel to ensure our survival.
+862,39:39.340,39:47.340,862_Keep_your_eyes_open_pilot_We.wav,"Keep your eyes open, pilot. We have a long journey through unknown enemy occupied territory. We had no choice. We must be resourceful."
+863,39:47.340,39:53.340,863_We_have_a_long_journey_ahead.wav,"We have a long journey ahead of us, pilot. We will have to improvise and adapt if we wish to survive."
+864,39:53.340,39:59.340,864_Noted_We_must_complete_the_neural.wav,Noted. We must complete the neural link immediately. Please install the final battery.
+865,39:59.340,40:05.340,865_Transferring_controls_to_pilot_Accessing.wav,Transferring controls to pilot. Accessing files. Unknown. Calculating.
+866,40:05.340,40:07.340,866_The_file_camerazk_prenders_also_appropri.wav,The file camerazk prenders also approprises.
+867,40:07.340,40:09.340,867_Terror_headrests_produccin.wav,Terror headrest往s producción.
+868,40:09.340,40:11.340,868__Buzz_Collins_taket.wav,"扔ини, Buzz Collins taket."
+869,40:11.340,40:13.340,869_Testix_our_wings_have_a_large.wav,Testix our wings have a large variety ofcido��� cuisine.
+870,40:13.340,40:15.340,870_Youll_crush_inside_your_wings.wav,You'll crush inside your wings.
+871,40:15.340,40:17.340,871_Dont_cut_any_consciences_on_a.wav,Don't cut any consciences on a metal antenna.
+872,40:17.340,40:19.340,872_worshipping_black_units_along_with_your.wav,worshipping black units along with your troops so you can't remember what you have to do and go.
+873,40:19.340,40:20.340,873_line.wav,한다.
+874,40:20.340,40:23.980,874_96AY.wav,96AYėėėėėėėėėėėėėėėėėėėėėėėėęė.
+875,40:24.340,40:33.700,875_I_will_whip_at_all_Lockjawis.wav,I will whip at all Lockjawis.
+876,40:33.700,40:35.340,876_LOT_premiers_though.wav,LOT premiers though겠어요.
+877,40:35.340,40:52.680,877_militia_pilot_is_attacking_your_target.wav,militia pilot is attacking your target. A militia titan is attacking your target. Recommend you assist. I am engaging hostile infantry. I am engaging a hostile titan. Warning. I am engaging multiple titans. Titan battery received. Battery received. Battery locked in. Battery acquired.
+878,40:52.980,40:58.960,878_Combat_effectiveness_increased_Excessive.wav,Combat effectiveness increased. Excessive damage. Warning. Warning. Warning. Detecting hull damage.
+879,40:58.960,41:29.500,879_Caution_Core_activated_Burst_core_activa.wav,Caution. Core activated. Burst core activated. Burst core offline. Burst core ready. Dash core activated. Dash core offline. Dash core ready. Flame core activated. Flame core offline. Flame core ready. Flight core activated. Flight core offline. Flight core ready. Laser core activated. Laser core offline. Laser core ready. Core is recharging. Core offline. Core ready. Salvo core offline.
+880,41:30.140,41:49.680,880_Salvo_core_activated_Salvo_core_ready.wav,"Salvo core activated. Salvo core ready. Smart core activated. Smart core fired. Smart core offline. Smart core ready. Sword core activated. Sword core offline. Sword core ready. Be careful, pilot. Controls to auto mode. Transferring controls to auto tighten. Good luck, pilot."
+881,41:49.680,42:13.220,881_Be_careful_Cooper_Good_luck_pilot.wav,"Be careful, Cooper. Good luck, pilot Cooper. Warning. Our reactor is unstable. Replacement battery required. Enemy tightened down. Militia tightened down. Militia tightened down. Target eliminated. Target eliminated. Nice shot, pilot. Hostile down. Target down. Our combat effectiveness has increased. Pilot mode engaged. Transferring controls to pilot. Pilot control initiated."
+882,42:13.700,42:23.840,882_Controls_transferred_to_pilot_Enemy_tita.wav,"Controls transferred to pilot. Enemy titanfall detented. Incoming enemy titanfall. Battery required. Warning. Battery essential. Warning, pilot. Multiple titans engaging."
+883,42:24.380,42:29.800,883_Warning_Multiple_titans_engaging_us_Warn.wav,"Warning. Multiple titans engaging us. Warning. Enemy titans engaging. Warning, pilot Cooper."
+884,42:29.800,42:42.220,884_Multiple_titans_engaging_Warning_Multipl.wav,"Multiple titans engaging. Warning. Multiple titans engaging us, Cooper. Warning, Cooper. Enemy titans engaging. Pilot. Activating sonar pulse to assist you. Sonar pulse activated. Activating sonar pulse."
+885,42:42.220,42:44.620,885_Sonar_Pulse_Online_Warning.wav,Sonar Pulse Online Warning
