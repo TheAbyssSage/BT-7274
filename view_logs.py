@@ -259,36 +259,417 @@ def show_all(logger: InteractionLogger):
 
 
 def show_summary(logger: InteractionLogger):
-    """Display summary statistics with enhanced formatting."""
+    """Display comprehensive summary statistics with enhanced formatting."""
     summary = logger.get_log_summary(days=30)
     
+    # Collect all entries for detailed analysis
+    all_entries = []
+    files = logger.get_log_files()
+    for log_file in files:
+        with open(log_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    all_entries.append(json.loads(line))
+    
     print("\n" + "=" * 60)
-    print("BT-7274 Interaction Log Summary")
+    print("BT-7274 INTERACTION LOG SUMMARY")
     print("=" * 60)
     
-    # Header
-    print(f"Log Directory:     {summary['log_directory']}")
-    print(f"Total Log Files:   {summary['total_log_files']}")
-    print(f"Total Interactions: {summary['total_interactions']}")
+    # ── Basic Stats ──
+    print("\n📊 BASIC STATISTICS")
+    print("-" * 40)
+    print(f"  Log Directory:      {summary['log_directory']}")
+    print(f"  Total Log Files:    {summary['total_log_files']}")
+    print(f"  Total Interactions: {summary['total_interactions']}")
     
-    # Daily average
     if summary['total_log_files'] > 0:
         avg_per_day = summary['total_interactions'] / summary['total_log_files']
-        print(f"Avg. Per Day:      {avg_per_day:.1f}")
+        print(f"  Avg. Per Day:       {avg_per_day:.1f}")
     
-    # Recent activity indicator
+    # Activity level
     if summary['total_interactions'] > 100:
-        activity_level = "[VERY HIGH]"
+        activity_level = "🔥 VERY HIGH"
     elif summary['total_interactions'] > 50:
-        activity_level = "[HIGH]"
+        activity_level = "⚡ HIGH"
     elif summary['total_interactions'] > 20:
-        activity_level = "[MODERATE]"
+        activity_level = "📈 MODERATE"
     else:
-        activity_level = "[LOW]"
+        activity_level = "💤 LOW"
+    print(f"  Activity Level:     {activity_level}")
     
-    print(f"Activity Level:    {activity_level}")
+    if not all_entries:
+        print("\n  No interactions recorded yet.")
+        print("=" * 60)
+        return
     
-    print("=" * 60)
+    # ── AI Mode Distribution ──
+    ai_modes = {}
+    for entry in all_entries:
+        mode = entry.get("ai_mode", "unknown")
+        ai_modes[mode] = ai_modes.get(mode, 0) + 1
+    
+    if ai_modes:
+        print("\n🤖 AI MODE DISTRIBUTION")
+        print("-" * 40)
+        for mode, count in sorted(ai_modes.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {mode.title():12} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Performance Mode Distribution ──
+    perf_modes = {}
+    for entry in all_entries:
+        mode = entry.get("performance_mode", "unknown")
+        perf_modes[mode] = perf_modes.get(mode, 0) + 1
+    
+    if perf_modes:
+        print("\n⚡ PERFORMANCE MODE DISTRIBUTION")
+        print("-" * 40)
+        for mode, count in sorted(perf_modes.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {mode.title():12} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Cache Hit Statistics ──
+    cache_hits = {}
+    for entry in all_entries:
+        cache = entry.get("cache_hit")
+        if cache:
+            cache_hits[cache] = cache_hits.get(cache, 0) + 1
+    
+    if cache_hits:
+        print("\n💾 CACHE USAGE")
+        print("-" * 40)
+        for cache_type, count in sorted(cache_hits.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            display = cache_type.replace("_", " ").title()
+            print(f"  {display:20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Clip Source Distribution ──
+    clip_sources = {}
+    for entry in all_entries:
+        source = entry.get("clip_source")
+        if source:
+            clip_sources[source] = clip_sources.get(source, 0) + 1
+    
+    if clip_sources:
+        print("\n🎙️ CLIP SOURCE DISTRIBUTION")
+        print("-" * 40)
+        for source, count in sorted(clip_sources.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            display = source.replace("_", " ").title()
+            print(f"  {display:20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── TTS Trigger Rate ──
+    tts_triggered = sum(1 for e in all_entries if e.get("tts_triggered") is True)
+    tts_not_triggered = sum(1 for e in all_entries if e.get("tts_triggered") is False)
+    tts_unknown = len(all_entries) - tts_triggered - tts_not_triggered
+    
+    print("\n🔊 TTS TRIGGER RATE")
+    print("-" * 40)
+    if tts_triggered + tts_not_triggered > 0:
+        rate = tts_triggered / (tts_triggered + tts_not_triggered) * 100
+        print(f"  Triggered:    {tts_triggered:4} ({rate:5.1f}%)")
+        print(f"  Not Triggered: {tts_not_triggered:4}")
+    if tts_unknown > 0:
+        print(f"  Unknown:      {tts_unknown:4}")
+    
+    # ── BT Running State ──
+    bt_running = sum(1 for e in all_entries if e.get("bt_running") is True)
+    bt_not_running = sum(1 for e in all_entries if e.get("bt_running") is False)
+    
+    print("\n🤖 BT RUNNING STATE")
+    print("-" * 40)
+    if bt_running + bt_not_running > 0:
+        running_pct = bt_running / (bt_running + bt_not_running) * 100
+        print(f"  Running:     {bt_running:4} ({running_pct:5.1f}%)")
+        print(f"  Not Running: {bt_not_running:4}")
+    
+    # ── Protocol Distribution ──
+    protocols = {}
+    for entry in all_entries:
+        protocol = entry.get("protocol_reference")
+        if protocol:
+            protocols[protocol] = protocols.get(protocol, 0) + 1
+    
+    if protocols:
+        print("\n📜 PROTOCOL DISTRIBUTION")
+        print("-" * 40)
+        for protocol, count in sorted(protocols.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {count:4} ({pct:5.1f}%) {bar}  {protocol}")
+    
+    # ── Trust Level Stats ──
+    trust_levels = [e.get("pilot_trust_level", 1) for e in all_entries if e.get("pilot_trust_level")]
+    if trust_levels:
+        avg_trust = sum(trust_levels) / len(trust_levels)
+        max_trust = max(trust_levels)
+        min_trust = min(trust_levels)
+        print("\n🤝 PILOT TRUST LEVEL")
+        print("-" * 40)
+        print(f"  Average: {avg_trust:.1f}/5")
+        print(f"  Range:   {min_trust} - {max_trust}")
+        trust_bar = "█" * int(avg_trust) + "░" * (5 - int(avg_trust))
+        print(f"  Visual:  [{trust_bar}]")
+    
+    # ── Action Type Distribution ──
+    action_counts = {}
+    for entry in all_entries:
+        actions = entry.get("actions_executed", [])
+        if actions:
+            for action in actions:
+                action_counts[action] = action_counts.get(action, 0) + 1
+    
+    if action_counts:
+        print("\n⚙️ ACTIONS EXECUTED")
+        print("-" * 40)
+        for action, count in sorted(action_counts.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {action.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Match Type Distribution ──
+    match_types = {}
+    for entry in all_entries:
+        match = entry.get("match_type")
+        if match:
+            match_types[match] = match_types.get(match, 0) + 1
+    
+    if match_types:
+        print("\n🎯 MATCH TYPE DISTRIBUTION")
+        print("-" * 40)
+        for match, count in sorted(match_types.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {match.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Match Score Stats ──
+    match_scores = [e.get("match_score", 0) for e in all_entries if e.get("match_score") is not None]
+    if match_scores:
+        avg_score = sum(match_scores) / len(match_scores)
+        max_score = max(match_scores)
+        min_score = min(match_scores)
+        print("\n📊 MATCH SCORE STATISTICS")
+        print("-" * 40)
+        print(f"  Average: {avg_score:.3f}")
+        print(f"  Best:    {max_score:.3f}")
+        print(f"  Worst:   {min_score:.3f}")
+    
+    # ── Emotion Distribution ──
+    emotions = {}
+    for entry in all_entries:
+        emotion = entry.get("emotion_detected")
+        if emotion:
+            emotions[emotion] = emotions.get(emotion, 0) + 1
+    
+    if emotions:
+        print("\n😊 EMOTION DETECTED (BT)")
+        print("-" * 40)
+        for emotion, count in sorted(emotions.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {emotion.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── User Emotion Distribution ──
+    user_emotions = {}
+    for entry in all_entries:
+        emotion = entry.get("user_emotion")
+        if emotion:
+            user_emotions[emotion] = user_emotions.get(emotion, 0) + 1
+    
+    if user_emotions:
+        print("\n👤 USER EMOTION DETECTED")
+        print("-" * 40)
+        for emotion, count in sorted(user_emotions.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {emotion.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Context Topic Distribution ──
+    topics = {}
+    for entry in all_entries:
+        topic = entry.get("context_topic")
+        if topic:
+            topics[topic] = topics.get(topic, 0) + 1
+    
+    if topics:
+        print("\n📍 CONTEXT TOPIC DISTRIBUTION")
+        print("-" * 40)
+        for topic, count in sorted(topics.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {topic.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Dialogue State Distribution ──
+    dialogue_states = {}
+    for entry in all_entries:
+        state = entry.get("dialogue_state")
+        if state:
+            dialogue_states[state] = dialogue_states.get(state, 0) + 1
+    
+    if dialogue_states:
+        print("\n🌳 DIALOGUE STATE DISTRIBUTION")
+        print("-" * 40)
+        for state, count in sorted(dialogue_states.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  {state.title():20} {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── Wake Word Distribution ──
+    wake_words = {}
+    for entry in all_entries:
+        ww = entry.get("wake_word")
+        if ww:
+            wake_words[ww] = wake_words.get(ww, 0) + 1
+    
+    if wake_words:
+        print("\n🔔 WAKE WORD USAGE")
+        print("-" * 40)
+        for ww, count in sorted(wake_words.items(), key=lambda x: -x[1]):
+            pct = count / len(all_entries) * 100
+            bar = "█" * int(pct / 5)
+            print(f"  '{ww}' {count:4} ({pct:5.1f}%) {bar}")
+    
+    # ── STT Confidence Stats ──
+    stt_confs = [e.get("stt_confidence", 0) for e in all_entries if e.get("stt_confidence") is not None]
+    if stt_confs:
+        avg_conf = sum(stt_confs) / len(stt_confs)
+        max_conf = max(stt_confs)
+        min_conf = min(stt_confs)
+        print("\n🎤 SPEECH RECOGNITION CONFIDENCE")
+        print("-" * 40)
+        print(f"  Average: {avg_conf:.1%}")
+        print(f"  Best:    {max_conf:.1%}")
+        print(f"  Worst:   {min_conf:.1%}")
+        # Quality distribution
+        high = sum(1 for c in stt_confs if c > 0.8)
+        med = sum(1 for c in stt_confs if 0.5 < c <= 0.8)
+        low = sum(1 for c in stt_confs if c <= 0.5)
+        print(f"  High (>80%):  {high:3}")
+        print(f"  Med (50-80%): {med:3}")
+        print(f"  Low (<50%):   {low:3}")
+    
+    # ── Response Time Stats ──
+    response_times = [e.get("llm_response_time", 0) for e in all_entries if e.get("llm_response_time") is not None]
+    if response_times:
+        avg_rt = sum(response_times) / len(response_times)
+        max_rt = max(response_times)
+        min_rt = min(response_times)
+        print("\n⏱️ LLM RESPONSE TIME")
+        print("-" * 40)
+        print(f"  Average: {avg_rt:.2f}s")
+        print(f"  Slowest: {max_rt:.2f}s")
+        print(f"  Fastest: {min_rt:.2f}s")
+        # Speed distribution
+        fast = sum(1 for t in response_times if t < 2.0)
+        med = sum(1 for t in response_times if 2.0 <= t < 5.0)
+        slow = sum(1 for t in response_times if t >= 5.0)
+        print(f"  Fast (<2s):  {fast:3}")
+        print(f"  Med (2-5s):  {med:3}")
+        print(f"  Slow (>5s):  {slow:3}")
+    
+    # ── Conversation Duration Stats ──
+    durations = [e.get("conversation_duration", 0) for e in all_entries if e.get("conversation_duration") is not None]
+    if durations:
+        avg_dur = sum(durations) / len(durations)
+        max_dur = max(durations)
+        min_dur = min(durations)
+        print("\n⏳ CONVERSATION DURATION")
+        print("-" * 40)
+        print(f"  Average: {avg_dur:.1f}s")
+        print(f"  Longest: {max_dur:.1f}s")
+        print(f"  Shortest: {min_dur:.1f}s")
+    
+    # ── Mission Elapsed Time Stats ──
+    met_values = [e.get("mission_elapsed_time", 0) for e in all_entries if e.get("mission_elapsed_time") is not None]
+    if met_values:
+        avg_met = sum(met_values) / len(met_values)
+        max_met = max(met_values)
+        print("\n🚀 MISSION ELAPSED TIME")
+        print("-" * 40)
+        print(f"  Average: {avg_met:.1f}s")
+        print(f"  Longest: {max_met:.1f}s")
+    
+    # ── Error Statistics ──
+    error_count = sum(len(e.get("errors", [])) for e in all_entries)
+    entries_with_errors = sum(1 for e in all_entries if e.get("errors"))
+    
+    print("\n⚠️ ERROR STATISTICS")
+    print("-" * 40)
+    print(f"  Total Errors:       {error_count}")
+    print(f"  Entries w/ Errors:  {entries_with_errors}")
+    if all_entries:
+        error_rate = entries_with_errors / len(all_entries) * 100
+        print(f"  Error Rate:         {error_rate:.1f}%")
+    
+    # Error type breakdown
+    error_types = {}
+    for entry in all_entries:
+        for error in entry.get("errors", []):
+            err_type = error.get("error_type", "Unknown")
+            error_types[err_type] = error_types.get(err_type, 0) + 1
+    
+    if error_types:
+        print("\n  Error Type Breakdown:")
+        for err_type, count in sorted(error_types.items(), key=lambda x: -x[1]):
+            print(f"    {err_type}: {count}")
+    
+    # ── Follow-up Depth Stats ──
+    follow_ups = [e.get("follow_up_depth", 0) for e in all_entries if e.get("follow_up_depth", 0) > 0]
+    if follow_ups:
+        avg_depth = sum(follow_ups) / len(follow_ups)
+        max_depth = max(follow_ups)
+        print("\n🔄 FOLLOW-UP CONVERSATIONS")
+        print("-" * 40)
+        print(f"  Follow-up Turns: {len(follow_ups)}")
+        print(f"  Average Depth:   {avg_depth:.1f}")
+        print(f"  Max Depth:       {max_depth}")
+    
+    # ── Session Statistics ──
+    sessions = {}
+    for entry in all_entries:
+        sid = entry.get("session_id")
+        if sid:
+            sessions[sid] = sessions.get(sid, 0) + 1
+    
+    if sessions:
+        print("\n📅 SESSION STATISTICS")
+        print("-" * 40)
+        print(f"  Total Sessions:    {len(sessions)}")
+        avg_per_session = len(all_entries) / len(sessions)
+        print(f"  Avg. Per Session:  {avg_per_session:.1f}")
+        max_session = max(sessions.values())
+        print(f"  Largest Session:   {max_session} interactions")
+    
+    # ── Location Context ──
+    locations = {}
+    for entry in all_entries:
+        loc = entry.get("location_context")
+        if loc:
+            locations[loc] = locations.get(loc, 0) + 1
+    
+    if locations:
+        print("\n📍 LOCATIONS RECORDED")
+        print("-" * 40)
+        for loc, count in sorted(locations.items(), key=lambda x: -x[1])[:5]:
+            print(f"  {loc}: {count}x")
+    
+    # ── Most Recent Activity ──
+    if all_entries:
+        latest = max(all_entries, key=lambda e: e.get("timestamp", ""))
+        latest_time = latest.get("timestamp", "Unknown")
+        if "T" in latest_time:
+            latest_time = latest_time.split("T")[1].split(".")[0]
+        print("\n🕐 MOST RECENT ACTIVITY")
+        print("-" * 40)
+        print(f"  Time:     {latest_time}")
+        print(f"  Pilot:    {latest.get('pilot_message', 'N/A')}")
+        print(f"  BT-7274:  {latest.get('bt_response', 'N/A')[:50]}...")
+    
+    print("\n" + "=" * 60)
 
 
 def show_date(logger: InteractionLogger, date_str: str):
