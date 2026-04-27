@@ -121,6 +121,14 @@ class InteractionLogger:
             entry["user_emotion"] = metadata["user_emotion"]
         if "context_topic" in metadata:
             entry["context_topic"] = metadata["context_topic"]
+        if "clip_source" in metadata:
+            entry["clip_source"] = metadata["clip_source"]
+        if "clip_phrase" in metadata:
+            entry["clip_phrase"] = metadata["clip_phrase"]
+        if "tts_triggered" in metadata:
+            entry["tts_triggered"] = metadata["tts_triggered"]
+        if "bt_running" in metadata:
+            entry["bt_running"] = metadata["bt_running"]
 
         with open(self.current_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

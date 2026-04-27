@@ -993,6 +993,46 @@ class BT7274Assistant:
         time_keywords = ["what time", "what is the time", "current time", "what date", "what is the date", "today's date", "the date today", "what day", "what day is it"]
         return any(kw in lower for kw in time_keywords)
 
+    def _is_status_query(self, text: str) -> bool:
+        """Detect if the user is asking for BT-7274's status."""
+        lower = text.lower().strip()
+        status_keywords = [
+            "what is your status", "what's your status", "how are you", "how are you doing",
+            "status report", "systems check", "systems status", "are you operational",
+            "are you online", "are you functional", "how are your systems",
+            "are you okay", "are you alright", "status update", "condition report"
+        ]
+        return any(kw in lower for kw in status_keywords)
+
+    def _get_status_response_clip(self) -> Optional[str]:
+        """Get a BT-7274 original voice clip for status responses."""
+        status_phrases = [
+            "ready to proceed",
+            "embark when ready",
+            "please embark when ready",
+            "get ready",
+            "my systems are rebooting",
+            "pilot my mapping systems have been restored",
+            "still operational but unable to escape",
+            "reinitializing critical systems",
+            "standing by pilot climb onto my hand",
+        ]
+        import random
+        # Try to find matching BT clips
+        available_clips = []
+        for phrase in status_phrases:
+            key = self._normalize_phrase(phrase)
+            if key in self.bt_clips:
+                path = self.bt_clips[key]
+                if Path(path).exists():
+                    available_clips.append((phrase, path))
+
+        if available_clips:
+            phrase, path = random.choice(available_clips)
+            print(f"    🎙️ BT-7274 status clip: \"{phrase}\"")
+            return path
+        return None
+
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
         lower = text.lower()
@@ -1463,6 +1503,24 @@ class BT7274Assistant:
                 response_parts.append("Pilot, my chronometer is offline.")
                 handled_types.add("time")
 
+        # Check for status query - respond with BT-7274 original voice clips
+        if self._is_status_query(text):
+            print("  ⚙️ Running systems diagnostic...")
+            status_clip = self._get_status_response_clip()
+            if status_clip:
+                try:
+                    play_audio(status_clip)
+                    print("  🤖 BT-7274: [Status report via original voice clip]")
+                    response_parts.append("[Status report delivered via original BT-7274 voice clip]")
+                    handled_types.add("status")
+                except Exception as e:
+                    self._report_error("tts", "play_status_clip", e, {"status_clip": status_clip})
+                    response_parts.append("Pilot, all systems are operational and ready for deployment.")
+                    handled_types.add("status")
+            else:
+                response_parts.append("Pilot, all systems are operational and ready for deployment.")
+                handled_types.add("status")
+
         # Check for weather query
         if self._is_weather_query(text):
             print("  🌤 Fetching local data...")
@@ -1692,13 +1750,33 @@ class BT7274Assistant:
         # Try to use a standby clip for common responses to reduce latency
         standby_wav = try_standby_for_response(clean_response)
         tts_success = False
+        clip_source = None
+        clip_phrase = None
+        
         if standby_wav and Path(standby_wav).exists():
-            print("    ♻️ Using pre-generated standby clip")
+            # Determine if it's a BT clip or standby clip
+            if standby_wav in self.bt_clips.values():
+                clip_source = "bt_clip"
+                # Find the phrase for this BT clip
+                for phrase, path in self.bt_clips.items():
+                    if path == standby_wav:
+                        clip_phrase = phrase
+                        break
+                print(f"    ♻️ Using BT-7274 original clip: \"{clip_phrase}\"")
+            else:
+                clip_source = "standby_clip"
+                # Find the phrase for this standby clip
+                for phrase, path in self.standby_clips.items():
+                    if path == standby_wav:
+                        clip_phrase = phrase
+                        break
+                print(f"    ♻️ Using standby clip: \"{clip_phrase}\"")
+            
             try:
                 play_audio(standby_wav)
                 tts_success = True
             except Exception as e:
-                self._report_error("tts", "play_standby", e, {"standby_wav": standby_wav})
+                self._report_error("tts", "play_standby", e, {"standby_wav": standby_wav, "clip_source": clip_source, "clip_phrase": clip_phrase})
         else:
             # Use appropriate TTS method based on performance mode
             try:
@@ -1825,6 +1903,10 @@ class BT7274Assistant:
             "context_topic": self.current_context.get("topic", "general"),
             "conversation_history_length": len(self.conversation_history),
             "semantic_similarity_available": SEMANTIC_SIMILARITY_AVAILABLE,
+            "clip_source": clip_source,
+            "clip_phrase": clip_phrase,
+            "tts_triggered": tts_success,
+            "bt_running": self.running,
         }
         
         self.logger.log_interaction(
