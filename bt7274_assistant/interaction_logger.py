@@ -117,6 +117,8 @@ class InteractionLogger:
             entry["dialogue_state"] = metadata["dialogue_state"]
         if "emotion_detected" in metadata:
             entry["emotion_detected"] = metadata["emotion_detected"]
+        if "user_emotion" in metadata:
+            entry["user_emotion"] = metadata["user_emotion"]
         if "context_topic" in metadata:
             entry["context_topic"] = metadata["context_topic"]
 

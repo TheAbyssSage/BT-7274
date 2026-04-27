@@ -1821,8 +1821,8 @@ class BT7274Assistant:
             "personality_weights": self.personality_weights.copy(),
             "dialogue_state": self.dialogue_state,
             "emotion_detected": self.current_context.get("bot_emotion", "neutral"),
-            "context_topic": self.current_context.get("topic", "general"),
             "user_emotion": self.current_context.get("user_emotion", "neutral"),
+            "context_topic": self.current_context.get("topic", "general"),
             "conversation_history_length": len(self.conversation_history),
             "semantic_similarity_available": SEMANTIC_SIMILARITY_AVAILABLE,
         }
