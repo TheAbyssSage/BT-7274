@@ -63,7 +63,7 @@ class BT7274Assistant:
         self.performance_mode = performance_mode  # "standard" or "performance"
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
-        self.tts = None  # Can be XTTSClient or StreamingXTTSClient
+        self.tts: Optional[XTTSClient | StreamingXTTSClient] = None  # Can be XTTSClient or StreamingXTTSClient
         self.actions: Optional[ActionHandler] = None
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
@@ -85,7 +85,7 @@ class BT7274Assistant:
         
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
-        if self.tts:
+        if self.tts and hasattr(self.tts, '_response_cache') and self.tts._response_cache is not None:
             cache_count = len(self.tts._response_cache)
             self.tts._response_cache.clear()
             print(f"    ♻️ Cleared {cache_count} cached TTS responses")
@@ -324,15 +324,19 @@ class BT7274Assistant:
             wav_path = standby_dir / f"{safe_name}.wav"
             print(f"    → [{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
             try:
-                generated_wav = self.tts.speak(phrase)
-                if generated_wav:
-                    import shutil
-                    shutil.move(generated_wav, str(wav_path))
-                    self.standby_clips[key] = str(wav_path)
-                    generated += 1
-                    print(f"      ✓ Saved: {wav_path.name}")
+                if self.tts:
+                    generated_wav = self.tts.speak(phrase)
+                    if generated_wav:
+                        import shutil
+                        shutil.move(generated_wav, str(wav_path))
+                        self.standby_clips[key] = str(wav_path)
+                        generated += 1
+                        print(f"      ✓ Saved: {wav_path.name}")
+                    else:
+                        print(f"      ✗ Failed to generate: {phrase}")
+                        failed += 1
                 else:
-                    print(f"      ✗ Failed to generate: {phrase}")
+                    print(f"      ✗ TTS not initialized: {phrase}")
                     failed += 1
             except Exception as e:
                 print(f"      ✗ Error generating '{phrase}': {e}")
@@ -648,9 +652,10 @@ class BT7274Assistant:
                 return
 
             # Fallback: generate on the fly
-            wav = self.tts.speak(phrase)
-            if wav:
-                play_audio(wav)
+            if self.tts:
+                wav = self.tts.speak(phrase)
+                if wav:
+                    play_audio(wav)
                 
         # Helper: try to find a suitable standby clip for common responses
         def try_standby_for_response(response_text: str) -> Optional[str]:
@@ -713,9 +718,10 @@ class BT7274Assistant:
                         
                 if not found_clip:
                     # Fallback to TTS
-                    response_wav = self.tts.speak("You're welcome, Pilot.")
-                    if response_wav:
-                        play_audio(response_wav)
+                    if self.tts:
+                        response_wav = self.tts.speak("You're welcome, Pilot.")
+                        if response_wav:
+                            play_audio(response_wav)
             self.last_activity = time.time()
             return True
 
