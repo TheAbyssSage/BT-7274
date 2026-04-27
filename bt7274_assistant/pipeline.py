@@ -68,6 +68,8 @@ class BT7274Assistant:
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
         self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
+        self.bt_clips: dict[str, str] = {}  # phrase -> wav_path for BT's original lines
+        self.bt_clip_texts: dict[str, str] = {}  # filename -> original text for BT's lines
         self.running = False
         self.last_activity = time.time()
         self.logger = InteractionLogger()
@@ -226,6 +228,9 @@ class BT7274Assistant:
 
         print("\n[6/9] Checking standby audio files...")
         self._check_and_generate_standby_clips()
+        
+        print("\n[6.5/9] Loading BT-7274 original voice clips...")
+        self._load_bt_original_clips()
 
         print("\n[7/9] Initializing Action Handler...")
         try:
@@ -343,6 +348,65 @@ class BT7274Assistant:
                 failed += 1
 
         print(f"    ✓ Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
+
+    def _load_bt_original_clips(self):
+        """Load BT-7274's original voice clips from the game for instant responses."""
+        import csv
+        import json
+        voicepack_dir = Path(__file__).parent.parent / "BT-7274.Voicepack"
+        bt_clips_dir = voicepack_dir / "bt_clips"
+        csv_file = voicepack_dir / "bt_clips_index.csv"
+        
+        # Try to load precomputed mappings first
+        mappings_dir = Path(__file__).parent.parent / "mappings"
+        phrases_to_files = mappings_dir / "bt_phrases_to_files.json"
+        
+        if phrases_to_files.exists():
+            try:
+                with open(phrases_to_files, 'r') as f:
+                    phrase_map = json.load(f)
+                loaded = 0
+                for phrase, filename in phrase_map.items():
+                    wav_path = bt_clips_dir / filename
+                    if wav_path.exists():
+                        self.bt_clips[phrase] = str(wav_path)
+                        # Extract original text from filename if needed
+                        # This is a simplified approach - in practice you'd want to store the original text too
+                        self.bt_clip_texts[filename] = phrase
+                        loaded += 1
+                print(f"    ✓ Loaded {loaded} BT-7274 original voice clips from mappings.")
+                return
+            except Exception as e:
+                print(f"    ⚠ Failed to load precomputed mappings: {e}")
+        
+        # Fallback to loading from CSV
+        if not csv_file.exists():
+            print("    ⚠ BT-7274 original clips CSV not found. Skipping.")
+            return
+            
+        if not bt_clips_dir.exists():
+            print("    ⚠ BT-7274 original clips directory not found. Skipping.")
+            return
+
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                loaded = 0
+                for row in reader:
+                    filename = row['filename']
+                    text = row['text']
+                    wav_path = bt_clips_dir / filename
+                    
+                    if wav_path.exists():
+                        # Normalize the text for matching
+                        normalized_text = self._normalize_phrase(text)
+                        self.bt_clips[normalized_text] = str(wav_path)
+                        self.bt_clip_texts[filename] = text
+                        loaded += 1
+                        
+                print(f"    ✓ Loaded {loaded} BT-7274 original voice clips from CSV.")
+        except Exception as e:
+            print(f"    ✗ Error loading BT-7274 original clips: {e}")
 
     def _extract_location_from_query(self, text: str) -> Optional[str]:
         """Extract location from weather query like 'weather in Tucson, Arizona'."""
@@ -644,9 +708,9 @@ class BT7274Assistant:
             phrase = random.choice(phrases)
             print(f"  ⏳ {phrase}")
 
-            # Try pre-recorded clip first
+            # Try pre-recorded clip first (BT's original clips take priority)
             key = self._normalize_phrase(phrase)
-            wav_path = self.standby_clips.get(key)
+            wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
             if wav_path and Path(wav_path).exists():
                 play_audio(wav_path)
                 return
@@ -665,10 +729,21 @@ class BT7274Assistant:
                 
             normalized = self._normalize_phrase(response_text)
             
-            # Direct match
+            # First, check for exact BT clip match
+            if normalized in self.bt_clips:
+                return self.bt_clips[normalized]
+            
+            # Then check for exact standby clip match
             if normalized in self.standby_clips:
                 return self.standby_clips[normalized]
                 
+            # Try fuzzy matching for BT clips (partial matches)
+            # Look for partial matches in BT clips first
+            for key, path in self.bt_clips.items():
+                if normalized in key or key in normalized:
+                    if Path(path).exists():
+                        return path
+            
             # Partial matches for common patterns
             common_patterns = {
                 "you're welcome": ["thank you", "thanks", "thx"],
@@ -681,7 +756,11 @@ class BT7274Assistant:
             for standby_key, patterns in common_patterns.items():
                 for pattern in patterns:
                     if pattern in normalized:
-                        # Look for a standby clip that contains this pattern
+                        # Look for a BT clip that contains this pattern first
+                        for key, path in self.bt_clips.items():
+                            if standby_key in key and Path(path).exists():
+                                return path
+                        # Then check standby clips
                         for key, path in self.standby_clips.items():
                             if standby_key in key and Path(path).exists():
                                 return path
@@ -693,7 +772,8 @@ class BT7274Assistant:
             print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
             # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")
-            wav_path = self.standby_clips.get(key)
+            # First check BT's original clips
+            wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
             if wav_path and Path(wav_path).exists():
                 play_audio(wav_path)
             else:

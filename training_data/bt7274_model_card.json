@@ -1,0 +1,38 @@
+{
+  "character_name": "BT-7274",
+  "source": "Titanfall 2",
+  "characteristics": {
+    "voice_type": "Deep, masculine synthetic voice",
+    "tone": "Calm, precise, tactical",
+    "personality": "Loyal, slightly literal, dry humor",
+    "speaking_style": "Concise, efficient, formal with pilot-directed phrases",
+    "common_phrases": [
+      "Pilot",
+      "Copy that",
+      "Understood",
+      "Acknowledged",
+      "Stand by",
+      "You're welcome",
+      "Roger that",
+      "Confirmed"
+    ]
+  },
+  "technical_specs": {
+    "sample_rate": "Unknown (game audio)",
+    "bit_depth": "Unknown",
+    "codec": "WAV"
+  },
+  "usage_notes": {
+    "context": "Military/sci-fi assistant AI",
+    "appropriate_for": [
+      "Gaming assistants",
+      "Sci-fi projects",
+      "Military-themed applications"
+    ],
+    "limitations": [
+      "Game-specific terminology",
+      "Limited emotional range",
+      "Synthetic voice only"
+    ]
+  }
+}
