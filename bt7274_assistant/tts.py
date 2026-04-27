@@ -10,6 +10,8 @@ from typing import Optional, Dict
 from functools import lru_cache
 import hashlib
 
+from ui import info, success, warning, error, cache_hit
+
 # Patch for PyTorch 2.6+ weights_only loading with XTTS
 # XTTS model checkpoints were created before weights_only=True became default
 import torch
@@ -21,6 +23,7 @@ torch.load = _patched_torch_load
 
 from TTS.api import TTS
 import soundfile as sf
+from ui import info, success, warning, error, cache_hit
 
 
 class XTTSClient:
@@ -54,15 +57,15 @@ class XTTSClient:
     def model(self):
         """Lazy-load the XTTS v2 model."""
         if self._model is None:
-            print(f"    Loading XTTS v2 model...")
-            print("    (This may take 30-60 seconds on first run)")
+            info("Loading XTTS v2 model...")
+            info("(This may take 30-60 seconds on first run)")
             self._model = TTS(self.model_name)
             self._warmup()
         return self._model
 
     def _warmup(self):
         """Pre-compute speaker latents and do a dummy synthesis to warm up the model."""
-        print("    Warming up TTS (caching speaker voice)...")
+        info("Warming up TTS (caching speaker voice)...")
         try:
             # Cache speaker conditioning latents
             if self._model and hasattr(self._model, 'synthesizer') and \
@@ -82,10 +85,10 @@ class XTTSClient:
                         language=self.language
                     )
                 except Exception as e:
-                    print(f"    ⚠ TTS warmup synthesis failed: {e}")
-            print("    ✓ TTS warmed up and ready.")
+                    warning(f"TTS warmup synthesis failed: {e}")
+            success("TTS warmed up and ready.")
         except Exception as e:
-            print(f"    ⚠ TTS warmup warning: {e}")
+            warning(f"TTS warmup warning: {e}")
 
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for better TTS pronunciation."""
@@ -138,7 +141,7 @@ class XTTSClient:
         if cache_key in self._response_cache:
             cached_path = self._response_cache[cache_key]
             if self._is_cache_valid(cached_path):
-                print("    ♻️ Using cached TTS response")
+                cache_hit("Using cached TTS response")
                 self._last_metrics = {
                     "processing_time": 0.0,
                     "real_time_factor": 0.0,
@@ -165,7 +168,7 @@ class XTTSClient:
 
         # If file already exists, use it
         if self._is_cache_valid(str(output_path)):
-            print("    ♻️ Using existing TTS file")
+            cache_hit("Using existing TTS file")
             self._response_cache[cache_key] = str(output_path)
             # Maintain cache size
             if len(self._response_cache) > self._max_cache_size:
@@ -216,7 +219,7 @@ class XTTSClient:
             
             return str(output_path)
         except Exception as e:
-            print(f"    ✗ TTS error: {e}")
+            error(f"TTS error: {e}")
             # Log error for debugging
             import logging
             logging.error(f"TTS Synthesis Error: {e}", exc_info=True)

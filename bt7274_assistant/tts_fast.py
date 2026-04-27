@@ -23,6 +23,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import sounddevice as sd
+
+from ui import info, success, warning, error, cache_hit, log_tts
 import soundfile as sf
 
 # Patch for PyTorch 2.6+ weights_only loading with XTTS
@@ -34,6 +36,7 @@ def _patched_torch_load(*args, **kwargs):
 torch.load = _patched_torch_load
 
 from TTS.api import TTS
+from ui import info, success, warning, error, cache_hit, log_tts
 
 
 @dataclass
@@ -98,7 +101,7 @@ class StreamingXTTSClient:
         """Thread-safe lazy model loading."""
         with self._model_lock:
             if self._model is None:
-                print("    Loading XTTS v2 model (performance mode)...")
+                info("Loading XTTS v2 model (performance mode)...")
                 self._model = TTS(self.model_name)
                 self._warmup()
                 self._is_ready = True
@@ -106,7 +109,7 @@ class StreamingXTTSClient:
 
     def _warmup(self):
         """Pre-compute speaker latents and do a dummy synthesis."""
-        print("    Warming up TTS (caching speaker voice)...")
+        info("Warming up TTS (caching speaker voice)...")
         try:
             # Cache speaker conditioning latents
             if self._model and hasattr(self._model, 'synthesizer') and \
@@ -126,10 +129,10 @@ class StreamingXTTSClient:
                         language=self.language
                     )
                 except Exception as e:
-                    print(f"    ⚠ TTS warmup synthesis failed: {e}")
-            print("    ✓ TTS warmed up and ready for streaming.")
+                    warning(f"TTS warmup synthesis failed: {e}")
+            success("TTS warmed up and ready for streaming.")
         except Exception as e:
-            print(f"    ⚠ TTS warmup warning: {e}")
+            warning(f"TTS warmup warning: {e}")
 
     def ensure_ready(self):
         """Ensure model is loaded and ready."""
@@ -234,13 +237,13 @@ class StreamingXTTSClient:
                         elif 'audio' in wav:
                             wav = wav['audio']
                         else:
-                            print(f"    ✗ Unexpected TTS output format: {type(wav)}")
+                            error(f"Unexpected TTS output format: {type(wav)}")
                             return None
                 except Exception as e:
-                    print(f"    ⚠ Audio conversion failed: {e}")
+                    warning(f"Audio conversion failed: {e}")
                     return None
             else:
-                print(f"    ✗ TTS synthesis returned None")
+                error("TTS synthesis returned None")
                 return None
 
             synthesis_time = time.time() - start_time
@@ -252,7 +255,7 @@ class StreamingXTTSClient:
             try:
                 sf.write(str(output_path), wav, 24000)
             except Exception as e:
-                print(f"    ⚠ Failed to write audio file: {e}")
+                warning(f"Failed to write audio file: {e}")
                 return None
 
             with self._cache_lock:
@@ -272,7 +275,7 @@ class StreamingXTTSClient:
             return AudioChunk(audio=wav, sample_rate=24000, text=text)
 
         except Exception as e:
-            print(f"    ✗ TTS synthesis error: {e}")
+            error(f"TTS synthesis error: {e}")
             import traceback
             traceback.print_exc()
             # Log error for debugging
@@ -301,7 +304,7 @@ class StreamingXTTSClient:
             except queue.Empty:
                 continue
             except Exception as e:
-                print(f"    ✗ Synthesis worker error: {e}")
+                error(f"Synthesis worker error: {e}")
 
     def _playback_worker(self):
         """Worker thread that plays audio chunks as they become ready."""
@@ -317,7 +320,7 @@ class StreamingXTTSClient:
             except queue.Empty:
                 continue
             except Exception as e:
-                print(f"    ✗ Playback worker error: {e}")
+                error(f"Playback worker error: {e}")
 
     def _play_audio_chunk(self, chunk: AudioChunk):
         """Play a single audio chunk using sounddevice."""
@@ -342,7 +345,7 @@ class StreamingXTTSClient:
             self._metrics['total_playback_time'] += time.time() - start_time
 
         except Exception as e:
-            print(f"    ✗ Audio playback error: {e}")
+            error(f"Audio playback error: {e}")
 
     # ─── Public API ──────────────────────────────────────────────────
 
@@ -358,7 +361,7 @@ class StreamingXTTSClient:
         if not sentences:
             return False
 
-        print(f"    [Streaming TTS] {len(sentences)} sentence(s) to synthesize")
+        log_tts(f"Streaming TTS: {len(sentences)} sentence(s) to synthesize")
 
         # Start streaming workers
         self._streaming = True
@@ -395,11 +398,11 @@ class StreamingXTTSClient:
                     first_chunk = self._audio_queue.get(timeout=30)
                     if first_chunk:
                         first_sentence_time = time.time() - total_start
-                        print(f"    ⏱ First audio ready in {first_sentence_time:.2f}s")
+                        info(f"First audio ready in {first_sentence_time:.2f}s")
                         # Put it back for playback worker
                         self._audio_queue.put(first_chunk)
                 except queue.Empty:
-                    print("    ✗ Timeout waiting for first sentence")
+                    error("Timeout waiting for first sentence")
                     self._streaming = False
                     break
 
@@ -413,8 +416,8 @@ class StreamingXTTSClient:
         self._streaming = False
 
         total_time = time.time() - total_start
-        print(f"    ✓ Streaming complete in {total_time:.2f}s")
-        print(f"    📊 Metrics: {self._metrics['sentences_synthesized']} synthesized, "
+        success(f"Streaming complete in {total_time:.2f}s")
+        info(f"Metrics: {self._metrics['sentences_synthesized']} synthesized, "
               f"{self._metrics['sentences_played']} played")
 
         # Store last metrics for external retrieval
@@ -489,7 +492,7 @@ class StreamingXTTSClient:
 
             return str(output_path)
         except Exception as e:
-            print(f"    ✗ TTS error: {e}")
+            error(f"TTS error: {e}")
             return None
 
     def unload(self):

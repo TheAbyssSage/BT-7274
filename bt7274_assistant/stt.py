@@ -12,6 +12,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 from typing import Tuple
+from ui import info, success, warning, error
 
 
 class WhisperSTT:
@@ -26,7 +27,7 @@ class WhisperSTT:
     def model(self):
         """Lazy-load the Whisper model."""
         if self._model is None:
-            print(f"    Loading Whisper model '{self.model_name}' on {self.device}...")
+            info(f"Loading Whisper model '{self.model_name}' on {self.device}...")
             self._model = whisper.load_model(self.model_name).to(self.device)
         return self._model
 
@@ -53,7 +54,7 @@ class WhisperSTT:
                         sf.write(processed_audio_path, cleaned_audio, sample_rate)
                 except Exception as preprocess_error:
                     # If preprocessing fails, use original audio
-                    print(f"    ⚠ Audio preprocessing failed: {preprocess_error}")
+                    warning(f"Audio preprocessing failed: {preprocess_error}")
                     processed_audio_path = audio_path
             
             result = self.model.transcribe(
@@ -78,7 +79,7 @@ class WhisperSTT:
                 try:
                     os.remove(processed_audio_path)
                 except Exception as cleanup_error:
-                    print(f"    ⚠ Failed to clean up temporary file: {cleanup_error}")
+                    warning(f"Failed to clean up temporary file: {cleanup_error}")
             
             return {
                 "text": text,
@@ -86,7 +87,7 @@ class WhisperSTT:
                 "language": result.get("language", self.language),
             }
         except Exception as e:
-            print(f"    ✗ STT error: {e}")
+            error(f"STT error: {e}")
             # Log error for debugging
             import logging
             logging.error(f"STT Transcription Error: {e}", exc_info=True)
@@ -120,11 +121,11 @@ class WhisperSTT:
                             filtered_audio = signal.filtfilt(b, a, audio)
                         else:
                             # If filtering fails, use original audio
-                            print(f"    ⚠ Bandpass filter returned unexpected result: {type(butter_result)}")
+                            warning(f"Bandpass filter returned unexpected result: {type(butter_result)}")
                             filtered_audio = audio
                     except Exception as filter_error:
                         # If filtering fails, use original audio
-                        print(f"    ⚠ Bandpass filter failed: {filter_error}")
+                        warning(f"Bandpass filter failed: {filter_error}")
                         filtered_audio = audio
                 else:
                     # Skip filtering if frequencies are invalid
@@ -162,12 +163,12 @@ class WhisperSTT:
                     
             except Exception as spectral_error:
                 # If spectral subtraction fails, use filtered audio
-                print(f"    ⚠ Spectral subtraction failed: {spectral_error}")
+                warning(f"Spectral subtraction failed: {spectral_error}")
                 reduced_audio = filtered_audio
                 
         except Exception as e:
             # If any noise reduction step fails, return original audio
-            print(f"    ⚠ Noise reduction failed: {e}")
+            warning(f"Noise reduction failed: {e}")
             reduced_audio = audio
 
         return reduced_audio
@@ -187,7 +188,7 @@ class WhisperSTT:
                 try:
                     os.remove(f.name)
                 except Exception as cleanup_error:
-                    print(f"    ⚠ Failed to clean up temporary file: {cleanup_error}")
+                    warning(f"Failed to clean up temporary file: {cleanup_error}")
             return result
         except Exception as e:
             return {

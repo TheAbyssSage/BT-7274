@@ -12,6 +12,7 @@ from typing import Optional
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
+from ui import info, success, warning, error
 
 
 def play_audio(wav_path: str, device: Optional[int] = None):
@@ -25,7 +26,7 @@ def play_audio(wav_path: str, device: Optional[int] = None):
         sd.play(data, samplerate, device=device)
         sd.wait()
     except Exception as e:
-        print(f"  ✗ Audio playback error: {e}")
+        error(f"Audio playback error: {e}")
 
 
 def beep(frequency: int = 880, duration: float = 0.15, samplerate: int = 44100):
@@ -87,7 +88,7 @@ class PersistentAudioRecorder:
                 self._silence_counter = 0
                 if not self._speech_detected:
                     self._speech_detected = True
-                    print("    🗣 Speech detected, holding channel open...")
+                    info("Speech detected, holding channel open...")
 
             chunk_duration = 0.1
             silence_chunks_needed = int(self.silence_duration / chunk_duration)
@@ -132,7 +133,7 @@ class PersistentAudioRecorder:
             self._speech_detected = False
             self._recording = True
 
-        print("    Recording...")
+        info("Recording...")
         start_time = time.time()
         max_record_seconds = max_seconds if max_seconds is not None else self.max_record_seconds
         while self._recording and (time.time() - start_time) < max_record_seconds:
@@ -140,7 +141,7 @@ class PersistentAudioRecorder:
 
         with self._lock:
             if len(self._audio_buffer) < 5:
-                print("    ✗ Recording too short.")
+                error("Recording too short.")
                 return None
             audio = np.concatenate(self._audio_buffer, axis=0).flatten()
 

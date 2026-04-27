@@ -49,7 +49,7 @@ try:
     SEMANTIC_SIMILARITY_AVAILABLE = True
 except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
-    print("⚠ Semantic similarity matching not available. Install scikit-learn for this feature.")
+    warning("Semantic similarity matching not available. Install scikit-learn for this feature.")
 
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
@@ -61,6 +61,7 @@ from actions import ActionHandler
 from location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from interaction_logger import InteractionLogger
+from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
 class BT7274Assistant:
@@ -122,7 +123,7 @@ class BT7274Assistant:
         if self.tts and hasattr(self.tts, '_response_cache') and self.tts._response_cache is not None:
             cache_count = len(self.tts._response_cache)
             self.tts._response_cache.clear()
-            print(f"    ♻️ Cleared {cache_count} cached TTS responses")
+            cache_hit(f"Cleared {cache_count} cached TTS responses")
 
     def _report_error(self, component: str, function: str, error: Exception, context: dict = None):
         """Report an error to the current interaction's error list for logging."""
@@ -140,7 +141,7 @@ class BT7274Assistant:
             error_entry["context"] = context
         self.errors_this_interaction.append(error_entry)
         self.errors_this_session.append(error_entry)
-        print(f"    ✗ Error in {component}.{function}: {error}")
+        error(f"Error in {component}.{function}: {error}")
         
         # Also log to system log for debugging
         import logging
@@ -152,53 +153,50 @@ class BT7274Assistant:
 
     def initialize(self):
         """Initialize all components."""
-        print("=" * 50)
-        print("  BT-7274 AI ASSISTANT")
-        print("  Protocol 1: Link to Pilot")
-        print("=" * 50)
+        header("BT-7274 AI ASSISTANT  |  Protocol 1: Link to Pilot")
 
-        print("\n[1/9] Initializing Speech-to-Text...")
+        section("[1/9] Initializing Speech-to-Text")
         try:
             self.stt = WhisperSTT(self.config["stt"])
             # Preload Whisper model to avoid delays during first transcription
             _ = self.stt.model
-            print("    ✓ Whisper model loaded and ready.")
+            success("Whisper model loaded and ready.")
         except Exception as e:
             self._report_error("stt", "initialize", e)
-            print(f"    ✗ STT initialization failed: {e}")
+            error(f"STT initialization failed: {e}")
 
-        print("\n[2/9] Which LLM?")
+        section("[2/9] Which LLM?")
         if self.ai_mode is None:
             # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
             cloud_model = self.config["llm"]["cloud"]["model"]
-            
-            print(f"  [1] Local Ollama  ({local_model})")
-            print(f"  [2] Cloud Ollama  ({cloud_model})")
-            
+
+            info(f"[1] Local Ollama  ({local_model})")
+            info(f"[2] Cloud Ollama  ({cloud_model})")
+
             while True:
                 try:
-                    choice = input("\nSelect model [1-2]: ").strip()
+                    choice = prompt("Select model [1-2]:")
                     if choice == "1":
                         self.ai_mode = "local"
-                        print(f"  → Selected: Local Ollama ({local_model})")
+                        status("SELECT", f"Local Ollama ({local_model})")
                         break
                     elif choice == "2":
                         self.ai_mode = "cloud"
-                        print(f"  → Selected: Cloud Ollama ({cloud_model})")
+                        status("SELECT", f"Cloud Ollama ({cloud_model})")
                         break
                     else:
-                        print("  Invalid choice. Please enter 1 or 2.")
+                        warning("Invalid choice. Please enter 1 or 2.")
                 except (EOFError, KeyboardInterrupt):
-                    print("\n  Exiting...")
+                    info("Exiting...")
                     sys.exit(0)
         else:
             # Use the provided AI mode
             mode_name = "Local Ollama" if self.ai_mode == "local" else "Cloud Ollama"
             model_name = self.config["llm"][self.ai_mode]["model"]
-            print(f"  → Using: {mode_name} ({model_name}) (preselected)")
+            status("USING", f"{mode_name} ({model_name}) (preselected)")
 
-        print(f"\n[3/9] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)...")
+        section(f"[3/9] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)")
         try:
             # Use OllamaClient for both local and cloud since they use the same API
             # Merge system prompt from top-level llm config
@@ -207,94 +205,94 @@ class BT7274Assistant:
             self.llm = OllamaClient(llm_config)
         except Exception as e:
             self._report_error("llm", "initialize", e)
-            print(f"    ✗ LLM initialization failed: {e}")
+            error(f"LLM initialization failed: {e}")
 
-        print("\n[4/9] Performance Mode Selection")
+        section("[4/9] Performance Mode Selection")
         if self.performance_mode is None:
-            print("  [1] Standard Mode")
-            print("      Full response synthesized, then played")
-            print("      Best for: Short responses, maximum voice quality")
-            print("")
-            print("  [2] Performance Mode (STREAMING)")
-            print("      Sentence-level streaming with parallel synthesis")
-            print("      Best for: Long responses, minimal latency")
-            print("      ⚡ First audio plays in ~2-4 seconds")
-            print("      ⚡ BT-7274's voice maintained throughout")
-            
+            info("[1] Standard Mode")
+            info("    Full response synthesized, then played")
+            info("    Best for: Short responses, maximum voice quality")
+            spacer()
+            info("[2] Performance Mode (STREAMING)")
+            info("    Sentence-level streaming with parallel synthesis")
+            info("    Best for: Long responses, minimal latency")
+            info("    First audio plays in ~2-4 seconds")
+            info("    BT-7274's voice maintained throughout")
+
             while True:
                 try:
-                    choice = input("\nSelect mode [1-2]: ").strip()
+                    choice = prompt("Select mode [1-2]:")
                     if choice == "1":
                         self.performance_mode = "standard"
-                        print("  → Selected: Standard Mode")
+                        status("SELECT", "Standard Mode")
                         break
                     elif choice == "2":
                         self.performance_mode = "performance"
-                        print("  → Selected: Performance Mode (Streaming)")
+                        status("SELECT", "Performance Mode (Streaming)")
                         break
                     else:
-                        print("  Invalid choice. Please enter 1 or 2.")
+                        warning("Invalid choice. Please enter 1 or 2.")
                 except (EOFError, KeyboardInterrupt):
-                    print("\n  Exiting...")
+                    info("Exiting...")
                     sys.exit(0)
         else:
             mode_display = "Standard" if self.performance_mode == "standard" else "Performance (Streaming)"
-            print(f"  → Using: {mode_display} (preselected)")
+            status("USING", f"{mode_display} (preselected)")
 
-        print(f"\n[5/9] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)...")
+        section(f"[5/9] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)")
         try:
             if self.performance_mode == "performance":
                 self.tts = StreamingXTTSClient(self.config["tts"])
-                print("    ⚡ Streaming TTS engine initialized")
-                print("    ⚡ Sentence-level parallel synthesis enabled")
+                status("STREAM", "Streaming TTS engine initialized")
+                status("STREAM", "Sentence-level parallel synthesis enabled")
             else:
                 self.tts = XTTSClient(self.config["tts"])
-                print("    ✓ Standard TTS engine initialized")
-            
+                success("Standard TTS engine initialized")
+
             # Preload TTS model at startup to avoid delays during first synthesis
             self.tts.ensure_ready()
-            print("    ✓ TTS model loaded and ready.")
+            success("TTS model loaded and ready.")
         except Exception as e:
             self._report_error("tts", "initialize", e)
-            print(f"    ✗ TTS initialization failed: {e}")
+            error(f"TTS initialization failed: {e}")
 
-        print("\n[6/9] Checking standby audio files...")
+        section("[6/9] Checking standby audio files")
         self._check_and_generate_standby_clips()
-        
-        print("\n[6.1/9] Loading BT-7274 original voice clips...")
+
+        section("[6.1/9] Loading BT-7274 original voice clips")
         self._load_bt_original_clips()
 
-        print("\n[6.2/9] Initializing semantic matching for BT clips...")
+        section("[6.2/9] Initializing semantic matching for BT clips")
         self._initialize_semantic_matching()
 
-        print("\n[7/9] Initializing Action Handler...")
+        section("[7/9] Initializing Action Handler")
         try:
             self.actions = ActionHandler(self.config["actions"])
         except Exception as e:
             self._report_error("actions", "initialize", e)
-            print(f"    ✗ Action handler initialization failed: {e}")
+            error(f"Action handler initialization failed: {e}")
 
-        print("\n[8/9] Initializing Location Services...")
+        section("[8/9] Initializing Location Services")
         try:
             manual_loc = self.config.get("location", {}).get("manual")
             self.location = LocationProvider(manual_location=manual_loc)
             if self.location.update():
-                print(f"    📍 Location: {self.location.location_str}")
+                status("LOC", f"Location: {self.location.location_str}")
             else:
-                print("    ⚠ Location unavailable.")
+                warning("Location unavailable.")
         except Exception as e:
             self._report_error("location", "initialize", e)
-            print(f"    ✗ Location services initialization failed: {e}")
+            error(f"Location services initialization failed: {e}")
 
-        print("\n[9/9] Opening persistent audio stream...")
+        section("[9/9] Opening persistent audio stream")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
-        print("    ✓ Microphone stream active.")
+        success("Microphone stream active.")
 
-        print("\n✓ All systems online.")
+        footer("All systems online")
         if self.performance_mode == "performance":
-            print("  ⚡ Performance Mode: Streaming TTS active")
-        print("  Say 'Hey BT' or press Enter to speak.\n")
+            status("MODE", "Performance Mode: Streaming TTS active")
+        info("Say 'Hey BT' or press Enter to speak.")
 
     def _normalize_phrase(self, phrase: str) -> str:
         """Normalize a phrase for dictionary lookup."""
@@ -352,17 +350,17 @@ class BT7274Assistant:
         # Report status
         total = len(unique_phrases)
         if not missing:
-            print(f"    ✓ All {total} standby clips present and loaded.")
+            success(f"All {total} standby clips present and loaded.")
             return
 
-        print(f"    ⚠ {len(missing)} of {total} clips missing. Generating now...")
+        warning(f"{len(missing)} of {total} clips missing. Generating now...")
 
         # Second pass: generate missing files
         generated = 0
         failed = 0
         for phrase, safe_name, key in missing:
             wav_path = standby_dir / f"{safe_name}.wav"
-            print(f"    → [{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
+            info(f"[{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
             try:
                 if self.tts:
                     generated_wav = self.tts.speak(phrase)
@@ -371,18 +369,18 @@ class BT7274Assistant:
                         shutil.move(generated_wav, str(wav_path))
                         self.standby_clips[key] = str(wav_path)
                         generated += 1
-                        print(f"      ✓ Saved: {wav_path.name}")
+                        success(f"Saved: {wav_path.name}")
                     else:
-                        print(f"      ✗ Failed to generate: {phrase}")
+                        error(f"Failed to generate: {phrase}")
                         failed += 1
                 else:
-                    print(f"      ✗ TTS not initialized: {phrase}")
+                    error(f"TTS not initialized: {phrase}")
                     failed += 1
             except Exception as e:
-                print(f"      ✗ Error generating '{phrase}': {e}")
+                error(f"Error generating '{phrase}': {e}")
                 failed += 1
 
-        print(f"    ✓ Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
+        success(f"Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
 
     def _load_bt_original_clips(self):
         """Load BT-7274's original voice clips from the game for instant responses."""
@@ -409,18 +407,18 @@ class BT7274Assistant:
                         # This is a simplified approach - in practice you'd want to store the original text too
                         self.bt_clip_texts[filename] = phrase
                         loaded += 1
-                print(f"    ✓ Loaded {loaded} BT-7274 original voice clips from mappings.")
+                success(f"Loaded {loaded} BT-7274 original voice clips from mappings.")
                 return
             except Exception as e:
-                print(f"    ⚠ Failed to load precomputed mappings: {e}")
+                warning(f"Failed to load precomputed mappings: {e}")
         
         # Fallback to loading from CSV
         if not csv_file.exists():
-            print("    ⚠ BT-7274 original clips CSV not found. Skipping.")
+            warning("BT-7274 original clips CSV not found. Skipping.")
             return
             
         if not bt_clips_dir.exists():
-            print("    ⚠ BT-7274 original clips directory not found. Skipping.")
+            warning("BT-7274 original clips directory not found. Skipping.")
             return
 
         try:
@@ -439,9 +437,9 @@ class BT7274Assistant:
                         self.bt_clip_texts[filename] = text
                         loaded += 1
                         
-                print(f"    ✓ Loaded {loaded} BT-7274 original voice clips from CSV.")
+                success(f"Loaded {loaded} BT-7274 original voice clips from CSV.")
         except Exception as e:
-            print(f"    ✗ Error loading BT-7274 original clips: {e}")
+            error(f"Error loading BT-7274 original clips: {e}")
 
     def _initialize_semantic_matching(self):
         """Initialize semantic similarity matching for BT clips."""
@@ -466,9 +464,9 @@ class BT7274Assistant:
             # Fit the vectorizer on all BT clip phrases
             self.semantic_clip_matrix = self.semantic_vectorizer.fit_transform(self.semantic_clip_phrases)
             
-            print(f"    ✓ Semantic similarity matching initialized with {len(self.semantic_clip_phrases)} phrases")
+            success(f"Semantic similarity matching initialized with {len(self.semantic_clip_phrases)} phrases")
         except Exception as e:
-            print(f"    ⚠ Failed to initialize semantic similarity matching: {e}")
+            warning(f"Failed to initialize semantic similarity matching: {e}")
             self.semantic_vectorizer = None
             self.semantic_clip_matrix = None
             self.semantic_clip_phrases = []
@@ -627,7 +625,7 @@ class BT7274Assistant:
                         if path:
                             candidates.append((path, similarity * 0.8, "semantic"))
             except Exception as e:
-                print(f"    ⚠ Semantic matching failed: {e}")
+                warning(f"Semantic matching failed: {e}")
         
         # 3. Context-aware matching
         context_phrases = self._get_context_aware_phrases()
@@ -675,7 +673,7 @@ class BT7274Assistant:
         self._last_match_type = best_type
         self._last_match_score = round(best_score, 2)
         
-        print(f"    Dynamic clip selected: {best_type} match (score: {best_score:.2f})")
+        info(f"Dynamic clip selected: {best_type} match (score: {best_score:.2f})")
         return best_path
 
     def _extract_topics(self, text: str) -> set:
@@ -908,7 +906,7 @@ class BT7274Assistant:
         if best_match and best_score > 0:
             self.dialogue_state = best_match["category"]
             self.dialogue_history.append(best_match["phrase"])
-            print(f"    🌳 Dialogue transition: {current_state} -> {best_match['category']}")
+            status("DIALOGUE", f"Transition: {current_state} -> {best_match['category']}")
             return best_match["path"]
         
         return None
@@ -1029,7 +1027,7 @@ class BT7274Assistant:
 
         if available_clips:
             phrase, path = random.choice(available_clips)
-            print(f"    🎙️ BT-7274 status clip: \"{phrase}\"")
+            clip_play(phrase, source="status")
             return path
         return None
 
@@ -1171,7 +1169,7 @@ class BT7274Assistant:
         Args:
             force_regenerate: If True, regenerate all clips even if they exist.
         """
-        print("Generating standby responses with BT's voice...")
+        section("Generating standby responses with BT's voice")
         
         # Collect all phrases from config
         all_phrases = []
@@ -1213,11 +1211,11 @@ class BT7274Assistant:
             output_path = output_dir / f"{safe_name}.wav"
             
             if output_path.exists() and not force_regenerate:
-                print(f"  ⏭ Skipping: {phrase}")
+                info(f"Skipping: {phrase}")
                 skipped_count += 1
                 continue
                 
-            print(f"  → Generating: {phrase}")
+            info(f"Generating: {phrase}")
             try:
                 # Remove old file if forcing regeneration
                 if output_path.exists() and force_regenerate:
@@ -1227,14 +1225,14 @@ class BT7274Assistant:
                 if wav_path:
                     import shutil
                     shutil.move(wav_path, str(output_path))
-                    print(f"    ✓ Saved: {output_path.name}")
+                    success(f"Saved: {output_path.name}")
                     generated_count += 1
                 else:
-                    print(f"    ✗ Failed: {phrase}")
+                    error(f"Failed: {phrase}")
             except Exception as e:
-                print(f"    ✗ Error generating '{phrase}': {e}")
+                error(f"Error generating '{phrase}': {e}")
         
-        print(f"\nDone! Generated: {generated_count}, Skipped: {skipped_count}")
+        footer(f"Done! Generated: {generated_count}, Skipped: {skipped_count}")
         return generated_count
 
     def process_command(self, audio_path: str = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: str = None) -> bool:
@@ -1246,9 +1244,9 @@ class BT7274Assistant:
         stt_confidence = None
         if pre_transcribed_text is not None:
             text = pre_transcribed_text
-            print(f"\n  🎤 Pilot: \"{text}\"")
+            quote("Pilot", text)
         else:
-            print("\n  [STT] Transcribing...")
+            log_stt("Transcribing...")
             try:
                 stt_result = self.stt.transcribe(audio_path) if self.stt else {"text": "", "confidence": 0.0}
                 text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
@@ -1258,21 +1256,21 @@ class BT7274Assistant:
                 text = ""
                 stt_confidence = 0.0
             if not text or not text.strip():
-                print("  ✗ No speech detected.")
+                error("No speech detected.")
                 return False
-            print(f"  🎤 Pilot: \"{text}\"")
+            quote("Pilot", text)
             
             # Confidence-based filtering for noisy environments
             min_confidence = self.config["stt"].get("min_confidence", 0.3)
             if stt_confidence is not None and stt_confidence < min_confidence:
-                print(f"  ⚠ Low confidence transcription ({stt_confidence:.2f}). Treating as noise.")
+                warning(f"Low confidence transcription ({stt_confidence:.2f}). Treating as noise.")
                 return False
 
         # Check wake words
         if not skip_wake_word:
             wake_words = self.config["pipeline"].get("wake_words", [])
             if wake_words and not any(ww.lower() in text.lower() for ww in wake_words):
-                print(f"  ⏭ Wake word not detected. Ignoring.")
+                info("Wake word not detected. Ignoring.")
                 return False
 
         # Helper: speak a standby phrase immediately (pre-recorded if available)
@@ -1298,24 +1296,24 @@ class BT7274Assistant:
                     weighted_context = self._apply_personality_weights(matching_phrases, " ".join(matching_phrases))
                     if weighted_context:
                         phrase = weighted_context[0][0]  # Take highest weighted
-                        print(f"  ⏳ [Context-aware + Personality] {phrase}")
+                        status("STBY", f"[Context+Personality] {phrase}")
                     else:
                         phrase = random.choice(matching_phrases)
-                        print(f"  ⏳ [Context-aware] {phrase}")
+                        status("STBY", f"[Context-aware] {phrase}")
                 else:
                     if weighted_phrases:
                         phrase = weighted_phrases[0][0]  # Take highest weighted
-                        print(f"  ⏳ [Personality-weighted] {phrase}")
+                        status("STBY", f"[Personality] {phrase}")
                     else:
                         phrase = random.choice(phrases)
-                        print(f"  ⏳ {phrase}")
+                        status("STBY", phrase)
             else:
                 if weighted_phrases:
                     phrase = weighted_phrases[0][0]  # Take highest weighted
-                    print(f"  ⏳ [Personality-weighted] {phrase}")
+                    status("STBY", f"[Personality] {phrase}")
                 else:
                     phrase = random.choice(phrases)
-                    print(f"  ⏳ {phrase}")
+                    status("STBY", phrase)
 
             # Try pre-recorded clip first (BT's original clips take priority)
             key = self._normalize_phrase(phrase)
@@ -1369,10 +1367,10 @@ class BT7274Assistant:
                         best_phrase = self.semantic_clip_phrases[best_match_idx]
                         path = self.bt_clips.get(best_phrase)
                         if path and Path(path).exists():
-                            print(f"    🧠 Semantic match found: '{best_phrase}' (similarity: {best_similarity:.2f})")
+                            status("MATCH", f"Semantic match: \"{best_phrase}\" (score: {best_similarity:.2f})")
                             return path
                 except Exception as e:
-                    print(f"    ⚠ Semantic matching failed: {e}")
+                    warning(f"Semantic matching failed: {e}")
             
             # 6. Try context-aware phrase selection
             context_phrases = self._get_context_aware_phrases()
@@ -1381,7 +1379,7 @@ class BT7274Assistant:
                     if normalized in phrase or phrase in normalized:
                         path = self.bt_clips.get(phrase)
                         if path and Path(path).exists():
-                            print(f"    Context-aware match found: '{phrase}'")
+                            status("MATCH", f"Context-aware: \"{phrase}\"")
                             return path
             
             # 7. Try emotional tone matching
@@ -1391,7 +1389,7 @@ class BT7274Assistant:
                     if normalized in phrase or phrase in normalized:
                         path = self.bt_clips.get(phrase)
                         if path and Path(path).exists():
-                            print(f"    Emotion match found: '{phrase}'")
+                            status("MATCH", f"Emotion match: \"{phrase}\"")
                             return path
             
             # 8. Try dialogue tree navigation
@@ -1422,7 +1420,7 @@ class BT7274Assistant:
 
         # Special handling for gratitude expressions
         if self._is_expression_of_gratitude(text):
-            print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
+            quote("BT-7274", "You're welcome, Pilot.")
             # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")
             # First check BT's original clips
@@ -1466,11 +1464,11 @@ class BT7274Assistant:
         
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
-            print("  📍 Locating Pilot...")
+            status("LOC", "Locating Pilot...")
             try:
                 location_result = self.actions.execute("get_location") if self.actions else "Location unavailable"
                 if location_result and not location_result.startswith("Location"):
-                    print(f"  📍 {location_result}")
+                    status("LOC", location_result)
                     response_parts.append(f"Pilot, {location_result}")
                     handled_types.add("location")
                 else:
@@ -1483,13 +1481,13 @@ class BT7274Assistant:
 
         # Check for time query
         if self._is_time_query(text):
-            print("  🕐 Checking chronometer...")
+            status("TIME", "Checking chronometer...")
             try:
                 time_result = self.actions.execute("tell_time") if self.actions else "Time unavailable"
                 date_result = self.actions.execute("tell_date") if self.actions else "Date unavailable"
                 if time_result and date_result:
-                    print(f"  🕐 {time_result}")
-                    print(f"  📅 {date_result}")
+                    status("TIME", time_result)
+                    status("DATE", date_result)
                     response_parts.append(f"Pilot, {date_result} {time_result}")
                     handled_types.add("time")
                 elif time_result:
@@ -1505,12 +1503,12 @@ class BT7274Assistant:
 
         # Check for status query - respond with BT-7274 original voice clips
         if self._is_status_query(text):
-            print("  ⚙️ Running systems diagnostic...")
+            status("DIAG", "Running systems diagnostic...")
             status_clip = self._get_status_response_clip()
             if status_clip:
                 try:
                     play_audio(status_clip)
-                    print("  🤖 BT-7274: [Status report via original voice clip]")
+                    quote("BT-7274", "[Status report via original voice clip]")
                     response_parts.append("[Status report delivered via original BT-7274 voice clip]")
                     handled_types.add("status")
                 except Exception as e:
@@ -1523,7 +1521,7 @@ class BT7274Assistant:
 
         # Check for weather query
         if self._is_weather_query(text):
-            print("  🌤 Fetching local data...")
+            status("WEATHER", "Fetching local data...")
             try:
                 # Check if user specified a location in the query
                 query_location = self._extract_location_from_query(text)
@@ -1532,21 +1530,21 @@ class BT7274Assistant:
                 if is_forecast:
                     # Use forecast action
                     if query_location:
-                        print(f"    📍 Location from query: {query_location}")
+                        status("LOC", f"Location from query: {query_location}")
                         weather_result = self.actions.execute("get_weather_forecast", location=query_location) if self.actions else "Weather unavailable"
                     else:
                         weather_result = self.actions.execute("get_weather_forecast") if self.actions else "Weather unavailable"
                 else:
                     # Use current weather action
                     if query_location:
-                        print(f"    📍 Location from query: {query_location}")
+                        status("LOC", f"Location from query: {query_location}")
                         weather_result = self.actions.execute("get_weather_for_location", location=query_location) if self.actions else "Weather unavailable"
                     else:
                         weather_result = self.actions.execute("get_weather") if self.actions else "Weather unavailable"
 
                 if weather_result and not weather_result.startswith("Weather data unavailable") and not weather_result.startswith("Forecast data unavailable"):
-                    print(f"  🌤 {weather_result}")
-                    print("  [LLM] Summarizing for Pilot...")
+                    status("WEATHER", weather_result)
+                    log_llm("Summarizing for Pilot...")
                     summary_prompt = (
                         f"Weather data: {weather_result}\n\n"
                         f"Respond in character as BT-7274 with a detailed, complete explanation. "
@@ -1571,16 +1569,16 @@ class BT7274Assistant:
 
         # Check for search intent - always let LLM handle these with search results
         if self._is_search_query(text) and "search" not in handled_types:
-            print("  🔍 Looking up...")
+            status("SEARCH", "Looking up...")
             try:
                 # Enrich query with location context
                 enriched_query = self.location.enrich_query(text) if self.location else text
                 if enriched_query != text:
-                    print(f"    📍 Localized query: {enriched_query}")
+                    status("LOC", f"Localized query: {enriched_query}")
                 search_result = self.actions.execute("search_web", query=enriched_query) if self.actions else "Search unavailable"
                 if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
-                    print(f"  🔍 Results: {search_result[:100]}...")
-                    print("  [LLM] Summarizing for Pilot...")
+                    status("SEARCH", f"Results: {search_result[:100]}...")
+                    log_llm("Summarizing for Pilot...")
                     # Check if this is a news query
                     is_news_query = any(word in text.lower() for word in ["news", "latest", "breaking"])
                     if is_news_query:
@@ -1617,7 +1615,7 @@ class BT7274Assistant:
 
         # Check for TTS cache clearing request
         if "clear tts cache" in text.lower() or "clear cache" in text.lower():
-            print("  ♻️ Clearing TTS cache...")
+            cache_hit("Clearing TTS cache...")
             self.clear_tts_cache()
             response_parts.append("TTS cache cleared, Pilot.")
             handled_types.add("maintenance")
@@ -1630,7 +1628,7 @@ class BT7274Assistant:
         
         if is_travel_related and "travel" not in handled_types and not is_information_query:
             # For travel queries, silently get user's location and inject it into the LLM prompt
-            print("  📍 Checking your location for travel planning...")
+            status("LOC", "Checking your location for travel planning...")
             location_result = self.actions.execute("get_location_structured") if self.actions else "Location unavailable"
             if location_result and not location_result.startswith("Location"):
                 try:
@@ -1638,7 +1636,7 @@ class BT7274Assistant:
                     location_context = f"IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {location_data.get('formatted', 'Unknown')}. Coordinates: {location_data.get('coordinates', {}).get('latitude', 'N/A')}, {location_data.get('coordinates', {}).get('longitude', 'N/A')}. City: {location_data.get('city', 'Unknown')}."
                     # Add location context to the query - let LLM handle the full question
                     enriched_text = f"{text} {location_context} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
-                    print("  [LLM] Thinking with location context...")
+                    log_llm("Thinking with location context...")
                     travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
                     response_parts.append(travel_response)
                     handled_types.add("travel")
@@ -1647,23 +1645,23 @@ class BT7274Assistant:
                     simple_location = self.actions.execute("get_location") if self.actions else "Location unavailable"
                     if simple_location and not simple_location.startswith("Location"):
                         enriched_text = f"{text} IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {simple_location} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
-                        print("  [LLM] Thinking with location context...")
+                        log_llm("Thinking with location context...")
                         travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
                         response_parts.append(travel_response)
                         handled_types.add("travel")
                     else:
-                        print("  [LLM] Thinking...")
+                        log_llm("Thinking...")
                         normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
                         response_parts.append(normal_response)
                         handled_types.add("travel")
             else:
-                print("  [LLM] Thinking...")
+                log_llm("Thinking...")
                 normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
                 response_parts.append(normal_response)
                 handled_types.add("travel")
         elif is_information_query and "travel" not in handled_types and is_travel_related:
             # For event information queries, process normally without location context
-            print("  [LLM] Thinking...")
+            log_llm("Thinking...")
             normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
             response_parts.append(normal_response)
             handled_types.add("travel")
@@ -1675,7 +1673,7 @@ class BT7274Assistant:
             response = " ".join(response_parts)
         elif not handled_types:
             # No specific handlers matched, use normal LLM processing
-            print("  [LLM] Thinking...")
+            log_llm("Thinking...")
             llm_start = time.time()
             try:
                 response = self.llm.chat(text) if self.llm else "Response unavailable"
@@ -1742,10 +1740,10 @@ class BT7274Assistant:
         if not clean_response:
             clean_response = "Processing complete, Pilot."
 
-        print(f"  🤖 BT-7274: \"{clean_response}\"")
+        quote("BT-7274", clean_response)
 
         # 4. Text-to-Speech
-        print("  [TTS] Synthesizing voice...")
+        log_tts("Synthesizing voice...")
 
         # Try to use a standby clip for common responses to reduce latency
         standby_wav = try_standby_for_response(clean_response)
@@ -1762,7 +1760,7 @@ class BT7274Assistant:
                     if path == standby_wav:
                         clip_phrase = phrase
                         break
-                print(f"    ♻️ Using BT-7274 original clip: \"{clip_phrase}\"")
+                clip_play(clip_phrase, source="BT-7274 original")
             else:
                 clip_source = "standby_clip"
                 # Find the phrase for this standby clip
@@ -1770,7 +1768,7 @@ class BT7274Assistant:
                     if path == standby_wav:
                         clip_phrase = phrase
                         break
-                print(f"    ♻️ Using standby clip: \"{clip_phrase}\"")
+                clip_play(clip_phrase, source="standby")
             
             try:
                 play_audio(standby_wav)
@@ -1782,7 +1780,7 @@ class BT7274Assistant:
             try:
                 if self.performance_mode == "performance" and self.tts:
                     # Performance mode: Use streaming TTS for sentence-level playback
-                    print("    ⚡ Streaming TTS (sentence-level)...")
+                    log_tts("Streaming TTS (sentence-level)...")
                     if self.tts and hasattr(self.tts, 'speak_streaming') and callable(getattr(self.tts, 'speak_streaming', None)):
                         try:
                             self.tts.speak_streaming(clean_response)
@@ -1955,13 +1953,13 @@ class BT7274Assistant:
         # Small pause to let speaker echo settle
         time.sleep(0.5)
 
-        print("\n  🎙 Listening for follow-up... (speak now)")
+        listening("Listening for follow-up... (speak now)")
         audio_path = self.recorder.record(max_seconds=timeout) if self.recorder else record_until_silence(self.config["stt"], max_seconds=timeout)
 
         if not audio_path:
             return
 
-        print("  [STT] Transcribing follow-up...")
+        log_stt("Transcribing follow-up...")
         stt_result = self.stt.transcribe(audio_path) if self.stt else {"text": "", "confidence": 0.0}
         text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
 
@@ -1972,15 +1970,15 @@ class BT7274Assistant:
             pass
 
         if not text or not text.strip():
-            print("  ✗ No speech detected in follow-up.")
+            error("No speech detected in follow-up.")
             return
 
         text = text.strip()
-        print(f"  🎤 Pilot: \"{text}\"")
+        quote("Pilot", text)
 
         # Check for gratitude expressions FIRST (before stop phrases)
         if self._is_expression_of_gratitude(text):
-            print("  🤖 BT-7274: \"You're welcome, Pilot.\"")
+            quote("BT-7274", "You're welcome, Pilot.")
             # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")
             wav_path = self.standby_clips.get(key)
@@ -2024,7 +2022,7 @@ class BT7274Assistant:
             # Create a regex pattern that matches the phrase as a whole word
             pattern = r'\b' + re.escape(phrase.lower()) + r'\b'
             if re.search(pattern, lower_text):
-                print(f"  ⏭ Follow-up stopped by phrase: '{phrase}'")
+                info(f"Follow-up stopped by phrase: '{phrase}'")
                 return
 
         # Process as follow-up command (skip wake word)
@@ -2041,7 +2039,7 @@ class BT7274Assistant:
                 if self.config["pipeline"].get("play_beep"):
                     beep()
 
-                print("\n  🎙 Listening... (speak now)")
+                listening("Listening... (speak now)")
                 audio_path = self.recorder.record() if self.recorder else record_until_silence(self.config["stt"])
 
                 if audio_path:
@@ -2055,14 +2053,14 @@ class BT7274Assistant:
                 # Idle timeout check
                 idle_timeout = self.config["pipeline"].get("idle_timeout", 300)
                 if time.time() - self.last_activity > idle_timeout:
-                    print("\n  💤 Idle timeout. Unloading models to save RAM...")
+                    warning("Idle timeout. Unloading models to save RAM...")
                     # Optional: unload models here if memory is tight
 
         except KeyboardInterrupt:
-            print("\n\n  👋 Goodbye, Pilot.")
+            goodbye()
         finally:
             if self.recorder:
-                print("  🎙 Closing microphone stream...")
+                log_system("Closing microphone stream...")
                 self.recorder.stop()
             self.running = False
 
@@ -2087,7 +2085,7 @@ def main():
         # Initialize all components first
         assistant.initialize()
         count = assistant.generate_standby_responses(force_regenerate=args.force_regenerate)
-        print(f"Successfully generated {count} standby responses!")
+        footer(f"Successfully generated {count} standby responses!")
         return
     
     assistant.run()
