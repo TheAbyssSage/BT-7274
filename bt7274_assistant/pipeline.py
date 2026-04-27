@@ -974,16 +974,10 @@ class BT7274Assistant:
         return any(kw in lower for kw in forecast_keywords)
 
     def _is_location_query(self, text: str) -> bool:
-        """Detect if the user is asking ONLY for their location (not as part of a larger question)."""
+        """Detect if the user is asking for their location."""
         lower = text.lower().strip()
-        # Must be a short, direct location query
         location_phrases = ["my location", "where am i", "where are we", "find my location", "what is my location"]
-        # Check if the text is primarily a location query (short and contains location keywords)
-        is_location = any(kw in lower for kw in location_phrases)
-        # If it's a longer query with other intents (travel, weather, etc.), let the LLM handle it
-        if is_location and len(lower.split()) > 8:
-            return False
-        return is_location
+        return any(kw in lower for kw in location_phrases)
 
     def _is_time_query(self, text: str) -> bool:
         """Detect if the user is asking for the time/date."""
@@ -1030,6 +1024,87 @@ class BT7274Assistant:
             clip_play(phrase, source="status")
             return path
         return None
+
+    def _play_bt_clip_with_tts_followup(self, clip_search_text: str, tts_text: str) -> dict:
+        """Play a BT original clip immediately, then follow up with TTS of the actual data.
+
+        This provides the immersive BT-7274 voice experience while ensuring the pilot
+        gets the actual information they requested.
+
+        Returns a dict with playback info for logging:
+            - clip_played: bool
+            - clip_phrase: str | None
+            - tts_synthesized: bool
+            - tts_played: bool
+        """
+        import threading
+
+        result = {
+            "clip_played": False,
+            "clip_phrase": None,
+            "tts_synthesized": False,
+            "tts_played": False,
+        }
+
+        # Find the best BT clip based on the response context
+        clip_path = self._select_dynamic_clip(clip_search_text)
+
+        if not clip_path or not Path(clip_path).exists():
+            # No suitable clip found, just do TTS
+            log_tts("No matching BT clip found, using TTS only...")
+            wav = self.tts.speak(tts_text) if self.tts else None
+            if wav:
+                play_audio(wav)
+                result["tts_synthesized"] = True
+                result["tts_played"] = True
+            return result
+
+        # Determine clip phrase for logging
+        clip_phrase = None
+        for phrase, path in self.bt_clips.items():
+            if path == clip_path:
+                clip_phrase = phrase
+                break
+
+        if clip_phrase:
+            clip_play(clip_phrase, source="BT-7274 original")
+            result["clip_phrase"] = clip_phrase
+
+        # Start TTS generation in background while the clip plays
+        tts_result = [None]
+        def generate_tts():
+            try:
+                if self.tts:
+                    tts_result[0] = self.tts.speak(tts_text)
+            except Exception as e:
+                self._report_error("tts", "background_synthesis", e)
+
+        tts_thread = threading.Thread(target=generate_tts)
+        tts_thread.start()
+
+        # Play the BT clip (blocking)
+        try:
+            play_audio(clip_path)
+            result["clip_played"] = True
+        except Exception as e:
+            self._report_error("tts", "play_bt_clip", e, {"clip_path": clip_path})
+
+        # Wait for background TTS to complete (with timeout)
+        tts_thread.join(timeout=30)
+
+        # Play the TTS follow-up
+        if tts_result[0] and Path(tts_result[0]).exists():
+            result["tts_synthesized"] = True
+            log_tts("Playing synthesized follow-up...")
+            try:
+                play_audio(tts_result[0])
+                result["tts_played"] = True
+            except Exception as e:
+                self._report_error("tts", "play_followup", e, {"tts_wav": tts_result[0]})
+        else:
+            warning("TTS follow-up not ready or failed.")
+
+        return result
 
     def _is_search_query(self, text: str) -> bool:
         """Detect if the user is asking for real-time info that needs a web search."""
@@ -1461,7 +1536,9 @@ class BT7274Assistant:
         # 2. Handle compound queries - detect all matching query types
         response_parts = []
         handled_types = set()
-        
+        skip_normal_tts = False
+        followup_tts_text = None
+
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
             status("LOC", "Locating Pilot...")
@@ -1469,8 +1546,12 @@ class BT7274Assistant:
                 location_result = self.actions.execute("get_location") if self.actions else "Location unavailable"
                 if location_result and not location_result.startswith("Location"):
                     status("LOC", location_result)
-                    response_parts.append(f"Pilot, {location_result}")
+                    location_text = f"Pilot, {location_result}"
+                    response_parts.append(location_text)
                     handled_types.add("location")
+                    # Use BT clip + TTS followup for immersive location responses
+                    skip_normal_tts = True
+                    followup_tts_text = location_text
                 else:
                     response_parts.append("Pilot, my navigation systems are currently unable to establish our position.")
                     handled_types.add("location")
@@ -1745,83 +1826,92 @@ class BT7274Assistant:
         # 4. Text-to-Speech
         log_tts("Synthesizing voice...")
 
-        # Try to use a standby clip for common responses to reduce latency
-        standby_wav = try_standby_for_response(clean_response)
-        tts_success = False
-        clip_source = None
-        clip_phrase = None
-        
-        if standby_wav and Path(standby_wav).exists():
-            # Determine if it's a BT clip or standby clip
-            if standby_wav in self.bt_clips.values():
-                clip_source = "bt_clip"
-                # Find the phrase for this BT clip
-                for phrase, path in self.bt_clips.items():
-                    if path == standby_wav:
-                        clip_phrase = phrase
-                        break
-                clip_play(clip_phrase, source="BT-7274 original")
-            else:
-                clip_source = "standby_clip"
-                # Find the phrase for this standby clip
-                for phrase, path in self.standby_clips.items():
-                    if path == standby_wav:
-                        clip_phrase = phrase
-                        break
-                clip_play(clip_phrase, source="standby")
-            
-            try:
-                play_audio(standby_wav)
-                tts_success = True
-            except Exception as e:
-                self._report_error("tts", "play_standby", e, {"standby_wav": standby_wav, "clip_source": clip_source, "clip_phrase": clip_phrase})
+        # If a handler requested clip+TTS followup (e.g. location), use that instead
+        followup_result = None
+        if skip_normal_tts and followup_tts_text:
+            followup_result = self._play_bt_clip_with_tts_followup(followup_tts_text, followup_tts_text)
+            tts_success = followup_result["tts_played"] or followup_result["clip_played"]
+            standby_wav = None
+            clip_source = "bt_clip" if followup_result["clip_played"] else None
+            clip_phrase = followup_result["clip_phrase"]
         else:
-            # Use appropriate TTS method based on performance mode
-            try:
-                if self.performance_mode == "performance" and self.tts:
-                    # Performance mode: Use streaming TTS for sentence-level playback
-                    log_tts("Streaming TTS (sentence-level)...")
-                    if self.tts and hasattr(self.tts, 'speak_streaming') and callable(getattr(self.tts, 'speak_streaming', None)):
-                        try:
-                            self.tts.speak_streaming(clean_response)
-                            tts_success = True
-                        except Exception as e:
-                            self._report_error("tts", "speak_streaming", e, {"text": clean_response})
-                            tts_success = False
-                    elif self.tts and hasattr(self.tts, 'speak') and callable(getattr(self.tts, 'speak', None)):
-                        # Fallback to standard TTS if streaming not available
-                        try:
-                            output_wav = self.tts.speak(clean_response)
+            # Try to use a standby clip for common responses to reduce latency
+            standby_wav = try_standby_for_response(clean_response)
+            tts_success = False
+            clip_source = None
+            clip_phrase = None
+            
+            if standby_wav and Path(standby_wav).exists():
+                # Determine if it's a BT clip or standby clip
+                if standby_wav in self.bt_clips.values():
+                    clip_source = "bt_clip"
+                    # Find the phrase for this BT clip
+                    for phrase, path in self.bt_clips.items():
+                        if path == standby_wav:
+                            clip_phrase = phrase
+                            break
+                    clip_play(clip_phrase, source="BT-7274 original")
+                else:
+                    clip_source = "standby_clip"
+                    # Find the phrase for this standby clip
+                    for phrase, path in self.standby_clips.items():
+                        if path == standby_wav:
+                            clip_phrase = phrase
+                            break
+                    clip_play(clip_phrase, source="standby")
+                
+                try:
+                    play_audio(standby_wav)
+                    tts_success = True
+                except Exception as e:
+                    self._report_error("tts", "play_standby", e, {"standby_wav": standby_wav, "clip_source": clip_source, "clip_phrase": clip_phrase})
+            else:
+                # Use appropriate TTS method based on performance mode
+                try:
+                    if self.performance_mode == "performance" and self.tts:
+                        # Performance mode: Use streaming TTS for sentence-level playback
+                        log_tts("Streaming TTS (sentence-level)...")
+                        if self.tts and hasattr(self.tts, 'speak_streaming') and callable(getattr(self.tts, 'speak_streaming', None)):
+                            try:
+                                self.tts.speak_streaming(clean_response)
+                                tts_success = True
+                            except Exception as e:
+                                self._report_error("tts", "speak_streaming", e, {"text": clean_response})
+                                tts_success = False
+                        elif self.tts and hasattr(self.tts, 'speak') and callable(getattr(self.tts, 'speak', None)):
+                            # Fallback to standard TTS if streaming not available
+                            try:
+                                output_wav = self.tts.speak(clean_response)
+                                if output_wav:
+                                    try:
+                                        play_audio(output_wav)
+                                        tts_success = True
+                                    except Exception as play_error:
+                                        self._report_error("tts", "play_audio", play_error, {"output_wav": output_wav})
+                                        tts_success = False
+                            except Exception as e:
+                                self._report_error("tts", "speak", e, {"text": clean_response})
+                                tts_success = False
+                        else:
+                            # Fallback to standard TTS if streaming not available
+                            output_wav = self.tts.speak(clean_response) if self.tts else None
                             if output_wav:
                                 try:
                                     play_audio(output_wav)
                                     tts_success = True
                                 except Exception as play_error:
                                     self._report_error("tts", "play_audio", play_error, {"output_wav": output_wav})
-                                    tts_success = False
-                        except Exception as e:
-                            self._report_error("tts", "speak", e, {"text": clean_response})
-                            tts_success = False
-                    else:
-                        # Fallback to standard TTS if streaming not available
+                    elif self.tts:
+                        # Standard mode: Full response synthesis then playback
                         output_wav = self.tts.speak(clean_response) if self.tts else None
                         if output_wav:
                             try:
                                 play_audio(output_wav)
                                 tts_success = True
-                            except Exception as play_error:
-                                self._report_error("tts", "play_audio", play_error, {"output_wav": output_wav})
-                elif self.tts:
-                    # Standard mode: Full response synthesis then playback
-                    output_wav = self.tts.speak(clean_response) if self.tts else None
-                    if output_wav:
-                        try:
-                            play_audio(output_wav)
-                            tts_success = True
-                        except Exception as e:
-                            self._report_error("tts", "play_audio", e, {"output_wav": output_wav})
-            except Exception as e:
-                self._report_error("tts", "speak", e, {"text": clean_response})
+                            except Exception as e:
+                                self._report_error("tts", "play_audio", e, {"output_wav": output_wav})
+                except Exception as e:
+                    self._report_error("tts", "speak", e, {"text": clean_response})
 
         # Update conversation context with the current interaction
         self._update_conversation_context(text, clean_response)
@@ -1904,6 +1994,8 @@ class BT7274Assistant:
             "clip_source": clip_source,
             "clip_phrase": clip_phrase,
             "tts_triggered": tts_success,
+            "tts_synthesized": followup_result["tts_synthesized"] if followup_result else (tts_metrics.get("cached") is not None or tts_metrics.get("processing_time") is not None),
+            "clip_played": followup_result["clip_played"] if followup_result else (clip_source is not None),
             "bt_running": self.running,
         }
         
