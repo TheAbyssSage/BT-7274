@@ -58,6 +58,7 @@ llm:
     For compound queries, provide comprehensive answers that cover all requested information.
     You can clear the TTS response cache by saying "clear tts cache" or "clear cache".
     When the Pilot asks about upcoming weather or a forecast, use the get_weather_forecast action.
+    When the Pilot asks to enable or disable weather / environmental warnings, respond that you have done so.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -94,6 +95,10 @@ battery:
   enabled: true
   interval: 60              # seconds between checks
   thresholds: [50, 20, 10, 5]
+
+environmental_warnings:
+  enabled: true
+  interval: 300             # seconds between checks (5 minutes)
 
 actions:
   enabled: true

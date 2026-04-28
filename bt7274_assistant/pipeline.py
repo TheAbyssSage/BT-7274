@@ -66,6 +66,7 @@ from location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from interaction_logger import InteractionLogger
 from battery_monitor import BatteryMonitor
+from weather_monitor import WeatherMonitor
 from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
@@ -100,6 +101,7 @@ class BT7274Assistant:
         self.actions_this_session = []
         self.weather_context = None
         self.battery: Optional[BatteryMonitor] = None
+        self.weather: Optional[WeatherMonitor] = None
         
         # For semantic similarity matching
         self.semantic_vectorizer = None
@@ -319,13 +321,21 @@ class BT7274Assistant:
         self.recorder.start()
         success("Microphone stream active.")
 
-        section("[10/10] Starting battery monitor")
+        section("[10.1/10] Starting battery monitor")
         try:
             self.battery = BatteryMonitor(self.config.get("battery", {}))
             self.battery.start()
         except Exception as e:
             self._report_error("battery", "initialize", e)
             warning(f"Battery monitor failed to start: {e}")
+
+        section("[10.2/10] Starting environmental monitor")
+        try:
+            self.weather = WeatherMonitor(self.config.get("environmental_warnings", {}))
+            self.weather.start()
+        except Exception as e:
+            self._report_error("weather", "initialize", e)
+            warning(f"Environmental monitor failed to start: {e}")
 
         footer("All systems online")
         if self.performance_mode == "performance":
@@ -1744,6 +1754,25 @@ class BT7274Assistant:
             response_parts.append("TTS cache cleared, Pilot.")
             handled_types.add("maintenance")
 
+        # Check for environmental warnings toggle
+        lower_text = text.lower()
+        if any(phrase in lower_text for phrase in ["turn on weather warnings", "enable weather warnings", "turn on environmental warnings", "enable environmental warnings"]):
+            if self.weather:
+                self.weather.enabled = True
+                self.weather.start()
+                response_parts.append("Environmental warnings enabled, Pilot.")
+            else:
+                response_parts.append("Environmental monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+        elif any(phrase in lower_text for phrase in ["turn off weather warnings", "disable weather warnings", "turn off environmental warnings", "disable environmental warnings"]):
+            if self.weather:
+                self.weather.enabled = False
+                self.weather.stop()
+                response_parts.append("Environmental warnings disabled, Pilot.")
+            else:
+                response_parts.append("Environmental monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
         is_information_query = self._is_event_information_query(text)
@@ -2203,6 +2232,9 @@ class BT7274Assistant:
             if self.battery:
                 log_system("Stopping battery monitor...")
                 self.battery.stop()
+            if self.weather:
+                log_system("Stopping environmental monitor...")
+                self.weather.stop()
             self.running = False
 
 

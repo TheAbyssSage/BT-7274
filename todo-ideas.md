@@ -34,7 +34,7 @@ Logging:
   - To `logs/system_logs`
     - Example: `2025-04-28T10:12Z [protocol_mode] enabled`
 - Brief content:
-  - To `logs/bt_brief` (one file per day or rolling)
+  - To `logs/bt_brief` (one file per day)
     - Example: `2025-04-28T10:13Z PROTOCOL BRIEF: …`
 
 ---
@@ -105,9 +105,8 @@ Logging:
 - State changes:
   - To `logs/system_logs`
 - Weather warnings:
-  - To `logs/pilot_health` (it’s about safety/conditions for the pilot)
-    - Example:  
-      `2025-04-29T09:02Z [weather_warning] heavy_rain, Genk, severity=medium`
+  - To `logs/pilot_health` (it’s about safety/conditions for the pilot, make it per day)
+**Status:** Implemented in `bt7274_assistant/weather_monitor.py`. Config in `config.yaml` under `environmental_warnings:`.
 
 ---
 
