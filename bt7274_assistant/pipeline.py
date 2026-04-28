@@ -61,12 +61,13 @@ from stt import WhisperSTT
 from llm import OllamaClient, CloudLLMClient
 from tts import XTTSClient
 from tts_fast import StreamingXTTSClient
-from actions import ActionHandler
-from location import LocationProvider
+from bt7274_workstation.actions import ActionHandler
+from bt7274_workstation.location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
-from interaction_logger import InteractionLogger
-from battery_monitor import BatteryMonitor
-from weather_monitor import WeatherMonitor
+from bt7274_workstation.interaction_logger import InteractionLogger
+from bt7274_workstation.battery_monitor import BatteryMonitor
+from bt7274_workstation.weather_monitor import WeatherMonitor
+from bt7274_workstation.vpn_monitor import VPNMonitor
 from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
@@ -102,6 +103,7 @@ class BT7274Assistant:
         self.weather_context = None
         self.battery: Optional[BatteryMonitor] = None
         self.weather: Optional[WeatherMonitor] = None
+        self.vpn: Optional[VPNMonitor] = None
         
         # For semantic similarity matching
         self.semantic_vectorizer = None
@@ -336,6 +338,14 @@ class BT7274Assistant:
         except Exception as e:
             self._report_error("weather", "initialize", e)
             warning(f"Environmental monitor failed to start: {e}")
+
+        section("[10.3/10] Starting VPN monitor")
+        try:
+            self.vpn = VPNMonitor(self.config.get("vpn", {}))
+            self.vpn.start()
+        except Exception as e:
+            self._report_error("vpn", "initialize", e)
+            warning(f"VPN monitor failed to start: {e}")
 
         footer("All systems online")
         if self.performance_mode == "performance":
@@ -1049,6 +1059,17 @@ class BT7274Assistant:
         ]
         return any(kw in lower for kw in status_keywords)
 
+    def _is_vpn_status_query(self, text: str) -> bool:
+        """Detect if the user is asking for VPN / cloak status."""
+        lower = text.lower().strip()
+        vpn_keywords = [
+            "vpn status", "cloak status", "are you cloaked", "is the cloak on",
+            "is the vpn on", "is vpn connected", "is proton connected",
+            "vpn state", "cloak state", "network security", "are we protected",
+            "is the network secure", "am i protected", "is my connection secure"
+        ]
+        return any(kw in lower for kw in vpn_keywords)
+
     def _get_status_response_clip(self) -> Optional[str]:
         """Get a BT-7274 original voice clip for status responses."""
         status_phrases = [
@@ -1655,6 +1676,28 @@ class BT7274Assistant:
                 response_parts.append("Pilot, all systems are operational and ready for deployment.")
                 handled_types.add("status")
 
+        # Check for VPN status query
+        if self._is_vpn_status_query(text):
+            status("VPN", "Checking cloak status...")
+            if self.vpn:
+                vpn_status = self.vpn.get_status()
+                state = vpn_status.get("state", "unknown")
+                server = vpn_status.get("server")
+                wifi = vpn_status.get("wifi")
+                auto_cloak = vpn_status.get("auto_cloak", False)
+                if state == "connected":
+                    server_str = f" via {server}" if server else ""
+                    response_parts.append(f"Cloak is engaged{server_str}, Pilot. Network traffic is obfuscated.")
+                else:
+                    response_parts.append("Cloak is offline. We are exposed, Pilot.")
+                if auto_cloak:
+                    response_parts.append("Auto-cloak is enabled.")
+                if wifi:
+                    response_parts.append(f"Current network: {wifi}.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("vpn")
+
         # Check for weather query
         if self._is_weather_query(text):
             status("WEATHER", "Fetching local data...")
@@ -1778,6 +1821,38 @@ class BT7274Assistant:
                 response_parts.append("Environmental monitor is not initialized, Pilot.")
             handled_types.add("maintenance")
 
+        # Check for VPN / auto-cloak toggle
+        if any(phrase in lower_text for phrase in ["enable auto cloak", "turn on auto cloak", "enable auto-cloak", "turn on auto-cloak", "enable vpn auto connect", "turn on vpn auto connect"]):
+            if self.vpn:
+                self.vpn.auto_cloak = True
+                response_parts.append("Auto-cloak enabled, Pilot. I will warn you on public networks.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+        elif any(phrase in lower_text for phrase in ["disable auto cloak", "turn off auto cloak", "disable auto-cloak", "turn off auto-cloak", "disable vpn auto connect", "turn off vpn auto connect"]):
+            if self.vpn:
+                self.vpn.auto_cloak = False
+                response_parts.append("Auto-cloak disabled, Pilot.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+        elif any(phrase in lower_text for phrase in ["enable vpn monitor", "turn on vpn monitor", "enable cloak monitor", "turn on cloak monitor"]):
+            if self.vpn:
+                self.vpn.enabled = True
+                self.vpn.start()
+                response_parts.append("VPN cloak monitor enabled, Pilot.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+        elif any(phrase in lower_text for phrase in ["disable vpn monitor", "turn off vpn monitor", "disable cloak monitor", "turn off cloak monitor"]):
+            if self.vpn:
+                self.vpn.enabled = False
+                self.vpn.stop()
+                response_parts.append("VPN cloak monitor disabled, Pilot.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
         is_information_query = self._is_event_information_query(text)
@@ -1887,7 +1962,7 @@ class BT7274Assistant:
         if "New London" in clean_response:
             # Try to get actual location and replace New London references
             try:
-                from location import LocationProvider
+                from bt7274_workstation.location import LocationProvider
                 loc = LocationProvider()
                 if loc.update():
                     actual_location = loc.location_str

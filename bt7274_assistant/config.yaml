@@ -59,6 +59,7 @@ llm:
     You can clear the TTS response cache by saying "clear tts cache" or "clear cache".
     When the Pilot asks about upcoming weather or a forecast, use the get_weather_forecast action.
     When the Pilot asks to enable or disable weather / environmental warnings, respond that you have done so.
+    When the Pilot asks to enable or disable auto-cloak / VPN monitoring, respond that you have done so.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -99,6 +100,12 @@ battery:
 environmental_warnings:
   enabled: true
   interval: 300             # seconds between checks (5 minutes)
+
+vpn:
+  enabled: true
+  interval: 10              # seconds between checks
+  provider: protonvpn       # VPN provider name for logs
+  auto_cloak: false         # Auto-warn on public Wi-Fi without VPN
 
 actions:
   enabled: true
