@@ -330,6 +330,8 @@ Logging:
     - Example:  
       `2025-04-28T19:00Z [battery] level=10%`
 
+**Status:** Implemented in `bt7274_assistant/battery_monitor.py`. Config in `config.yaml` under `battery:`.
+
 ---
 
 ## 13. In-Cosplay Features

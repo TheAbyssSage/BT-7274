@@ -90,6 +90,11 @@ streaming:
   sentence_min_length: 20     # Minimum characters to treat as a sentence
   enable_metrics: true          # Show timing stats after each response
 
+battery:
+  enabled: true
+  interval: 60              # seconds between checks
+  thresholds: [50, 20, 10, 5]
+
 actions:
   enabled: true
   allowed_commands:

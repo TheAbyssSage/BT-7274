@@ -63,6 +63,7 @@ from actions import ActionHandler
 from location import LocationProvider
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from interaction_logger import InteractionLogger
+from battery_monitor import BatteryMonitor
 from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
@@ -96,6 +97,7 @@ class BT7274Assistant:
         self.errors_this_interaction = []
         self.actions_this_session = []
         self.weather_context = None
+        self.battery: Optional[BatteryMonitor] = None
         
         # For semantic similarity matching
         self.semantic_vectorizer = None
@@ -177,11 +179,11 @@ class BT7274Assistant:
         """Initialize all components."""
         header("BT-7274 AI ASSISTANT  |  Protocol 1: Link to Pilot")
 
-        section("[0/9] Checking log directories")
+        section("[0/10] Checking log directories")
         self._ensure_log_directories()
         success("Log directories verified.")
 
-        section("[1/9] Initializing Speech-to-Text")
+        section("[1/10] Initializing Speech-to-Text")
         try:
             self.stt = WhisperSTT(self.config["stt"])
             # Preload Whisper model to avoid delays during first transcription
@@ -191,7 +193,7 @@ class BT7274Assistant:
             self._report_error("stt", "initialize", e)
             error(f"STT initialization failed: {e}")
 
-        section("[2/9] Which LLM?")
+        section("[2/10] Which LLM?")
         if self.ai_mode is None:
             # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
@@ -222,7 +224,7 @@ class BT7274Assistant:
             model_name = self.config["llm"][self.ai_mode]["model"]
             status("USING", f"{mode_name} ({model_name}) (preselected)")
 
-        section(f"[3/9] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)")
+        section(f"[3/10] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)")
         try:
             # Use OllamaClient for both local and cloud since they use the same API
             # Merge system prompt from top-level llm config
@@ -233,7 +235,7 @@ class BT7274Assistant:
             self._report_error("llm", "initialize", e)
             error(f"LLM initialization failed: {e}")
 
-        section("[4/9] Performance Mode Selection")
+        section("[4/10] Performance Mode Selection")
         if self.performance_mode is None:
             info("[1] Standard Mode")
             info("    Full response synthesized, then played")
@@ -265,7 +267,7 @@ class BT7274Assistant:
             mode_display = "Standard" if self.performance_mode == "standard" else "Performance (Streaming)"
             status("USING", f"{mode_display} (preselected)")
 
-        section(f"[5/9] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)")
+        section(f"[5/10] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)")
         try:
             if self.performance_mode == "performance":
                 self.tts = StreamingXTTSClient(self.config["tts"])
@@ -282,23 +284,23 @@ class BT7274Assistant:
             self._report_error("tts", "initialize", e)
             error(f"TTS initialization failed: {e}")
 
-        section("[6/9] Checking standby audio files")
+        section("[6/10] Checking standby audio files")
         self._check_and_generate_standby_clips()
 
-        section("[6.1/9] Loading BT-7274 original voice clips")
+        section("[6.1/10] Loading BT-7274 original voice clips")
         self._load_bt_original_clips()
 
-        section("[6.2/9] Initializing semantic matching for BT clips")
+        section("[6.2/10] Initializing semantic matching for BT clips")
         self._initialize_semantic_matching()
 
-        section("[7/9] Initializing Action Handler")
+        section("[7/10] Initializing Action Handler")
         try:
             self.actions = ActionHandler(self.config["actions"])
         except Exception as e:
             self._report_error("actions", "initialize", e)
             error(f"Action handler initialization failed: {e}")
 
-        section("[8/9] Initializing Location Services")
+        section("[8/10] Initializing Location Services")
         try:
             manual_loc = self.config.get("location", {}).get("manual")
             self.location = LocationProvider(manual_location=manual_loc)
@@ -310,10 +312,18 @@ class BT7274Assistant:
             self._report_error("location", "initialize", e)
             error(f"Location services initialization failed: {e}")
 
-        section("[9/9] Opening persistent audio stream")
+        section("[9/10] Opening persistent audio stream")
         self.recorder = PersistentAudioRecorder(self.config["stt"])
         self.recorder.start()
         success("Microphone stream active.")
+
+        section("[10/10] Starting battery monitor")
+        try:
+            self.battery = BatteryMonitor(self.config.get("battery", {}))
+            self.battery.start()
+        except Exception as e:
+            self._report_error("battery", "initialize", e)
+            warning(f"Battery monitor failed to start: {e}")
 
         footer("All systems online")
         if self.performance_mode == "performance":
@@ -2188,6 +2198,9 @@ class BT7274Assistant:
             if self.recorder:
                 log_system("Closing microphone stream...")
                 self.recorder.stop()
+            if self.battery:
+                log_system("Stopping battery monitor...")
+                self.battery.stop()
             self.running = False
 
 
