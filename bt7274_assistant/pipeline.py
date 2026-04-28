@@ -115,6 +115,11 @@ class BT7274Assistant:
         self.weather: Optional[WeatherMonitor] = None
         self.vpn: Optional[VPNMonitor] = None
         
+        # Protocol reference cooldown to prevent spam
+        self._last_protocol_reference: Optional[str] = None
+        self._protocol_cooldown_until: float = 0.0
+        self._protocol_cooldown_seconds: float = 30.0  # Minimum seconds between same protocol reference
+        
         # Protocol Mode
         self.protocol_mode_enabled: bool = self.config.get("protocol_mode", {}).get("enabled", False)
         self.protocol_brief: Optional[ProtocolBrief] = None
@@ -1186,6 +1191,115 @@ class BT7274Assistant:
             return path
         return None
 
+    def _get_log_clip(self, action: str = "read") -> Optional[str]:
+        """Get a pre-recorded voice clip for logging actions.
+        
+        Args:
+            action: One of "read", "create", "delete"
+            
+        Returns:
+            Path to the clip if found, None otherwise.
+        """
+        log_phrases = {
+            "read": [
+                "accessing logs",
+                "retrieving data",
+                "accessing database",
+                "data retrieved",
+            ],
+            "create": [
+                "data entry confirmed",
+                "log updated",
+                "entry confirmed",
+                "data recorded",
+            ],
+            "delete": [
+                "data purged",
+                "logs cleared",
+                "deletion confirmed",
+                "data removed",
+            ]
+        }
+        import random
+        phrases = log_phrases.get(action, log_phrases["read"])
+        available_clips = []
+        for phrase in phrases:
+            key = self._normalize_phrase(phrase)
+            # Check standby clips first (these are generated BT voice clips)
+            if key in self.standby_clips:
+                path = self.standby_clips[key]
+                if Path(path).exists():
+                    available_clips.append((phrase, path))
+            # Then check original BT clips
+            elif key in self.bt_clips:
+                path = self.bt_clips[key]
+                if Path(path).exists():
+                    available_clips.append((phrase, path))
+        
+        if available_clips:
+            phrase, path = random.choice(available_clips)
+            clip_play(phrase, source="log")
+            return path
+        return None
+
+    def _get_system_status_summary(self) -> str:
+        """Generate a TTS-friendly system status summary.
+        
+        Returns a concise status report about BT-7274's systems.
+        """
+        parts = []
+        
+        # TTS system status
+        if self.tts:
+            parts.append("Voice synthesis systems online.")
+        else:
+            parts.append("Voice synthesis systems offline.")
+        
+        # LLM status
+        if self.llm:
+            parts.append("Neural network operational.")
+        else:
+            parts.append("Neural network offline.")
+        
+        # Location status
+        if self.location and self.location.location_str:
+            parts.append(f"Navigation systems active. Current position: {self.location.location_str}.")
+        else:
+            parts.append("Navigation systems standby.")
+        
+        # VPN/Cloak status
+        if self.vpn:
+            vpn_state = self.vpn.get_status()
+            if vpn_state.get("state") == "connected":
+                parts.append("Cloak engaged. Network traffic obfuscated.")
+            else:
+                parts.append("Cloak disengaged.")
+        
+        # Weather monitor status
+        if self.weather and self.weather.enabled:
+            parts.append("Environmental monitoring active.")
+        
+        # Battery status (if available)
+        try:
+            if hasattr(self, 'battery') and self.battery:
+                battery_level = self.battery.get_level()
+                if battery_level is not None:
+                    parts.append(f"Power reserves at {battery_level} percent.")
+        except Exception:
+            pass
+        
+        # Session info
+        import time
+        mission_time = time.time() - self.session_start_time
+        hours = int(mission_time // 3600)
+        minutes = int((mission_time % 3600) // 60)
+        if hours > 0:
+            parts.append(f"Mission elapsed time: {hours} hours {minutes} minutes.")
+        else:
+            parts.append(f"Mission elapsed time: {minutes} minutes.")
+        
+        return " ".join(parts)
+
     def _play_bt_clip_with_tts_followup(self, clip_search_text: str, tts_text: str) -> dict:
         """Play a BT original clip immediately, then follow up with TTS of the actual data.
 
@@ -1505,6 +1619,20 @@ class BT7274Assistant:
         ]
         return any(phrase in lower for phrase in maintenance_phrases)
 
+    def _is_log_command(self, text: str) -> bool:
+        """Detect if the user is giving a log-related command."""
+        lower = text.lower()
+        log_phrases = [
+            "read my logs", "read logs", "view my logs", "view logs",
+            "show my logs", "show logs", "what are my logs",
+            "read bt logs", "read system logs", "view bt logs",
+            "delete log", "clear log", "remove log",
+            "delete my logs", "clear my logs", "remove my logs",
+            "make log", "create log", "write log", "add log",
+            "log this", "log that", "save log"
+        ]
+        return any(phrase in lower for phrase in log_phrases)
+
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
         
@@ -1779,6 +1907,13 @@ class BT7274Assistant:
                                 
             return None
 
+        # 2. Handle compound queries - detect all matching query types
+        response_parts = []
+        handled_types = set()
+        skip_normal_tts = False
+        followup_tts_text = None
+        lower_text = text.lower()
+
         # Special handling for gratitude expressions
         # Check if gratitude is the ONLY intent (no other actionable commands)
         gratitude_only = self._is_expression_of_gratitude(text)
@@ -1842,13 +1977,6 @@ class BT7274Assistant:
                 response_parts.append("You're welcome, Pilot.")
                 handled_types.add("gratitude")
 
-        # 2. Handle compound queries - detect all matching query types
-        response_parts = []
-        handled_types = set()
-        skip_normal_tts = False
-        followup_tts_text = None
-        lower_text = text.lower()
-
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
             status("LOC", "Locating Pilot...")
@@ -1892,7 +2020,7 @@ class BT7274Assistant:
                 response_parts.append("Pilot, my chronometer is offline.")
                 handled_types.add("time")
 
-        # Check for status query - respond with BT-7274 original voice clips
+        # Check for status query - respond with BT-7274 original voice clips + TTS system status
         if self._is_status_query(text):
             status("DIAG", "Running systems diagnostic...")
             status_clip = self._get_status_response_clip()
@@ -1900,8 +2028,13 @@ class BT7274Assistant:
                 try:
                     play_audio(status_clip)
                     quote("BT-7274", "[Status report via original voice clip]")
-                    response_parts.append("[Status report delivered via original BT-7274 voice clip]")
+                    # Generate TTS system status summary after clip
+                    status_summary = self._get_system_status_summary()
+                    response_parts.append(status_summary)
                     handled_types.add("status")
+                    # Use BT clip + TTS followup for immersive status responses
+                    skip_normal_tts = True
+                    followup_tts_text = status_summary
                 except Exception as e:
                     self._report_error("tts", "play_status_clip", e, {"status_clip": status_clip})
                     response_parts.append("Pilot, all systems are operational and ready for deployment.")
@@ -2183,6 +2316,62 @@ class BT7274Assistant:
             logger.info("[PROTOCOL] Protocol Mode disabled by pilot command")
             handled_types.add("protocol")
 
+        # Check for mission briefing commands
+        if any(phrase in lower_text for phrase in ["set mission", "new mission", "update mission", "mission is"]):
+            status("PROTOCOL", "Updating mission briefing...")
+            try:
+                if self.protocol_brief:
+                    # Extract mission text after the command phrase
+                    mission_text = text
+                    for phrase in ["set mission", "new mission", "update mission", "mission is"]:
+                        if phrase in lower_text:
+                            mission_text = text[lower_text.find(phrase) + len(phrase):].strip()
+                            mission_text = mission_text.lstrip(",.:; ")
+                            break
+                    if mission_text:
+                        result = self.protocol_brief.set_mission(mission_text)
+                        response_parts.append(result)
+                        logger.info(f"[PROTOCOL] Mission updated: {mission_text}")
+                    else:
+                        response_parts.append("Please specify mission details, Pilot.")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "set_mission", e)
+                response_parts.append("Failed to update mission briefing.")
+            handled_types.add("protocol")
+
+        if any(phrase in lower_text for phrase in ["what is the mission", "current mission", "mission status", "mission brief"]):
+            status("PROTOCOL", "Retrieving mission briefing...")
+            try:
+                if self.protocol_brief:
+                    mission = self.protocol_brief.get_mission()
+                    if mission:
+                        response_parts.append(f"Current mission: {mission}")
+                    else:
+                        response_parts.append("No active mission briefing, Pilot.")
+                    logger.info("[PROTOCOL] Mission briefing retrieved")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "get_mission", e)
+                response_parts.append("Failed to retrieve mission briefing.")
+            handled_types.add("protocol")
+
+        if any(phrase in lower_text for phrase in ["clear mission", "delete mission", "end mission"]):
+            status("PROTOCOL", "Clearing mission briefing...")
+            try:
+                if self.protocol_brief:
+                    result = self.protocol_brief.clear_mission()
+                    response_parts.append(result)
+                    logger.info("[PROTOCOL] Mission briefing cleared")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "clear_mission", e)
+                response_parts.append("Failed to clear mission briefing.")
+            handled_types.add("protocol")
+
         # Check for to-do commands (using improved detection)
         if self._is_todo_command(text):
             status("PROTOCOL", "Adding to-do...")
@@ -2283,6 +2472,90 @@ class BT7274Assistant:
                 self._report_error("protocol_brief", "list_notes", e)
                 response_parts.append("Failed to list notes.")
             handled_types.add("protocol")
+
+        # Check for log commands (read logs, make log, delete log)
+        if self._is_log_command(text) and "log" not in handled_types:
+            lower = text.lower()
+            # Determine log type
+            is_bt_log = any(phrase in lower for phrase in ["bt log", "system log", "bt-7274 log"])
+            is_delete = any(phrase in lower for phrase in ["delete log", "clear log", "remove log", "delete my logs", "clear my logs", "remove my logs"])
+            is_make_log = any(phrase in lower for phrase in ["make log", "create log", "write log", "add log", "log this", "log that", "save log"])
+            
+            if is_delete:
+                status("LOG", "Clearing logs...")
+                try:
+                    from bt7274_workstation.pilot_logger import PilotLogger
+                    logger = PilotLogger()
+                    if is_bt_log:
+                        result = logger.delete_bt_logs()
+                    else:
+                        result = logger.delete_pilot_logs()
+                    response_parts.append(result)
+                    # Try to play a pre-recorded log voice line
+                    log_clip = self._get_log_clip("delete")
+                    if log_clip:
+                        play_audio(log_clip)
+                except Exception as e:
+                    self._report_error("pilot_logger", "delete_logs", e)
+                    response_parts.append("Failed to clear logs, Pilot.")
+                handled_types.add("log")
+            elif is_make_log:
+                status("LOG", "Creating log entry...")
+                try:
+                    # Extract log text after the command phrase
+                    log_text = text
+                    for phrase in ["make log", "create log", "write log", "add log", "log this", "log that", "save log"]:
+                        if phrase in lower:
+                            log_text = text[lower.find(phrase) + len(phrase):].strip()
+                            log_text = log_text.lstrip(",.:; ")
+                            break
+                    if log_text:
+                        from bt7274_workstation.pilot_logger import PilotLogger
+                        logger = PilotLogger()
+                        if is_bt_log:
+                            result = logger.log_bt(log_text)
+                        else:
+                            result = logger.log_pilot(log_text)
+                        response_parts.append(result)
+                        # Try to play a pre-recorded log voice line
+                        log_clip = self._get_log_clip("create")
+                        if log_clip:
+                            play_audio(log_clip)
+                    else:
+                        response_parts.append("Please specify log content, Pilot.")
+                except Exception as e:
+                    self._report_error("pilot_logger", "make_log", e)
+                    response_parts.append("Failed to create log entry, Pilot.")
+                handled_types.add("log")
+            else:
+                # Read logs
+                status("LOG", "Retrieving logs...")
+                try:
+                    from bt7274_workstation.pilot_logger import PilotLogger
+                    logger = PilotLogger()
+                    if is_bt_log:
+                        result = logger.read_bt_logs(lines=10)
+                    else:
+                        result = logger.read_pilot_logs(lines=10)
+                    response_parts.append(result)
+                    # Try to play a pre-recorded log voice line
+                    log_clip = self._get_log_clip("read")
+                    if log_clip:
+                        play_audio(log_clip)
+                    # Read the log content via TTS for accessibility
+                    if result and not result.startswith("No"):
+                        # Summarize for TTS - just read the most recent entries
+                        lines = result.strip().split("\n")
+                        if len(lines) > 2:
+                            tts_summary = "Here are your recent log entries, Pilot. " + " ".join(lines[-3:])
+                        else:
+                            tts_summary = result
+                        skip_normal_tts = True
+                        followup_tts_text = tts_summary
+                except Exception as e:
+                    self._report_error("pilot_logger", "read_logs", e)
+                    response_parts.append("Failed to retrieve logs, Pilot.")
+                handled_types.add("log")
 
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
@@ -2566,6 +2839,16 @@ class BT7274Assistant:
             protocol_reference = "Protocol 2: Uphold the Mission"
         elif any(err in str(handled_types) for err in ["error", "fail"]):
             protocol_reference = "Protocol 3: Protect the Pilot"
+        
+        # Apply cooldown to prevent protocol reference spam
+        current_time = time.time()
+        if protocol_reference == self._last_protocol_reference and current_time < self._protocol_cooldown_until:
+            # Same protocol as last time and still in cooldown - suppress it
+            protocol_reference = None
+        else:
+            # New protocol or cooldown expired - update tracking
+            self._last_protocol_reference = protocol_reference
+            self._protocol_cooldown_until = current_time + self._protocol_cooldown_seconds
         
         # Collect errors (only those from this interaction)
         errors = self.errors_this_interaction if self.errors_this_interaction else None

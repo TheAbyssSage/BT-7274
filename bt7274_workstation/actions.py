@@ -595,6 +595,26 @@ def action_read_bt_logs(lines: int = 20, date: str = None):
         return f"Failed to read BT logs: {str(e)}"
 
 
+@register_action("delete_logs")
+def action_delete_logs(log_type: str = "pilot", name: str = None, date: str = None):
+    """
+    Delete log files.
+
+    Args:
+        log_type: "pilot" for pilot logs, "bt" for BT internal logs.
+        name: Optional specific log name to delete.
+        date: Optional specific date (YYYY-MM-DD) to delete.
+    """
+    try:
+        from bt7274_workstation.pilot_logger import PilotLogger
+        logger = PilotLogger()
+        if log_type.lower() == "bt":
+            return logger.delete_bt_logs(name=name, date=date)
+        return logger.delete_pilot_logs(name=name, date=date)
+    except Exception as e:
+        return f"Failed to delete logs: {str(e)}"
+
+
 # ─── Protocol Brief Actions ─────────────────────────────────────────
 
 @register_action("protocol_brief")

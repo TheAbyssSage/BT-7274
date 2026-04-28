@@ -298,7 +298,7 @@ class VPNMonitor:
         # at ~28% load with only tiny keepalive packets.
         try:
             self._announce("Cloak engaging. Establishing secure tunnel...")
-            # Robust AppleScript: activate, wait for window, click, stay frontmost
+            # Robust AppleScript: activate, wait for window, click, wait for connection
             script = '''
 tell application "ProtonVPN" to activate
 delay 3
@@ -324,8 +324,26 @@ if winExists then
             click button "Quick Connect" of window 1
         end tell
     end tell
-    -- Keep frontmost for 12s so WireGuard handshake completes
-    delay 12
+    -- Wait for connection to establish (button changes to "Disconnect")
+    set connected to false
+    repeat 20 times
+        delay 1
+        try
+            tell application "System Events"
+                tell process "ProtonVPN"
+                    set btnName to name of button 1 of window 1
+                    if btnName is "Disconnect" then
+                        set connected to true
+                        exit repeat
+                    end if
+                end tell
+            end tell
+        end try
+    end repeat
+    -- Keep frontmost for additional 5s to ensure handshake completes
+    if connected then
+        delay 5
+    end if
 end if
 '''
             result = subprocess.run(
@@ -333,10 +351,10 @@ end if
                 input=script,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=45,
             )
             if "error" not in result.stderr.lower():
-                # Poll for connection
+                # Poll for connection with extended timeout
                 start_time = time.time()
                 while time.time() - start_time < timeout:
                     state, server = self._get_vpn_state()

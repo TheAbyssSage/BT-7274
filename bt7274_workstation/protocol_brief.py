@@ -228,3 +228,56 @@ class ProtocolBrief:
         lines.append(f"Total notes: {note_count}")
 
         return "\n".join(lines)
+
+    def set_mission(self, mission_text: str, name: str = "pilot") -> str:
+        """Set or update the current mission briefing.
+
+        Args:
+            mission_text: The mission description.
+            name: Pilot name.
+
+        Returns:
+            Confirmation message.
+        """
+        mission_path = self.todo_dir / f"{self._sanitize_name(name)}_mission.json"
+        mission_data = {
+            "text": mission_text,
+            "updated": datetime.now().isoformat(),
+        }
+        with open(mission_path, "w", encoding="utf-8") as f:
+            json.dump(mission_data, f, indent=2, ensure_ascii=False)
+        return f"Mission updated: {mission_text}"
+
+    def get_mission(self, name: str = "pilot") -> Optional[str]:
+        """Retrieve the current mission briefing.
+
+        Args:
+            name: Pilot name.
+
+        Returns:
+            Mission text or None if no mission is set.
+        """
+        mission_path = self.todo_dir / f"{self._sanitize_name(name)}_mission.json"
+        if not mission_path.exists():
+            return None
+        try:
+            with open(mission_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("text")
+        except (json.JSONDecodeError, IOError):
+            return None
+
+    def clear_mission(self, name: str = "pilot") -> str:
+        """Clear the current mission briefing.
+
+        Args:
+            name: Pilot name.
+
+        Returns:
+            Confirmation message.
+        """
+        mission_path = self.todo_dir / f"{self._sanitize_name(name)}_mission.json"
+        if mission_path.exists():
+            mission_path.unlink()
+            return "Mission briefing cleared, Pilot."
+        return "No active mission briefing to clear."

@@ -159,6 +159,120 @@ class PilotLogger:
 
         return "".join(reversed(selected))
 
+    def delete_pilot_logs(
+        self,
+        name: Optional[str] = None,
+        date: Optional[str] = None,
+    ) -> str:
+        """
+        Delete pilot log files.
+
+        Args:
+            name: Specific log name to delete. If None, deletes all pilot logs.
+            date: Specific date (YYYY-MM-DD) to delete. If None, deletes all dates.
+
+        Returns:
+            Confirmation message.
+        """
+        deleted = []
+        errors = []
+
+        if date:
+            safe_name = self._sanitize_name(name or "pilot")
+            log_file = self.pilot_logs_dir / f"{safe_name}_{date}.log"
+            if log_file.exists():
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+            else:
+                return f"No pilot log found for {name or 'pilot'} on {date}."
+        elif name:
+            safe_name = self._sanitize_name(name)
+            for log_file in self.pilot_logs_dir.glob(f"{safe_name}_*.log"):
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+        else:
+            # Delete all pilot log files
+            for log_file in self.pilot_logs_dir.glob("*.log"):
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+            # Also delete the single file if it exists
+            single_file = self.pilot_logs_dir / "pilot_logs.md"
+            if single_file.exists():
+                try:
+                    single_file.unlink()
+                    deleted.append(single_file.name)
+                except Exception as e:
+                    errors.append(f"{single_file.name}: {e}")
+
+        if deleted:
+            return f"Deleted {len(deleted)} pilot log file(s): {', '.join(deleted)}."
+        elif errors:
+            return f"Failed to delete logs: {', '.join(errors)}."
+        else:
+            return "No pilot logs found to delete."
+
+    def delete_bt_logs(
+        self,
+        name: Optional[str] = None,
+        date: Optional[str] = None,
+    ) -> str:
+        """
+        Delete BT log files.
+
+        Args:
+            name: Specific log name to delete. If None, deletes all BT logs.
+            date: Specific date (YYYY-MM-DD) to delete. If None, deletes all dates.
+
+        Returns:
+            Confirmation message.
+        """
+        deleted = []
+        errors = []
+
+        if date:
+            safe_name = self._sanitize_name(name or "bt")
+            log_file = self.bt_logs_dir / f"{safe_name}_{date}.log"
+            if log_file.exists():
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+            else:
+                return f"No BT log found for {name or 'bt'} on {date}."
+        elif name:
+            safe_name = self._sanitize_name(name)
+            for log_file in self.bt_logs_dir.glob(f"{safe_name}_*.log"):
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+        else:
+            # Delete all BT log files
+            for log_file in self.bt_logs_dir.glob("*.log"):
+                try:
+                    log_file.unlink()
+                    deleted.append(log_file.name)
+                except Exception as e:
+                    errors.append(f"{log_file.name}: {e}")
+
+        if deleted:
+            return f"Deleted {len(deleted)} BT log file(s): {', '.join(deleted)}."
+        elif errors:
+            return f"Failed to delete logs: {', '.join(errors)}."
+        else:
+            return "No BT logs found to delete."
+
     def read_bt_logs(
         self,
         name: Optional[str] = None,
