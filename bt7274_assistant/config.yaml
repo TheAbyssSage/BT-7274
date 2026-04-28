@@ -90,22 +90,22 @@ streaming:
   enabled: false              # Auto-enabled when performance_mode = performance
   max_queue_size: 3           # Max sentences to buffer ahead
   sentence_min_length: 20     # Minimum characters to treat as a sentence
-  enable_metrics: true          # Show timing stats after each response
+  enable_metrics: true        # Show timing stats after each response
 
 battery:
   enabled: true
-  interval: 60              # seconds between checks
+  interval: 60                # seconds between checks
   thresholds: [50, 20, 10, 5]
 
 environmental_warnings:
   enabled: true
-  interval: 300             # seconds between checks (5 minutes)
+  interval: 300               # seconds between checks (5 minutes)
 
 vpn:
   enabled: true
-  interval: 10              # seconds between checks
-  provider: protonvpn       # VPN provider name for logs
-  auto_cloak: false         # Auto-warn on public Wi-Fi without VPN
+  interval: 10                # seconds between checks
+  provider: protonvpn         # VPN provider name for logs
+  auto_cloak: true            # Auto-warn on public Wi-Fi without VPN
 
 actions:
   enabled: true
