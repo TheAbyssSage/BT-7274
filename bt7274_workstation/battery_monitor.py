@@ -50,7 +50,7 @@ class BatteryMonitor:
 
     def _log_critical(self, level: int):
         """Log critical battery level to logs/system_logs."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%MZ")
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         log_line = f"{timestamp} [battery] level={level}%\n"
         today = datetime.now().strftime("%Y-%m-%d")
         log_file = self._log_dir / f"bt7274_system_{today}.log"

@@ -115,7 +115,7 @@ class VPNMonitor:
 
     def _log_state_change(self, state: str, server: Optional[str] = None, wifi: Optional[str] = None):
         """Log VPN state change to logs/system_logs."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%MZ")
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         server_str = f" {server}" if server else ""
         wifi_str = f" wifi={wifi}" if wifi else ""
         log_line = f"{timestamp} [vpn] {state}{server_str}{wifi_str}\n"

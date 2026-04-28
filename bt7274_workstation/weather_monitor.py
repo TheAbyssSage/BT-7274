@@ -95,7 +95,7 @@ class WeatherMonitor:
 
     def _log_state_change(self, state: str):
         """Log state changes to logs/system_logs (per-day)."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%MZ")
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         log_line = f"{timestamp} [environmental_warnings] {state}\n"
         today = datetime.now().strftime("%Y-%m-%d")
         log_file = self._system_log_dir / f"bt7274_system_{today}.log"
