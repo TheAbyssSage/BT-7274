@@ -168,18 +168,23 @@ class XTTSClient:
                 }
                 return cached_path
 
-        # Truncate very long responses to avoid slow synthesis
-        # But preserve sentence boundaries for better listening experience
-        max_chars = 600
+        # Truncate very long responses to avoid slow synthesis and XTTS character limits
+        # XTTS has a ~250 char limit per synthesis for language 'en'
+        # Preserve sentence boundaries for better listening experience
+        max_chars = 250
         if len(text) > max_chars:
             # Try to truncate at sentence boundary
             truncated = text[:max_chars]
-            last_sentence_end = truncated.rfind('.')
-            if last_sentence_end > max_chars * 0.7:  # If we have a reasonably long sentence
+            last_sentence_end = max(
+                truncated.rfind('.'),
+                truncated.rfind('!'),
+                truncated.rfind('?')
+            )
+            if last_sentence_end > max_chars * 0.5:  # If we have a reasonably long sentence
                 text = truncated[:last_sentence_end + 1]
             else:
                 # If no good sentence boundary, just cut at max and add ellipsis
-                text = truncated.rsplit('.', 1)[0] + '...'
+                text = truncated.rsplit(' ', 1)[0] + '...'
 
         output_path = self.output_dir / f"bt7274_{text_hash}.wav"
 

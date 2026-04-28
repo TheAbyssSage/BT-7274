@@ -212,50 +212,260 @@ class VPNMonitor:
             "auto_cloak": self.auto_cloak,
         }
 
+    def _get_vpn_service_name(self) -> Optional[str]:
+        """Get the VPN service name from scutil for macOS VPN control."""
+        try:
+            result = subprocess.run(
+                ["scutil", "--nc", "list"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    # Match lines with VPN providers
+                    if any(k in line.lower() for k in ["proton", "vpn"]):
+                        # Extract the quoted service name
+                        match = re.search(r'"([^"]+)"', line)
+                        if match:
+                            return match.group(1)
+        except Exception:
+            pass
+        return None
+
     def connect(self) -> bool:
         """Attempt to connect the VPN (engage cloak)."""
         try:
-            if self.provider == "protonvpn":
-                result = subprocess.run(
-                    ["protonvpn-cli", "connect", "--fastest"],
-                    capture_output=True, text=True, timeout=30
-                )
-                if result.returncode == 0:
-                    self._announce("Cloak engaged. Network traffic obfuscated.")
-                    return True
-                else:
-                    error(f"ProtonVPN connect failed: {result.stderr}")
-                    return False
-            else:
-                warning(f"VPN connect not implemented for provider: {self.provider}")
+            service_name = self._get_vpn_service_name()
+            if not service_name:
+                error("No VPN service found. Cannot engage cloak.")
                 return False
-        except FileNotFoundError:
-            error("protonvpn-cli not found. Cannot engage cloak.")
-            return False
+
+            # Use macOS scutil to start the VPN connection
+            result = subprocess.run(
+                ["scutil", "--nc", "start", service_name],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0:
+                self._announce("Cloak engaging. Network traffic will be obfuscated momentarily.")
+                return True
+            else:
+                error(f"VPN connect failed: {result.stderr}")
+                return False
         except Exception as e:
             error(f"VPN connect failed: {e}")
             return False
 
-    def disconnect(self) -> bool:
-        """Attempt to disconnect the VPN (disengage cloak)."""
+    def connect_and_wait(self, timeout: int = 15) -> bool:
+        """Connect VPN and wait until confirmed connected (or timeout).
+        
+        For ProtonVPN on macOS, the app does not expose a CLI or AppleScript
+        interface for programmatic connection. We try the URL scheme first,
+        then fall back to opening the app and asking the user to connect manually.
+        """
+        service_name = self._get_vpn_service_name()
+        if not service_name:
+            error("No VPN service found. Cannot engage cloak.")
+            return False
+
+        # Check if already connected
+        state, server = self._get_vpn_state()
+        if state == "connected":
+            self._announce("Cloak is already engaged, Pilot.")
+            return True
+
+        # Method 1: Try URL scheme (works if ProtonVPN supports it)
         try:
-            if self.provider == "protonvpn":
-                result = subprocess.run(
-                    ["protonvpn-cli", "disconnect"],
-                    capture_output=True, text=True, timeout=30
-                )
-                if result.returncode == 0:
+            subprocess.run(
+                ["open", "protonvpn://connect"],
+                capture_output=True, text=True, timeout=10
+            )
+            self._announce("Cloak engaging. Establishing secure tunnel...")
+            # Poll for connection
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                state, server = self._get_vpn_state()
+                if state == "connected":
+                    self._last_state = "connected"
+                    self._last_server = server
+                    self._announce("Cloak engaged. Network traffic obfuscated.")
+                    return True
+                time.sleep(1)
+        except Exception:
+            pass
+
+        # Method 2: Try AppleScript UI automation to click "Quick Connect"
+        # CRITICAL: ProtonVPN's WireGuard handshake requires the app to stay
+        # frontmost for 10-15 seconds. If backgrounded, the NEExtension stalls
+        # at ~28% load with only tiny keepalive packets.
+        try:
+            self._announce("Cloak engaging. Establishing secure tunnel...")
+            # Robust AppleScript: activate, wait for window, click, stay frontmost
+            script = '''
+tell application "ProtonVPN" to activate
+delay 3
+-- Wait for window to exist (up to 5s)
+set winExists to false
+repeat 10 times
+    try
+        tell application "System Events"
+            tell process "ProtonVPN"
+                set winName to name of window 1
+                if winName is not "" then
+                    set winExists to true
+                    exit repeat
+                end if
+            end tell
+        end tell
+    end try
+    delay 0.5
+end repeat
+if winExists then
+    tell application "System Events"
+        tell process "ProtonVPN"
+            click button "Quick Connect" of window 1
+        end tell
+    end tell
+    -- Keep frontmost for 12s so WireGuard handshake completes
+    delay 12
+end if
+'''
+            result = subprocess.run(
+                ["osascript", "-"],
+                input=script,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if "error" not in result.stderr.lower():
+                # Poll for connection
+                start_time = time.time()
+                while time.time() - start_time < timeout:
+                    state, server = self._get_vpn_state()
+                    if state == "connected":
+                        self._last_state = "connected"
+                        self._last_server = server
+                        self._announce("Cloak engaged. Network traffic obfuscated.")
+                        return True
+                    time.sleep(1)
+        except Exception:
+            pass
+
+        # Method 3: Try scutil directly (rarely works for ProtonVPN without CLI)
+        try:
+            subprocess.run(
+                ["scutil", "--nc", "select", service_name],
+                capture_output=True, text=True, timeout=10
+            )
+            subprocess.run(
+                ["scutil", "--nc", "start", service_name],
+                capture_output=True, text=True, timeout=30
+            )
+            self._announce("Cloak engaging. Establishing secure tunnel...")
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                state, server = self._get_vpn_state()
+                if state == "connected":
+                    self._last_state = "connected"
+                    self._last_server = server
+                    self._announce("Cloak engaged. Network traffic obfuscated.")
+                    return True
+                time.sleep(1)
+        except Exception:
+            pass
+
+        # Method 4: Open the app and let user connect manually
+        warning("Cloak requires manual activation. Opening ProtonVPN app...")
+        try:
+            subprocess.run(
+                ["open", "-a", "ProtonVPN"],
+                capture_output=True, text=True, timeout=10
+            )
+            self._announce(
+                "Cloak requires manual activation, Pilot. "
+                "Please click the Connect button in the ProtonVPN app."
+            )
+        except Exception as e:
+            warning(f"Could not open ProtonVPN app: {e}")
+            return False
+
+        return False
+
+    def disconnect(self) -> bool:
+        """Attempt to disconnect the VPN (disengage cloak).
+
+        Uses AppleScript UI automation to click the "Disconnect" button
+        in the ProtonVPN app, just like connect clicks "Quick Connect".
+        """
+        try:
+            service_name = self._get_vpn_service_name()
+            if not service_name:
+                error("No VPN service found. Cannot disengage cloak.")
+                return False
+
+            # Check if actually connected
+            state, _ = self._get_vpn_state()
+            if state != "connected":
+                self._announce("Cloak is already disengaged, Pilot.")
+                return True
+
+            # Method 1: Click the "Disconnect" button via AppleScript
+            # When connected, the button in the same spot is named "Disconnect"
+            script = '''
+tell application "ProtonVPN" to activate
+delay 2
+tell application "System Events"
+    tell process "ProtonVPN"
+        click button "Disconnect" of window "Proton VPN"
+    end tell
+end tell
+delay 3
+'''
+            result = subprocess.run(
+                ["osascript", "-"],
+                input=script,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if "error" not in result.stderr.lower():
+                # Wait for disconnect
+                for _ in range(10):
+                    state, _ = self._get_vpn_state()
+                    if state == "disconnected":
+                        break
+                    time.sleep(0.5)
+                if state == "disconnected":
                     self._announce("Cloak offline. We are exposed, Pilot.")
                     return True
-                else:
-                    error(f"ProtonVPN disconnect failed: {result.stderr}")
-                    return False
-            else:
-                warning(f"VPN disconnect not implemented for provider: {self.provider}")
-                return False
-        except FileNotFoundError:
-            error("protonvpn-cli not found. Cannot disengage cloak.")
+
+            # Method 2: Fallback to networksetup
+            result = subprocess.run(
+                ["networksetup", "-disconnectpppoeservice", service_name],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0:
+                self._announce("Cloak offline. We are exposed, Pilot.")
+                return True
+
+            error(f"VPN disconnect failed: {result.stderr}")
             return False
         except Exception as e:
             error(f"VPN disconnect failed: {e}")
             return False
+
+    def show_status(self) -> str:
+        """Return a detailed human-readable VPN status."""
+        service_name = self._get_vpn_service_name()
+        if not service_name:
+            return "No VPN service configured."
+
+        try:
+            result = subprocess.run(
+                ["scutil", "--nc", "status", service_name],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                return f"Cloak status for {service_name}:\n{result.stdout}"
+            else:
+                return f"Unable to retrieve cloak status: {result.stderr}"
+        except Exception as e:
+            return f"Cloak status unavailable: {e}"

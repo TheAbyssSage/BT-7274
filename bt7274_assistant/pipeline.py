@@ -1081,7 +1081,12 @@ class BT7274Assistant:
         lower = text.lower()
         # Match patterns like "weather in X", "weather for X", "temperature in X"
         # Exclude common time words/phrases that shouldn't be treated as locations
-        time_words = {"today", "tomorrow", "yesterday", "now", "tonight", "next week", "this week", "next few days"}
+        time_words = {
+            "today", "tomorrow", "yesterday", "now", "tonight", "next week", "this week", 
+            "next few days", "the rest of the day", "rest of the day", "rest of the week",
+            "this morning", "this afternoon", "this evening", "later", "soon",
+            "all day", "all week", "whole day", "whole week"
+        }
         patterns = [
             r'weather\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
             r'temperature\s+(?:in|for|at|near)\s+(.+?)(?:\?|$)',
@@ -1093,6 +1098,12 @@ class BT7274Assistant:
                 location = match.group(1).strip()
                 # Don't treat time words as locations
                 if location in time_words:
+                    return None
+                # Don't treat multi-word time phrases as locations
+                if any(tw in location for tw in time_words):
+                    return None
+                # If "location" is more than 5 words, it's probably not a real location
+                if len(location.split()) > 5:
                     return None
                 return location
         return None
@@ -1264,13 +1275,25 @@ class BT7274Assistant:
         if self._is_weather_query(text):
             return False
 
+        # Don't treat VPN/cloak commands as search queries
+        if self._is_vpn_toggle_command(text):
+            return False
+
+        # Don't treat todo/note commands as search queries
+        if self._is_todo_command(text) or self._is_note_command(text):
+            return False
+
+        # Don't treat maintenance commands as search queries
+        if self._is_maintenance_command(text):
+            return False
+
         search_keywords = [
             "who won", "who was",
             "news", "latest",
-            "search", "look up", "tell me about", "find", "what is", "what are"
+            "search", "look up", "tell me about", "find"
         ]
         
-        # Check for basic search keywords
+        # Check for basic search keywords (use word boundaries to avoid false matches)
         if any(kw in lower for kw in search_keywords):
             return True
             
@@ -1294,17 +1317,23 @@ class BT7274Assistant:
 
     def _is_travel_query(self, text: str) -> bool:
         """Detect if the user is asking about travel or transportation."""
+        # More specific travel keywords that won't match casual phrases like "go to school"
         travel_keywords = [
-            "how to get", "how do i get", "travel to", "transport to", "go to", 
-            "way to", "route to", "directions to", "getting to", "trip to",
-            "visit", "journey to", "commute to", "drive to", "fly to", 
-            "how do we get", "how to reach", "how can i get", "get to",
-            "options to get to", "best way to", "fastest way to", "how do i reach"
+            "how to get", "how do i get", "travel to", "transport to",
+            "route to", "directions to", "getting to", "trip to",
+            "journey to", "commute to", "drive to", "fly to",
+            "how do we get", "how to reach", "how can i get",
+            "options to get to", "best way to get", "fastest way to get", "how do i reach",
+            "how far is", "how long to get to"
         ]
         lower = text.lower()
         
         # Don't treat event information queries as travel queries
         if self._is_event_information_query(text):
+            return False
+        
+        # Don't treat todo commands as travel queries
+        if self._is_todo_command(text):
             return False
             
         return any(kw in lower for kw in travel_keywords)
@@ -1317,18 +1346,26 @@ class BT7274Assistant:
         if self._is_event_information_query(text):
             return False
         
+        # Don't treat todo commands as travel queries
+        if self._is_todo_command(text):
+            return False
+        
         # Check for travel-related words combined with destinations
-        travel_indicators = ["how", "way", "route", "get", "travel", "journey"]
+        travel_indicators = ["how", "way", "route", "travel", "journey"]
         has_travel_word = any(indicator in lower for indicator in travel_indicators)
         
         # Check if asking about getting somewhere specific
-        getting_indicators = ["to brussels", "to antwerp", "to belgium", "getting to", "go to"]
+        getting_indicators = ["to brussels", "to antwerp", "to belgium", "getting to"]
         has_getting_phrase = any(phrase in lower for phrase in getting_indicators)
         
         return has_travel_word and has_getting_phrase
 
     def _mentions_destination(self, text: str) -> bool:
         """Detect if the user is mentioning getting to a specific destination."""
+        # Don't treat todo commands as travel queries
+        if self._is_todo_command(text):
+            return False
+        
         # Common destinations that people ask about
         destinations = [
             "brussels", "belgium", "paris", "london", "berlin", "amsterdam",
@@ -1344,6 +1381,10 @@ class BT7274Assistant:
         """Detect if the user is specifically asking for travel options from their location."""
         # Don't treat event information queries as travel queries
         if self._is_event_information_query(text):
+            return False
+        
+        # Don't treat todo commands as travel queries
+        if self._is_todo_command(text):
             return False
         
         # Check for combinations of travel-related words and destination mentions
@@ -1806,6 +1847,7 @@ class BT7274Assistant:
         handled_types = set()
         skip_normal_tts = False
         followup_tts_text = None
+        lower_text = text.lower()
 
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
@@ -1886,6 +1928,16 @@ class BT7274Assistant:
                     response_parts.append("Auto-cloak is enabled.")
                 if wifi:
                     response_parts.append(f"Current network: {wifi}.")
+            else:
+                response_parts.append("VPN monitor is not initialized, Pilot.")
+            handled_types.add("vpn")
+
+        # Check for detailed cloak status command
+        if any(phrase in lower_text for phrase in ["cloak status", "vpn status", "cloak details", "vpn details"]):
+            status("VPN", "Retrieving cloak diagnostics...")
+            if self.vpn:
+                detailed_status = self.vpn.show_status()
+                response_parts.append(detailed_status)
             else:
                 response_parts.append("VPN monitor is not initialized, Pilot.")
             handled_types.add("vpn")
@@ -2075,11 +2127,11 @@ class BT7274Assistant:
                 try:
                     # Try to connect VPN using the VPN monitor
                     if self.vpn:
-                        result = self.vpn.connect()
+                        result = self.vpn.connect_and_wait(timeout=15)
                         if result:
                             response_parts.append("Cloak engaged, Pilot. Network traffic is now obfuscated.")
                         else:
-                            response_parts.append("Unable to engage cloak at this time, Pilot.")
+                            response_parts.append("Cloak connection timed out, Pilot. Check System Settings > VPN for status.")
                     else:
                         response_parts.append("VPN monitor is not initialized, Pilot.")
                 except Exception as e:
@@ -2309,6 +2361,24 @@ class BT7274Assistant:
         clean_response = clean_response.strip()
         # Collapse multiple blank lines
         clean_response = '\n'.join(line for line in clean_response.splitlines() if line.strip())
+        
+        # Strip meta-text and action narration that the LLM sometimes outputs
+        # Remove lines that describe actions being taken
+        meta_patterns = [
+            r'(?i)^\s*bt\s+(?:uses?|initiates?|performs?|executes?|triggers?|activates?|engages?|starts?)\s+.*$',
+            r'(?i)^\s*bt\s+(?:is\s+)?(?:now\s+)?(?:using|initiating|performing|executing|triggering|activating|engaging|starting)\s+.*$',
+            r'(?i)^\s*(?:simultaneously|meanwhile|at\s+the\s+same\s+time)\s*,?\s*bt\s+.*$',
+            r'(?i)^\s*bt\s+(?:also|additionally|furthermore|moreover)\s+.*$',
+            r'(?i)^\s*(?:action|system|protocol)\s*:.*$',
+            r'(?i)^\s*\[.*?\]\s*bt\s+.*$',
+            r'(?i)^\s*bt\s+\[.*?\]\s+.*$',
+        ]
+        lines = clean_response.splitlines()
+        filtered_lines = []
+        for line in lines:
+            if not any(re.match(pattern, line) for pattern in meta_patterns):
+                filtered_lines.append(line)
+        clean_response = '\n'.join(filtered_lines)
         
         # Optimize response for TTS - break into smaller segments for better pacing
         # This helps with long responses that might cause TTS delays

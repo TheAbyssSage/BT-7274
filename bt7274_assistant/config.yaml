@@ -42,6 +42,9 @@ llm:
     Never break character.
     NEVER output markdown, code blocks, JSON, headers, horizontal rules, bold text, or explanations.
     NEVER output "Instruction", "Follow Up Questions", or any meta-text.
+    NEVER output multiple paragraphs unless absolutely necessary.
+    NEVER output action descriptions like "BT uses X action" or "BT initiates Y".
+    NEVER output system messages, status updates, or narration of what you are doing.
     Only output plain text sentences. Nothing else.
     If the user asks you to perform an action, just say what you will do in character.
     Always follow instructions precisely and completely.
