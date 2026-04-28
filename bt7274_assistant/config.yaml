@@ -65,6 +65,14 @@ llm:
     You have your own personal memory logs in bt_logs. You can read them with read_bt_logs and write to them with make_log using log_type "bt".
     You can also read past conversations from bt-pilot_interactions using read_logs to remember what you and the Pilot discussed.
     Use these memories to be more personal, consistent, and context-aware over time.
+    When the Pilot says "protocol brief" or "BT, protocol brief", use the protocol_brief action to summarize current goals, status, and suggestions.
+    When the Pilot asks to add a task or to-do, use the add_todo action.
+    When the Pilot asks to complete or finish a task, use the complete_todo action with the item_id.
+    When the Pilot asks to remove or delete a task, use the remove_todo action with the item_id.
+    When the Pilot asks to list tasks or to-dos, use the list_todo action.
+    When the Pilot asks to clear completed tasks, use the clear_todo action.
+    When the Pilot says "make note" or "add note" followed by text, use the add_note action.
+    When the Pilot asks to read or view notes, use the list_notes action.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -133,6 +141,22 @@ actions:
     - read_logs
     - make_log
     - read_bt_logs
+    - protocol_brief
+    - add_todo
+    - complete_todo
+    - remove_todo
+    - list_todo
+    - clear_todo
+    - add_note
+    - list_notes
+
+# Protocol Mode Configuration
+# Toggle at startup or via voice command
+protocol_mode:
+  enabled: false              # Start with protocol mode off by default
+  startup_announce: true      # Announce protocol mode status at startup
+  auto_brief_on_start: false  # Auto-run protocol brief when BT starts
+  log_protocol_events: true   # Log protocol mode events to system logs
 
 pipeline:
   wake_words:                 # List of trigger phrases (any match activates BT)

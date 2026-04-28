@@ -593,3 +593,94 @@ def action_read_bt_logs(lines: int = 20, date: str = None):
         return logger.read_bt_logs(lines=lines, date=date)
     except Exception as e:
         return f"Failed to read BT logs: {str(e)}"
+
+
+# ─── Protocol Brief Actions ─────────────────────────────────────────
+
+@register_action("protocol_brief")
+def action_protocol_brief(name: str = "pilot"):
+    """Generate a protocol brief summary of goals, status, and suggestions."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.get_brief(name=name)
+    except Exception as e:
+        return f"Protocol brief unavailable: {str(e)}"
+
+
+@register_action("add_todo")
+def action_add_todo(text: str, name: str = "pilot", priority: str = "normal"):
+    """Add a task to the pilot to-do list."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.add_todo(text=text, name=name, priority=priority)
+    except Exception as e:
+        return f"Failed to add to-do: {str(e)}"
+
+
+@register_action("complete_todo")
+def action_complete_todo(item_id: int, name: str = "pilot"):
+    """Mark a to-do item as completed."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.complete_todo(item_id=item_id, name=name)
+    except Exception as e:
+        return f"Failed to complete to-do: {str(e)}"
+
+
+@register_action("remove_todo")
+def action_remove_todo(item_id: int, name: str = "pilot"):
+    """Remove a to-do item."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.remove_todo(item_id=item_id, name=name)
+    except Exception as e:
+        return f"Failed to remove to-do: {str(e)}"
+
+
+@register_action("list_todo")
+def action_list_todo(name: str = "pilot", show_completed: bool = False):
+    """List pilot to-do items."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.list_todo(name=name, show_completed=show_completed)
+    except Exception as e:
+        return f"Failed to list to-do items: {str(e)}"
+
+
+@register_action("clear_todo")
+def action_clear_todo(name: str = "pilot"):
+    """Clear all completed to-do items."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.clear_todo(name=name)
+    except Exception as e:
+        return f"Failed to clear to-do items: {str(e)}"
+
+
+@register_action("add_note")
+def action_add_note(text: str, name: str = "pilot", tags: str = None):
+    """Append a note to the personal log."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        tag_list = [t.strip() for t in tags.split(",")] if tags else None
+        return pb.add_note(text=text, name=name, tags=tag_list)
+    except Exception as e:
+        return f"Failed to add note: {str(e)}"
+
+
+@register_action("list_notes")
+def action_list_notes(name: str = "pilot", lines: int = 10, tag: str = None):
+    """Read recent personal notes."""
+    try:
+        from bt7274_workstation.protocol_brief import ProtocolBrief
+        pb = ProtocolBrief()
+        return pb.list_notes(name=name, lines=lines, tag=tag)
+    except Exception as e:
+        return f"Failed to list notes: {str(e)}"

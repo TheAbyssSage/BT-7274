@@ -68,6 +68,7 @@ from bt7274_workstation.interaction_logger import InteractionLogger
 from bt7274_workstation.battery_monitor import BatteryMonitor
 from bt7274_workstation.weather_monitor import WeatherMonitor
 from bt7274_workstation.vpn_monitor import VPNMonitor
+from bt7274_workstation.protocol_brief import ProtocolBrief
 from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
@@ -104,6 +105,10 @@ class BT7274Assistant:
         self.battery: Optional[BatteryMonitor] = None
         self.weather: Optional[WeatherMonitor] = None
         self.vpn: Optional[VPNMonitor] = None
+        
+        # Protocol Mode
+        self.protocol_mode_enabled: bool = self.config.get("protocol_mode", {}).get("enabled", False)
+        self.protocol_brief: Optional[ProtocolBrief] = None
         
         # For semantic similarity matching
         self.semantic_vectorizer = None
@@ -347,9 +352,29 @@ class BT7274Assistant:
             self._report_error("vpn", "initialize", e)
             warning(f"VPN monitor failed to start: {e}")
 
+        section("[10.4/10] Initializing Protocol Brief")
+        try:
+            self.protocol_brief = ProtocolBrief()
+            protocol_cfg = self.config.get("protocol_mode", {})
+            if protocol_cfg.get("enabled", False):
+                self.protocol_mode_enabled = True
+                status("PROTOCOL", "Protocol Mode enabled")
+                if protocol_cfg.get("auto_brief_on_start", False):
+                    brief = self.protocol_brief.get_brief()
+                    info("Auto protocol brief:")
+                    for line in brief.split("\n"):
+                        info(f"  {line}")
+            else:
+                status("PROTOCOL", "Protocol Mode disabled")
+        except Exception as e:
+            self._report_error("protocol_brief", "initialize", e)
+            warning(f"Protocol Brief initialization failed: {e}")
+
         footer("All systems online")
         if self.performance_mode == "performance":
             status("MODE", "Performance Mode: Streaming TTS active")
+        if self.protocol_mode_enabled:
+            status("PROTOCOL", "Protocol Mode is active. Say 'BT, protocol brief' for a status summary.")
         info("Say 'Hey BT' or press Enter to speak.")
 
     def _normalize_phrase(self, phrase: str) -> str:
@@ -1853,6 +1878,124 @@ class BT7274Assistant:
                 response_parts.append("VPN monitor is not initialized, Pilot.")
             handled_types.add("maintenance")
 
+        # Check for Protocol Mode commands
+        lower_text = text.lower()
+        if "protocol brief" in lower_text:
+            status("PROTOCOL", "Generating protocol brief...")
+            try:
+                if self.protocol_brief:
+                    brief = self.protocol_brief.get_brief()
+                    response_parts.append(brief)
+                    logger.info(f"[PROTOCOL] Protocol brief generated for pilot")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+                    logger.warning("[PROTOCOL] Protocol brief requested but system is offline")
+            except Exception as e:
+                self._report_error("protocol_brief", "get_brief", e)
+                response_parts.append("Unable to generate protocol brief at this time.")
+            handled_types.add("protocol")
+
+        # Check for Protocol Mode toggle
+        if any(phrase in lower_text for phrase in ["enable protocol mode", "turn on protocol mode", "activate protocol mode"]):
+            self.protocol_mode_enabled = True
+            response_parts.append("Protocol Mode enabled, Pilot.")
+            logger.info("[PROTOCOL] Protocol Mode enabled by pilot command")
+            handled_types.add("protocol")
+        elif any(phrase in lower_text for phrase in ["disable protocol mode", "turn off protocol mode", "deactivate protocol mode"]):
+            self.protocol_mode_enabled = False
+            response_parts.append("Protocol Mode disabled, Pilot.")
+            logger.info("[PROTOCOL] Protocol Mode disabled by pilot command")
+            handled_types.add("protocol")
+
+        # Check for to-do commands
+        if any(phrase in lower_text for phrase in ["add todo", "add task", "new task", "new todo"]):
+            status("PROTOCOL", "Adding to-do...")
+            try:
+                # Extract task text after the command phrase
+                task_text = text
+                for phrase in ["add todo", "add task", "new task", "new todo"]:
+                    if phrase in lower_text:
+                        task_text = text[lower_text.find(phrase) + len(phrase):].strip()
+                        break
+                if task_text:
+                    if self.protocol_brief:
+                        result = self.protocol_brief.add_todo(task_text)
+                        response_parts.append(result)
+                        logger.info(f"[PROTOCOL] To-do added: {task_text}")
+                    else:
+                        response_parts.append("Protocol Brief system is offline, Pilot.")
+                else:
+                    response_parts.append("Please specify a task to add, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "add_todo", e)
+                response_parts.append("Failed to add to-do item.")
+            handled_types.add("protocol")
+
+        if any(phrase in lower_text for phrase in ["list tasks", "list todos", "show tasks", "show todos", "what are my tasks"]):
+            status("PROTOCOL", "Listing to-dos...")
+            try:
+                if self.protocol_brief:
+                    result = self.protocol_brief.list_todo()
+                    response_parts.append(result)
+                    logger.info("[PROTOCOL] To-do list retrieved")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "list_todo", e)
+                response_parts.append("Failed to list to-do items.")
+            handled_types.add("protocol")
+
+        if any(phrase in lower_text for phrase in ["clear completed", "clear done tasks"]):
+            status("PROTOCOL", "Clearing completed tasks...")
+            try:
+                if self.protocol_brief:
+                    result = self.protocol_brief.clear_todo()
+                    response_parts.append(result)
+                    logger.info("[PROTOCOL] Completed to-dos cleared")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "clear_todo", e)
+                response_parts.append("Failed to clear completed tasks.")
+            handled_types.add("protocol")
+
+        # Check for note commands
+        if any(phrase in lower_text for phrase in ["add note", "make note", "write note", "take note"]):
+            status("PROTOCOL", "Adding note...")
+            try:
+                note_text = text
+                for phrase in ["add note", "make note", "write note", "take note"]:
+                    if phrase in lower_text:
+                        note_text = text[lower_text.find(phrase) + len(phrase):].strip()
+                        break
+                if note_text:
+                    if self.protocol_brief:
+                        result = self.protocol_brief.add_note(note_text)
+                        response_parts.append(result)
+                        logger.info(f"[PROTOCOL] Note added: {note_text}")
+                    else:
+                        response_parts.append("Protocol Brief system is offline, Pilot.")
+                else:
+                    response_parts.append("Please specify note content, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "add_note", e)
+                response_parts.append("Failed to add note.")
+            handled_types.add("protocol")
+
+        if any(phrase in lower_text for phrase in ["list notes", "show notes", "read notes", "view notes"]):
+            status("PROTOCOL", "Listing notes...")
+            try:
+                if self.protocol_brief:
+                    result = self.protocol_brief.list_notes()
+                    response_parts.append(result)
+                    logger.info("[PROTOCOL] Notes list retrieved")
+                else:
+                    response_parts.append("Protocol Brief system is offline, Pilot.")
+            except Exception as e:
+                self._report_error("protocol_brief", "list_notes", e)
+                response_parts.append("Failed to list notes.")
+            handled_types.add("protocol")
+
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
         is_information_query = self._is_event_information_query(text)
@@ -2151,6 +2294,7 @@ class BT7274Assistant:
             "tts_synthesized": followup_result["tts_synthesized"] if followup_result else (tts_metrics.get("cached") is not None or tts_metrics.get("processing_time") is not None),
             "clip_played": followup_result["clip_played"] if followup_result else (clip_source is not None),
             "bt_running": self.running,
+            "protocol_mode_enabled": self.protocol_mode_enabled,
         }
         
         self.logger.log_interaction(

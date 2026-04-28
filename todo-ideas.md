@@ -1,17 +1,5 @@
 # BT-7274 Feature Ideas & Logging Plan (with Log Paths)
 
-Current log folders:
-
-- logs/bt_brief
-- logs/bt_logs
-- logs/bt_vision
-- logs/bt_workstation
-- logs/bt-pilot_interactions
-- logs/pilot_health
-- logs/pilot_logs
-- logs/pilot_voice_commands
-- logs/system_logs
-
 ---
 
 ## 1. Protocol Mode
@@ -28,14 +16,7 @@ Config:
 - Toggle at startup or via command: `protocol_mode: on/off`.
 - Ask BT to enable/disable it.
 
-Logging:
-
-- State changes:
-  - To `logs/system_logs`
-    - Example: `2025-04-28T10:12Z [protocol_mode] enabled`
-- Brief content:
-  - To `logs/bt_brief` (one file per day)
-    - Example: `2025-04-28T10:13Z PROTOCOL BRIEF: …`
+Log it
 
 ---
 
@@ -193,6 +174,7 @@ Logging:
 
 - Each entry with timestamp + raw text (and optional tags).
 - No extra meta log needed beyond the file itself.
+**Status:** Implemented
 
 ---
 
