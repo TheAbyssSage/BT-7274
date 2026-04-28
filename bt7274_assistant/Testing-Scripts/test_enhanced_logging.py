@@ -11,7 +11,7 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from interaction_logger import InteractionLogger
+from bt7274_workstation.interaction_logger import InteractionLogger
 
 def test_enhanced_logging():
     """Test that enhanced logging fields are properly captured."""

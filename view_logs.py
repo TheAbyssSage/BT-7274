@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from bt7274_assistant.interaction_logger import InteractionLogger
+from bt7274_workstation.interaction_logger import InteractionLogger
 
 
 def format_entry(entry: dict) -> str:

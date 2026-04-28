@@ -196,7 +196,7 @@ def action_search_web(query: str):
         if not results:
             # Log the search even when no results found
             try:
-                from search_logger import SearchLogger
+                from bt7274_workstation.search_logger import SearchLogger
                 logger = SearchLogger()
                 logger.log_search(
                     query=query,
@@ -216,7 +216,7 @@ def action_search_web(query: str):
         
         # Log the successful search
         try:
-            from search_logger import SearchLogger
+            from bt7274_workstation.search_logger import SearchLogger
             logger = SearchLogger()
             logger.log_search(
                 query=query,
@@ -231,7 +231,7 @@ def action_search_web(query: str):
     except Exception as e:
         # Log the failed search
         try:
-            from search_logger import SearchLogger
+            from bt7274_workstation.search_logger import SearchLogger
             logger = SearchLogger()
             logger.log_search(
                 query=query,
@@ -249,7 +249,7 @@ def action_search_web(query: str):
 def action_get_location():
     """Return current location."""
     try:
-        from location import LocationProvider
+        from bt7274_workstation.location import LocationProvider
         loc = LocationProvider()
         if loc.update():
             lat_lon = loc.lat_lon
@@ -263,7 +263,7 @@ def action_get_location():
 def action_get_location_structured():
     """Return current location as structured data."""
     try:
-        from location import LocationProvider
+        from bt7274_workstation.location import LocationProvider
         loc = LocationProvider()
         if loc.update():
             lat_lon = loc.lat_lon
@@ -287,7 +287,7 @@ def action_get_location_structured():
 def action_get_weather():
     """Fetch current weather from Open-Meteo API using cached location."""
     try:
-        from location import LocationProvider
+        from bt7274_workstation.location import LocationProvider
         loc = LocationProvider()
         if not loc.update():
             return "Unable to determine location for weather."
@@ -327,7 +327,7 @@ def action_get_weather_for_location(location: str):
 def action_get_weather_forecast(days: int = 3, location: str = None):
     """Fetch upcoming weather forecast for the current or a specified location."""
     try:
-        from location import LocationProvider
+        from bt7274_workstation.location import LocationProvider
         loc = LocationProvider()
 
         if location:
@@ -443,7 +443,7 @@ def action_clear_tts_cache():
 def action_read_logs(lines: int = 10, date: str = None, search: str = None):
     """Read recent interaction logs with optional search capability."""
     try:
-        from interaction_logger import InteractionLogger
+        from bt7274_workstation.interaction_logger import InteractionLogger
         import json
         from datetime import datetime
         from pathlib import Path

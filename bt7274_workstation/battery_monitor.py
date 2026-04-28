@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
 
-from ui import info, success, warning, error, status
+from bt7274_assistant.ui import info, success, warning, error, status
 
 
 class BatteryMonitor:

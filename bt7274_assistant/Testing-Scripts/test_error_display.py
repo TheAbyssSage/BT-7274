@@ -9,7 +9,7 @@ from pathlib import Path
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from interaction_logger import InteractionLogger
+from bt7274_workstation.interaction_logger import InteractionLogger
 
 def test_error_display():
     """Test that errors are properly displayed in logs."""

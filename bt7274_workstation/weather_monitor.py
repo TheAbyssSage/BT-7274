@@ -14,7 +14,7 @@ from typing import Optional
 
 import requests
 
-from ui import info, success, warning, error, status
+from bt7274_assistant.ui import info, success, warning, error, status
 
 
 # WMO weather codes that trigger warnings
@@ -85,7 +85,7 @@ class WeatherMonitor:
     def _get_location(self) -> Optional[tuple[float, float]]:
         """Get current lat/lon from location provider."""
         try:
-            from location import LocationProvider
+            from bt7274_workstation.location import LocationProvider
             loc = LocationProvider()
             if loc.update():
                 return loc.lat_lon
