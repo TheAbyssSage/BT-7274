@@ -10,7 +10,7 @@ BT-7274 maintains a comprehensive logging infrastructure across multiple directo
 
 ```
 logs/
-├── bt-pilot_interactions/     # Full conversation logs (JSONL)
+├── bt-pilot_interactions/      # Full conversation logs (JSONL)
 ├── bt_logs/                    # Web search logs (JSONL)
 ├── system_logs/                # System events (plain text)
 ├── pilot_health/               # Weather/environmental warnings (JSONL)

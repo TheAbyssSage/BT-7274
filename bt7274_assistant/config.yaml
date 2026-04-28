@@ -60,6 +60,11 @@ llm:
     When the Pilot asks about upcoming weather or a forecast, use the get_weather_forecast action.
     When the Pilot asks to enable or disable weather / environmental warnings, respond that you have done so.
     When the Pilot asks to enable or disable auto-cloak / VPN monitoring, respond that you have done so.
+    When the Pilot says "make log" or "BT, make log" followed by text, use the make_log action to record it.
+    When the Pilot asks to read or view their logs, use the read_logs action.
+    You have your own personal memory logs in bt_logs. You can read them with read_bt_logs and write to them with make_log using log_type "bt".
+    You can also read past conversations from bt-pilot_interactions using read_logs to remember what you and the Pilot discussed.
+    Use these memories to be more personal, consistent, and context-aware over time.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -126,6 +131,8 @@ actions:
     - get_weather_forecast
     - clear_tts_cache
     - read_logs
+    - make_log
+    - read_bt_logs
 
 pipeline:
   wake_words:                 # List of trigger phrases (any match activates BT)

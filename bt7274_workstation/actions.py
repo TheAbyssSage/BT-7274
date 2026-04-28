@@ -551,6 +551,45 @@ def action_read_logs(lines: int = 10, date: str = None, search: str = None):
             header = f"Recent logs ({len(formatted_entries)} entries):"
         
         return header + "\n" + "\n".join(formatted_entries)
-        
+
     except Exception as e:
         return f"Failed to read logs: {str(e)}"
+
+
+@register_action("make_log")
+def action_make_log(text: str, name: str = "pilot", tags: str = None, log_type: str = "pilot"):
+    """
+    Append a free-form log entry for the Pilot or BT.
+
+    Args:
+        text: The raw log text to record.
+        name: Optional log name (used in filename). Defaults to "pilot".
+        tags: Optional comma-separated tags (e.g., "mission,personal").
+        log_type: "pilot" for pilot logs, "bt" for BT internal logs.
+    """
+    try:
+        from bt7274_workstation.pilot_logger import PilotLogger
+        logger = PilotLogger()
+        tag_list = [t.strip() for t in tags.split(",")] if tags else None
+        if log_type.lower() == "bt":
+            return logger.log_bt(text, name=name, tags=tag_list)
+        return logger.log_pilot(text, name=name, tags=tag_list)
+    except Exception as e:
+        return f"Failed to make log: {str(e)}"
+
+
+@register_action("read_bt_logs")
+def action_read_bt_logs(lines: int = 20, date: str = None):
+    """
+    Read BT's own personal memory logs.
+
+    Args:
+        lines: Number of recent entries to read.
+        date: Optional specific date (YYYY-MM-DD) to read.
+    """
+    try:
+        from bt7274_workstation.pilot_logger import PilotLogger
+        logger = PilotLogger()
+        return logger.read_bt_logs(lines=lines, date=date)
+    except Exception as e:
+        return f"Failed to read BT logs: {str(e)}"
