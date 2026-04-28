@@ -27,6 +27,14 @@ import sounddevice as sd
 from ui import info, success, warning, error, cache_hit, log_tts
 import soundfile as sf
 
+from bt7274_workstation.session_cache_manager import (
+    get_tts_output_dir,
+    load_tts_cache_index,
+    save_tts_cache_index,
+    save_speaker_latents,
+    load_speaker_latents,
+)
+
 # Patch for PyTorch 2.6+ weights_only loading with XTTS
 import torch
 _original_torch_load = torch.load
@@ -58,7 +66,7 @@ class StreamingXTTSClient:
         self.model_name = config.get("model", "tts_models/multilingual/multi-dataset/xtts_v2")
         self.reference_wav = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
         self.language = config.get("language", "en")
-        self.output_dir = Path(config.get("output_dir", "bt7274_assistant/outputs"))
+        self.output_dir = Path(config.get("output_dir", str(get_tts_output_dir())))
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Model state
@@ -73,7 +81,7 @@ class StreamingXTTSClient:
         self._threads: List[threading.Thread] = []
 
         # Cache for complete responses
-        self._response_cache: Dict[str, str] = {}
+        self._response_cache: Dict[str, str] = load_tts_cache_index()
         self._max_cache_size = 50
         self._cache_lock = threading.Lock()
 
@@ -110,8 +118,13 @@ class StreamingXTTSClient:
         """Pre-compute speaker latents and do a dummy synthesis."""
         info("Warming up TTS (caching speaker voice)...")
         try:
-            # Cache speaker conditioning latents
-            if self._model and hasattr(self._model, 'synthesizer') and \
+            # Try to load cached speaker latents first
+            cached_latents, cached_embedding = load_speaker_latents()
+            if cached_latents is not None and cached_embedding is not None:
+                self._gpt_cond_latent = cached_latents
+                self._speaker_embedding = cached_embedding
+                info("Loaded cached speaker latents from session cache.")
+            elif self._model and hasattr(self._model, 'synthesizer') and \
                self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
                self._model.synthesizer.tts_model and \
                hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
@@ -119,6 +132,7 @@ class StreamingXTTSClient:
                     self._model.synthesizer.tts_model.get_conditioning_latents(
                         audio_path=[self.reference_wav]
                     )
+                save_speaker_latents(self._gpt_cond_latent, self._speaker_embedding)
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:
@@ -263,7 +277,14 @@ class StreamingXTTSClient:
                 if len(self._response_cache) > self._max_cache_size:
                     keys = list(self._response_cache.keys())[:10]
                     for k in keys:
-                        del self._response_cache[k]
+                        cached_file = self._response_cache.pop(k, None)
+                        if cached_file and os.path.exists(cached_file):
+                            try:
+                                os.remove(cached_file)
+                            except Exception:
+                                pass
+                # Persist cache index
+                save_tts_cache_index(self._response_cache)
 
             # Ensure wav is a numpy array before creating AudioChunk
             if isinstance(wav, (list, tuple)):

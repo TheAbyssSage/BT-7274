@@ -14,6 +14,8 @@ from scipy import signal
 from typing import Tuple
 from ui import info, success, warning, error
 
+from bt7274_workstation.session_cache_manager import get_stt_temp_dir
+
 
 class WhisperSTT:
     def __init__(self, config: dict):
@@ -49,8 +51,9 @@ class WhisperSTT:
                     if len(audio_data) > 0:
                         cleaned_audio = self._reduce_noise(audio_data, sample_rate)
                         
-                        # Save processed audio to temporary file
-                        processed_audio_path = tempfile.mktemp(suffix=".wav")
+                        # Save processed audio to temporary file in session cache
+                        stt_temp = get_stt_temp_dir()
+                        processed_audio_path = tempfile.mktemp(suffix=".wav", dir=str(stt_temp))
                         sf.write(processed_audio_path, cleaned_audio, sample_rate)
                 except Exception as preprocess_error:
                     # If preprocessing fails, use original audio
@@ -182,7 +185,8 @@ class WhisperSTT:
             else:
                 cleaned_audio = audio_buffer
             
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            stt_temp = get_stt_temp_dir()
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, dir=str(stt_temp)) as f:
                 sf.write(f.name, cleaned_audio, sample_rate)
                 result = self.transcribe(f.name)
                 try:

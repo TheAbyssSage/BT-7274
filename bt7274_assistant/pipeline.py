@@ -69,6 +69,14 @@ from bt7274_workstation.battery_monitor import BatteryMonitor
 from bt7274_workstation.weather_monitor import WeatherMonitor
 from bt7274_workstation.vpn_monitor import VPNMonitor
 from bt7274_workstation.protocol_brief import ProtocolBrief
+from bt7274_workstation.session_cache_manager import (
+    get_session_cache,
+    save_semantic_vectors,
+    load_semantic_vectors,
+    save_session_state,
+    load_session_state,
+    archive_and_clear_session,
+)
 from ui import header, section, sub_section, info, success, warning, error, status, bullet, spacer, divider, footer, prompt, choice_menu, box, progress, quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit, clip_play, listening, goodbye
 
 
@@ -161,6 +169,29 @@ class BT7274Assistant:
         # Also log to system log for debugging
         import logging
         logging.error(f"BT-7274 Error - {component}.{function}: {exc}", exc_info=True)
+
+    def _save_session_state(self):
+        """Persist current session metadata to session cache."""
+        try:
+            state = {
+                "session_id": self.session_id,
+                "session_start_time": self.session_start_time,
+                "session_end_time": time.time(),
+                "interaction_count": self.interaction_count,
+                "pilot_trust_level": self.pilot_trust_level,
+                "errors_this_session": self.errors_this_session,
+                "actions_this_session": self.actions_this_session,
+                "conversation_history": self.conversation_history,
+                "current_context": self.current_context,
+                "dialogue_state": self.dialogue_state,
+                "dialogue_history": self.dialogue_history,
+                "personality_weights": self.personality_weights,
+                "weather_context": self.weather_context,
+                "protocol_mode_enabled": self.protocol_mode_enabled,
+            }
+            save_session_state(state)
+        except Exception as e:
+            warning(f"Failed to save session state: {e}")
 
     def load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
@@ -533,6 +564,16 @@ class BT7274Assistant:
             return
             
         try:
+            # Try to load cached semantic vectors first
+            vectorizer_state, clip_matrix, phrases = load_semantic_vectors()
+            if vectorizer_state is not None and clip_matrix is not None and phrases:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                self.semantic_vectorizer = TfidfVectorizer(**vectorizer_state)
+                self.semantic_clip_matrix = clip_matrix
+                self.semantic_clip_phrases = phrases
+                success(f"Semantic similarity matching loaded from cache with {len(phrases)} phrases")
+                return
+            
             # Create TF-IDF vectorizer
             self.semantic_vectorizer = TfidfVectorizer(
                 lowercase=True,
@@ -546,6 +587,15 @@ class BT7274Assistant:
             
             # Fit the vectorizer on all BT clip phrases
             self.semantic_clip_matrix = self.semantic_vectorizer.fit_transform(self.semantic_clip_phrases)
+            
+            # Persist to session cache
+            vectorizer_state = {
+                "lowercase": self.semantic_vectorizer.lowercase,
+                "stop_words": self.semantic_vectorizer.stop_words,
+                "ngram_range": self.semantic_vectorizer.ngram_range,
+                "max_features": self.semantic_vectorizer.max_features,
+            }
+            save_semantic_vectors(vectorizer_state, self.semantic_clip_matrix, self.semantic_clip_phrases)
             
             success(f"Semantic similarity matching initialized with {len(self.semantic_clip_phrases)} phrases")
         except Exception as e:
@@ -2450,6 +2500,9 @@ class BT7274Assistant:
         except KeyboardInterrupt:
             goodbye()
         finally:
+            # Save session state before cleanup
+            self._save_session_state()
+            
             if self.recorder:
                 log_system("Closing microphone stream...")
                 self.recorder.stop()
@@ -2460,6 +2513,14 @@ class BT7274Assistant:
                 log_system("Stopping environmental monitor...")
                 self.weather.stop()
             self.running = False
+            
+            # Archive session cache and clear for next session
+            log_system("Archiving session cache...")
+            archive_path = archive_and_clear_session()
+            if archive_path:
+                success(f"Session archived to: {archive_path}")
+            else:
+                info("No session cache to archive.")
 
 
 def main():

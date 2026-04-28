@@ -89,7 +89,7 @@ tts:
   reference_wav: bt7274_assistant/dataset/reference_speaker.wav
   language: en
   speed: 1.0
-  output_dir: bt7274_assistant/outputs
+  output_dir: bt7274_workstation/session_cache/tts_outputs
   use_mps: false              # XTTS v2 works best on CPU for M1
 
 # Performance Mode Configuration

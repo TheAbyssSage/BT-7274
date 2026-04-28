@@ -11,6 +11,13 @@ from functools import lru_cache
 import hashlib
 
 from ui import info, success, warning, error, cache_hit
+from bt7274_workstation.session_cache_manager import (
+    get_tts_output_dir,
+    load_tts_cache_index,
+    save_tts_cache_index,
+    save_speaker_latents,
+    load_speaker_latents,
+)
 
 # Patch for PyTorch 2.6+ weights_only loading with XTTS
 # XTTS model checkpoints were created before weights_only=True became default
@@ -32,13 +39,13 @@ class XTTSClient:
         self.reference_wav = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
         self.language = config.get("language", "en")
         self.speed = config.get("speed", 1.0)
-        self.output_dir = Path(config.get("output_dir", "bt7274_assistant/outputs"))
+        self.output_dir = Path(config.get("output_dir", str(get_tts_output_dir())))
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._model = None
         self._gpt_cond_latent = None
         self._speaker_embedding = None
         # Cache for generated responses to avoid re-synthesis
-        self._response_cache: Dict[str, str] = {}
+        self._response_cache: Dict[str, str] = load_tts_cache_index()
         # Maximum cache size
         self._max_cache_size = 50
         # Performance metrics (last synthesis)
@@ -67,7 +74,13 @@ class XTTSClient:
         info("Warming up TTS (caching speaker voice)...")
         try:
             # Cache speaker conditioning latents
-            if self._model and hasattr(self._model, 'synthesizer') and \
+            # Try to load cached speaker latents first
+            cached_latents, cached_embedding = load_speaker_latents()
+            if cached_latents is not None and cached_embedding is not None:
+                self._gpt_cond_latent = cached_latents
+                self._speaker_embedding = cached_embedding
+                info("Loaded cached speaker latents from session cache.")
+            elif self._model and hasattr(self._model, 'synthesizer') and \
                self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
                self._model.synthesizer.tts_model and \
                hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
@@ -75,6 +88,7 @@ class XTTSClient:
                     self._model.synthesizer.tts_model.get_conditioning_latents(
                         audio_path=[self.reference_wav]
                     )
+                save_speaker_latents(self._gpt_cond_latent, self._speaker_embedding)
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:
@@ -214,7 +228,14 @@ class XTTSClient:
                 # Remove oldest entries
                 keys_to_remove = list(self._response_cache.keys())[:10]
                 for key in keys_to_remove:
-                    del self._response_cache[key]
+                    cached_file = self._response_cache.pop(key, None)
+                    if cached_file and os.path.exists(cached_file):
+                        try:
+                            os.remove(cached_file)
+                        except Exception:
+                            pass
+            # Persist cache index
+            save_tts_cache_index(self._response_cache)
             
             return str(output_path)
         except Exception as e:

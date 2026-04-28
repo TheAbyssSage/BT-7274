@@ -8,6 +8,11 @@ import requests
 from typing import Optional, Tuple
 from datetime import datetime, timedelta
 
+from bt7274_workstation.session_cache_manager import (
+    save_location_cache,
+    load_location_cache,
+)
+
 
 def _reverse_geocode(lat: float, lon: float) -> Tuple[str, str, str]:
     """Reverse geocode lat/lon to city/region/country using Open-Meteo API."""
@@ -38,6 +43,34 @@ class LocationProvider:
         self._last_update: Optional[datetime] = None
         self._ttl_seconds = 300  # Cache location for 5 minutes
         self._manual = manual_location  # Optional manual override
+        self._load_cached_location()
+
+    def _load_cached_location(self):
+        """Load last known location from session cache."""
+        cached = load_location_cache()
+        if cached:
+            self._lat = cached.get("lat")
+            self._lon = cached.get("lon")
+            self._city = cached.get("city")
+            self._region = cached.get("region")
+            self._country = cached.get("country")
+            # Parse timestamp to set _last_update so TTL logic works
+            ts = cached.get("timestamp")
+            if ts:
+                try:
+                    self._last_update = datetime.fromisoformat(ts)
+                except Exception:
+                    self._last_update = None
+
+    def _save_location(self):
+        """Persist current location to session cache."""
+        save_location_cache(
+            lat=self._lat,
+            lon=self._lon,
+            city=self._city or "",
+            region=self._region or "",
+            country=self._country or "",
+        )
 
     def _is_stale(self) -> bool:
         if self._last_update is None:
@@ -133,6 +166,7 @@ class LocationProvider:
             if result:
                 self._lat, self._lon, self._city, self._region, self._country = result
                 self._last_update = datetime.now()
+                self._save_location()
                 return True
         except Exception as e:
             pass
