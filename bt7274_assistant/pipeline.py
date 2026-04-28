@@ -1620,18 +1620,26 @@ class BT7274Assistant:
         return any(phrase in lower for phrase in maintenance_phrases)
 
     def _is_log_command(self, text: str) -> bool:
-        """Detect if the user is giving a log-related command."""
+        """Detect if the user is giving a log-related command.
+
+        Uses flexible regex matching to handle variations like
+        "make a personal log", "read all of my logs", etc.
+        """
+        import re
         lower = text.lower()
-        log_phrases = [
-            "read my logs", "read logs", "view my logs", "view logs",
-            "show my logs", "show logs", "what are my logs",
-            "read bt logs", "read system logs", "view bt logs",
-            "delete log", "clear log", "remove log",
-            "delete my logs", "clear my logs", "remove my logs",
-            "make log", "create log", "write log", "add log",
-            "log this", "log that", "save log"
+        # Flexible patterns that allow words between key terms
+        log_patterns = [
+            # Read/view/show logs - allow any words between
+            r"\b(read|view|show|check|see|open)\b.*\b(logs?|entries?)\b",
+            r"\bwhat\b.*\b(logs?|entries?)\b",
+            r"\b(my|the|bt|system|personal)\b.*\b(logs?|entries?)\b",
+            # Make/create logs - allow any words between
+            r"\b(make|create|write|add|save|record)\b.*\b(log|entry|note)\b",
+            r"\blog\b.*\b(this|that|it)\b",
+            # Delete/clear logs - allow any words between
+            r"\b(delete|clear|remove|erase|wipe)\b.*\b(logs?|entries?)\b",
         ]
-        return any(phrase in lower for phrase in log_phrases)
+        return any(re.search(pattern, lower) for pattern in log_patterns)
 
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
@@ -2475,11 +2483,12 @@ class BT7274Assistant:
 
         # Check for log commands (read logs, make log, delete log)
         if self._is_log_command(text) and "log" not in handled_types:
+            import re
             lower = text.lower()
             # Determine log type
             is_bt_log = any(phrase in lower for phrase in ["bt log", "system log", "bt-7274 log"])
-            is_delete = any(phrase in lower for phrase in ["delete log", "clear log", "remove log", "delete my logs", "clear my logs", "remove my logs"])
-            is_make_log = any(phrase in lower for phrase in ["make log", "create log", "write log", "add log", "log this", "log that", "save log"])
+            is_delete = bool(re.search(r"\b(delete|clear|remove)\b.*\b(logs?|my\s+logs?)\b", lower))
+            is_make_log = bool(re.search(r"\b(make|create|write|add)\b.*\b(logs?|entry|note)\b", lower)) or bool(re.search(r"\blog\b.*\b(this|that|it)\b", lower))
             
             if is_delete:
                 status("LOG", "Clearing logs...")
@@ -2502,13 +2511,23 @@ class BT7274Assistant:
             elif is_make_log:
                 status("LOG", "Creating log entry...")
                 try:
-                    # Extract log text after the command phrase
+                    # Extract log text after the command phrase using regex
+                    import re
                     log_text = text
-                    for phrase in ["make log", "create log", "write log", "add log", "log this", "log that", "save log"]:
-                        if phrase in lower:
-                            log_text = text[lower.find(phrase) + len(phrase):].strip()
-                            log_text = log_text.lstrip(",.:; ")
+                    # Match patterns like "make a personal log", "create log", "log this"
+                    make_patterns = [
+                        r"(?:make|create|write|add)\s+(?:a\s+)?(?:personal\s+)?(?:bt\s+)?(?:system\s+)?(?:log|entry|note)[,:\s]*(.+)",
+                        r"(?:log|save)\s+(?:this|that|it)[,:\s]*(.+)",
+                    ]
+                    for pattern in make_patterns:
+                        match = re.search(pattern, lower)
+                        if match:
+                            log_text = match.group(1).strip()
                             break
+                    else:
+                        # Fallback: strip command words from beginning
+                        log_text = re.sub(r"^(?:bt[,\s]+)?(?:make|create|write|add|log|save)\s+(?:a\s+)?(?:personal\s+)?(?:bt\s+)?(?:system\s+)?(?:log|entry|note)?[,:\s]*", "", text, flags=re.IGNORECASE).strip()
+                    
                     if log_text:
                         from bt7274_workstation.pilot_logger import PilotLogger
                         logger = PilotLogger()
