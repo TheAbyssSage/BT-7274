@@ -18,12 +18,14 @@ log_dir.mkdir(exist_ok=True)
 system_log_dir = log_dir / "system_logs"
 system_log_dir.mkdir(exist_ok=True)
 
-# Configure logging
+# Configure logging with daily files
+from datetime import datetime as _datetime
+_system_log_file = system_log_dir / f"bt7274_system_{_datetime.now().strftime('%Y-%m-%d')}.log"
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(system_log_dir / "bt7274_system.log"),
+        logging.FileHandler(_system_log_file),
         logging.StreamHandler()
     ]
 )

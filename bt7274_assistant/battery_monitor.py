@@ -52,7 +52,8 @@ class BatteryMonitor:
         """Log critical battery level to logs/system_logs."""
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%MZ")
         log_line = f"{timestamp} [battery] level={level}%\n"
-        log_file = self._log_dir / "bt7274_system.log"
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_file = self._log_dir / f"bt7274_system_{today}.log"
         try:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(log_line)
