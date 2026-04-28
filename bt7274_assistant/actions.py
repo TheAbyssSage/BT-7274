@@ -186,19 +186,62 @@ def action_trigger_shortcut(name: str):
 @register_action("search_web")
 def action_search_web(query: str):
     """Search the web using DuckDuckGo and return top results."""
+    import time
+    start_time = time.time()
+    
     try:
         from ddgs import DDGS
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=3))
         if not results:
+            # Log the search even when no results found
+            try:
+                from search_logger import SearchLogger
+                logger = SearchLogger()
+                logger.log_search(
+                    query=query,
+                    results="No results found.",
+                    success=False,
+                    response_time=time.time() - start_time
+                )
+            except Exception:
+                pass  # Don't fail the action if logging fails
             return "No results found."
         snippets = []
         for r in results:
             title = r.get("title", "")
             body = r.get("body", "")
             snippets.append(f"{title}: {body}")
-        return " | ".join(snippets)
+        result_text = " | ".join(snippets)
+        
+        # Log the successful search
+        try:
+            from search_logger import SearchLogger
+            logger = SearchLogger()
+            logger.log_search(
+                query=query,
+                results=result_text,
+                success=True,
+                response_time=time.time() - start_time
+            )
+        except Exception:
+            pass  # Don't fail the action if logging fails
+            
+        return result_text
     except Exception as e:
+        # Log the failed search
+        try:
+            from search_logger import SearchLogger
+            logger = SearchLogger()
+            logger.log_search(
+                query=query,
+                results="",
+                success=False,
+                error_message=str(e),
+                response_time=time.time() - start_time
+            )
+        except Exception:
+            pass  # Don't fail the action if logging fails
         return f"Search failed: {str(e)}"
 
 
@@ -407,7 +450,7 @@ def action_read_logs(lines: int = 10, date: str = None, search: str = None):
         import os
         import glob
         
-        log_dir = Path(__file__).parent.parent / "logs"
+        log_dir = Path(__file__).parent.parent / "logs" / "bt-pilot_interactions"
         
         # If date is specified, read only that day's logs
         if date is not None:

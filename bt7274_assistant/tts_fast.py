@@ -36,7 +36,6 @@ def _patched_torch_load(*args, **kwargs):
 torch.load = _patched_torch_load
 
 from TTS.api import TTS
-from ui import info, success, warning, error, cache_hit, log_tts
 
 
 @dataclass

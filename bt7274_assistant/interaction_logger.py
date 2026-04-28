@@ -2,26 +2,47 @@
 Interaction Logger for BT-7274 Voice Assistant.
 
 Logs all exchanges between the Pilot and BT-7274 with timestamps,
-storing them in daily JSONL files under the logs/ directory.
+storing them in daily JSONL files under the logs/bt-pilot_interactions/ directory.
 """
 
 import json
 import os
+import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 
 class InteractionLogger:
     """Logger for Pilot ↔ BT-7274 interactions."""
 
-    def __init__(self, log_dir: str = None):
+    def __init__(self, log_dir: Optional[str] = None):
         if log_dir is None:
-            log_dir = str(Path(__file__).parent.parent / "logs")
+            log_dir = str(Path(__file__).parent.parent / "logs" / "bt-pilot_interactions")
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.current_file = None
         self._update_current_file()
+        # Deduplication: keep hashes of last 50 entries to prevent duplicates
+        self._recent_hashes: set[str] = set()
+        self._max_recent_hashes = 50
+
+    def _get_entry_hash(self, pilot_message: str, bt_response: str) -> str:
+        """Generate a hash for deduplication based on message content."""
+        content = f"{pilot_message.strip().lower()}|{bt_response.strip().lower()}"
+        return hashlib.md5(content.encode('utf-8')).hexdigest()[:16]
+
+    def _is_duplicate(self, entry_hash: str) -> bool:
+        """Check if this entry was recently logged (prevents duplicates)."""
+        if entry_hash in self._recent_hashes:
+            return True
+        # Add to recent hashes
+        self._recent_hashes.add(entry_hash)
+        # Keep only the last N hashes to prevent memory bloat
+        if len(self._recent_hashes) > self._max_recent_hashes:
+            # Remove oldest entries (convert to list, slice, then back to set)
+            self._recent_hashes = set(list(self._recent_hashes)[-self._max_recent_hashes:])
+        return False
 
     def _update_current_file(self):
         """Update the current log file based on today's date."""
@@ -57,8 +78,13 @@ class InteractionLogger:
         """Log a single interaction between Pilot and BT-7274."""
         self._update_current_file()
 
+        # Deduplication check
+        entry_hash = self._get_entry_hash(pilot_message, bt_response)
+        if self._is_duplicate(entry_hash):
+            return  # Skip duplicate entry
+
         now = datetime.now()
-        entry = {
+        entry: dict[str, Any] = {
             "timestamp": now.isoformat(),
             "date": now.strftime("%Y-%m-%d"),
             "time": now.strftime("%H:%M:%S"),
@@ -107,36 +133,56 @@ class InteractionLogger:
             entry["metadata"] = metadata
 
         # Enhanced matching and personality logging
-        if "match_type" in metadata:
-            entry["match_type"] = metadata["match_type"]
-        if "match_score" in metadata:
-            entry["match_score"] = metadata["match_score"]
-        if "personality_weights" in metadata:
-            entry["personality_weights"] = metadata["personality_weights"]
-        if "dialogue_state" in metadata:
-            entry["dialogue_state"] = metadata["dialogue_state"]
-        if "emotion_detected" in metadata:
-            entry["emotion_detected"] = metadata["emotion_detected"]
-        if "user_emotion" in metadata:
-            entry["user_emotion"] = metadata["user_emotion"]
-        if "context_topic" in metadata:
-            entry["context_topic"] = metadata["context_topic"]
-        if "clip_source" in metadata:
-            entry["clip_source"] = metadata["clip_source"]
-        if "clip_phrase" in metadata:
-            entry["clip_phrase"] = metadata["clip_phrase"]
-        if "tts_triggered" in metadata:
-            entry["tts_triggered"] = metadata["tts_triggered"]
-        if "bt_running" in metadata:
-            entry["bt_running"] = metadata["bt_running"]
+        if metadata is not None:
+            if "match_type" in metadata:
+                entry["match_type"] = metadata["match_type"]
+            if "match_score" in metadata:
+                entry["match_score"] = metadata["match_score"]
+            if "personality_weights" in metadata:
+                entry["personality_weights"] = metadata["personality_weights"]
+            if "dialogue_state" in metadata:
+                entry["dialogue_state"] = metadata["dialogue_state"]
+            if "emotion_detected" in metadata:
+                entry["emotion_detected"] = metadata["emotion_detected"]
+            if "user_emotion" in metadata:
+                entry["user_emotion"] = metadata["user_emotion"]
+            if "context_topic" in metadata:
+                entry["context_topic"] = metadata["context_topic"]
+            if "clip_source" in metadata:
+                entry["clip_source"] = metadata["clip_source"]
+            if "clip_phrase" in metadata:
+                entry["clip_phrase"] = metadata["clip_phrase"]
+            if "tts_triggered" in metadata:
+                entry["tts_triggered"] = metadata["tts_triggered"]
+            if "bt_running" in metadata:
+                entry["bt_running"] = metadata["bt_running"]
+
+        if self.current_file is None:
+            self._update_current_file()
+        if self.current_file is None:
+            return  # Cannot log without a valid file path
 
         with open(self.current_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+        # Also log detailed per-interaction info to pilot_logs
+        self._log_interaction_details(entry)
+
+    def _log_interaction_details(self, entry: dict):
+        """Log detailed interaction info to pilot_logs directory."""
+        pilot_logs_dir = self.log_dir.parent / "pilot_logs"
+        pilot_logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        today = datetime.now().strftime("%Y-%m-%d")
+        details_file = pilot_logs_dir / f"interaction_details_{today}.jsonl"
+        
+        with open(details_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def get_today_log(self) -> list:
         """Get all interactions from today."""
         self._update_current_file()
-        if not self.current_file.exists():
+        if self.current_file is None or not self.current_file.exists():
             return []
 
         interactions = []

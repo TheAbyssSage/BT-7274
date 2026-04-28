@@ -15,13 +15,15 @@ from pathlib import Path
 # Create logs directory if it doesn't exist
 log_dir = Path(__file__).parent.parent / "logs"
 log_dir.mkdir(exist_ok=True)
+system_log_dir = log_dir / "system_logs"
+system_log_dir.mkdir(exist_ok=True)
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_dir / "bt7274_system.log"),
+        logging.FileHandler(system_log_dir / "bt7274_system.log"),
         logging.StreamHandler()
     ]
 )
@@ -49,7 +51,7 @@ try:
     SEMANTIC_SIMILARITY_AVAILABLE = True
 except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
-    warning("Semantic similarity matching not available. Install scikit-learn for this feature.")
+    logger.warning("Semantic similarity matching not available. Install scikit-learn for this feature.")
 
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
@@ -65,7 +67,7 @@ from ui import header, section, sub_section, info, success, warning, error, stat
 
 
 class BT7274Assistant:
-    def __init__(self, config_path: str = None, ai_mode: str = "local", performance_mode: str = None):
+    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None):
         if config_path is None:
             config_path = str(Path(__file__).parent / "config.yaml")
         self.config = self.load_config(config_path)
@@ -125,7 +127,7 @@ class BT7274Assistant:
             self.tts._response_cache.clear()
             cache_hit(f"Cleared {cache_count} cached TTS responses")
 
-    def _report_error(self, component: str, function: str, error: Exception, context: dict = None):
+    def _report_error(self, component: str, function: str, exc: Exception, context: Optional[dict] = None):
         """Report an error to the current interaction's error list for logging."""
         import traceback
         from datetime import datetime
@@ -133,27 +135,51 @@ class BT7274Assistant:
             "timestamp": datetime.now().isoformat(),
             "component": component,
             "function": function,
-            "error_type": type(error).__name__,
-            "error_message": str(error),
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
             "traceback": traceback.format_exc(),
         }
         if context and isinstance(context, dict):
             error_entry["context"] = context
         self.errors_this_interaction.append(error_entry)
         self.errors_this_session.append(error_entry)
-        error(f"Error in {component}.{function}: {error}")
+        error(f"Error in {component}.{function}: {exc}")
         
         # Also log to system log for debugging
         import logging
-        logging.error(f"BT-7274 Error - {component}.{function}: {error}", exc_info=True)
+        logging.error(f"BT-7274 Error - {component}.{function}: {exc}", exc_info=True)
 
     def load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
             return yaml.safe_load(f)
 
+    def _ensure_log_directories(self):
+        """Ensure all required log directories exist at startup."""
+        base_log_dir = Path(__file__).parent.parent / "logs"
+        required_dirs = [
+            base_log_dir,
+            base_log_dir / "bt-pilot_interactions",
+            base_log_dir / "bt_logs",
+            base_log_dir / "system_logs",
+            base_log_dir / "pilot_logs",
+            base_log_dir / "pilot_health",
+            base_log_dir / "bt_workstation",
+            base_log_dir / "bt_brief",
+            base_log_dir / "pilot_voice_commands",
+            base_log_dir / "bt_vision",
+        ]
+        for dir_path in required_dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            if not dir_path.exists():
+                error(f"Failed to create log directory: {dir_path}")
+
     def initialize(self):
         """Initialize all components."""
         header("BT-7274 AI ASSISTANT  |  Protocol 1: Link to Pilot")
+
+        section("[0/9] Checking log directories")
+        self._ensure_log_directories()
+        success("Log directories verified.")
 
         section("[1/9] Initializing Speech-to-Text")
         try:
@@ -589,7 +615,7 @@ class BT7274Assistant:
         
         return matching_phrases
 
-    def _select_dynamic_clip(self, response_text: str, context: dict = None) -> Optional[str]:
+    def _select_dynamic_clip(self, response_text: str, context: Optional[dict] = None) -> Optional[str]:
         """Dynamically select the best BT clip based on conversation context.
         
         This method combines multiple factors to choose the most appropriate clip:
@@ -771,7 +797,7 @@ class BT7274Assistant:
         # Tactical remains consistently high
         self.personality_weights["tactical"] = 0.85
 
-    def _build_dialogue_tree(self, root_phrase: str = None) -> dict:
+    def _build_dialogue_tree(self, root_phrase: Optional[str] = None) -> dict:
         """Build an interactive dialogue tree using original game lines.
         
         Creates a tree structure where each node is a BT clip and edges
@@ -1071,7 +1097,7 @@ class BT7274Assistant:
             result["clip_phrase"] = clip_phrase
 
         # Start TTS generation in background while the clip plays
-        tts_result = [None]
+        tts_result: list[Optional[str]] = [None]
         def generate_tts():
             try:
                 if self.tts:
@@ -1310,7 +1336,7 @@ class BT7274Assistant:
         footer(f"Done! Generated: {generated_count}, Skipped: {skipped_count}")
         return generated_count
 
-    def process_command(self, audio_path: str = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: str = None) -> bool:
+    def process_command(self, audio_path: Optional[str] = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: Optional[str] = None) -> bool:
         """Process a single voice command."""
         if audio_path is None and pre_transcribed_text is None:
             raise ValueError("Either audio_path or pre_transcribed_text must be provided")
@@ -1323,6 +1349,8 @@ class BT7274Assistant:
         else:
             log_stt("Transcribing...")
             try:
+                if audio_path is None:
+                    raise ValueError("audio_path is required when pre_transcribed_text is not provided")
                 stt_result = self.stt.transcribe(audio_path) if self.stt else {"text": "", "confidence": 0.0}
                 text = stt_result.get("text", "") if isinstance(stt_result, dict) else str(stt_result)
                 stt_confidence = stt_result.get("confidence") if isinstance(stt_result, dict) else None
@@ -1636,6 +1664,9 @@ class BT7274Assistant:
                     try:
                         weather_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize weather: {weather_result}"
                         response_parts.append(weather_response)
+                        # Use BT clip + TTS followup for immersive weather responses
+                        skip_normal_tts = True
+                        followup_tts_text = weather_response
                     except Exception as e:
                         self._report_error("llm", "chat_weather_summary", e)
                         response_parts.append(f"Pilot, {weather_result}")
@@ -1825,6 +1856,7 @@ class BT7274Assistant:
 
         # 4. Text-to-Speech
         log_tts("Synthesizing voice...")
+        output_wav = None  # Initialize to prevent unbound variable errors
 
         # If a handler requested clip+TTS followup (e.g. location), use that instead
         followup_result = None
@@ -1850,7 +1882,8 @@ class BT7274Assistant:
                         if path == standby_wav:
                             clip_phrase = phrase
                             break
-                    clip_play(clip_phrase, source="BT-7274 original")
+                    if clip_phrase:
+                        clip_play(clip_phrase, source="BT-7274 original")
                 else:
                     clip_source = "standby_clip"
                     # Find the phrase for this standby clip
@@ -1858,7 +1891,8 @@ class BT7274Assistant:
                         if path == standby_wav:
                             clip_phrase = phrase
                             break
-                    clip_play(clip_phrase, source="standby")
+                    if clip_phrase:
+                        clip_play(clip_phrase, source="standby")
                 
                 try:
                     play_audio(standby_wav)
@@ -1873,7 +1907,7 @@ class BT7274Assistant:
                         log_tts("Streaming TTS (sentence-level)...")
                         if self.tts and hasattr(self.tts, 'speak_streaming') and callable(getattr(self.tts, 'speak_streaming', None)):
                             try:
-                                self.tts.speak_streaming(clean_response)
+                                self.tts.speak_streaming(clean_response)  # type: ignore[attr-defined]
                                 tts_success = True
                             except Exception as e:
                                 self._report_error("tts", "speak_streaming", e, {"text": clean_response})
@@ -1920,20 +1954,19 @@ class BT7274Assistant:
         tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}
         
         # Determine cache hit type
-        cache_hit = None
+        cache_hit_type = None
         if standby_wav and Path(standby_wav).exists():
-            cache_hit = "standby_clip"
+            cache_hit_type = "standby_clip"
         elif tts_metrics and tts_metrics.get("cached"):
-            cache_hit = "tts_cache"
+            cache_hit_type = "tts_cache"
         
         # Get audio file path
         audio_file_path = None
-        output_wav = None  # Initialize to prevent unbound variable error
         if not (standby_wav and Path(standby_wav).exists()):
             if self.performance_mode == "performance":
                 audio_file_path = "streaming"
             else:
-                audio_file_path = output_wav if 'output_wav' in locals() and output_wav else None
+                audio_file_path = output_wav if output_wav else None
         
         # Get location context
         location_context = None
@@ -2004,12 +2037,12 @@ class BT7274Assistant:
             bt_response=clean_response,
             interaction_type="voice",
             ai_mode=self.ai_mode,
-            performance_mode=self.performance_mode,
+            performance_mode=self.performance_mode or "standard",
             tts_metrics=tts_metrics if tts_metrics else None,
             llm_response_time=llm_response_time if 'llm_response_time' in locals() else None,
             stt_confidence=stt_confidence,
             audio_file_path=audio_file_path,
-            cache_hit=cache_hit,
+            cache_hit=cache_hit_type,
             token_usage=None,  # Ollama doesn't expose token usage easily
             wake_word=wake_word,
             follow_up_depth=follow_up_depth,
@@ -2098,9 +2131,10 @@ class BT7274Assistant:
                         
                 if not found_clip:
                     # Fallback to TTS
-                    response_wav = self.tts.speak("You're welcome, Pilot.")
-                    if response_wav:
-                        play_audio(response_wav)
+                    if self.tts:
+                        response_wav = self.tts.speak("You're welcome, Pilot.")
+                        if response_wav:
+                            play_audio(response_wav)
             self.last_activity = time.time()
             # After gratitude, listen for another follow-up
             if follow_up_depth < self.config["pipeline"].get("follow_up", {}).get("max_depth", 1):

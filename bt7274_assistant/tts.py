@@ -23,7 +23,6 @@ torch.load = _patched_torch_load
 
 from TTS.api import TTS
 import soundfile as sf
-from ui import info, success, warning, error, cache_hit
 
 
 class XTTSClient:
