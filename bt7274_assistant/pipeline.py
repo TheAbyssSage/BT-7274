@@ -1018,7 +1018,12 @@ class BT7274Assistant:
     def _is_forecast_query(self, text: str) -> bool:
         """Detect if the user is asking for a forecast (upcoming weather)."""
         lower = text.lower()
-        forecast_keywords = ["forecast", "next week", "next few days", "upcoming", "will it rain", "will it snow", "weekend weather"]
+        forecast_keywords = [
+            "forecast", "later today", "tomorrow", "next week", "next few days",
+            "upcoming", "will it rain", "will it snow", "weekend weather",
+            "this weekend", "monday", "tuesday", "wednesday", "thursday",
+            "friday", "saturday", "sunday", "next day", "in a few days"
+        ]
         return any(kw in lower for kw in forecast_keywords)
 
     def _is_location_query(self, text: str) -> bool:
