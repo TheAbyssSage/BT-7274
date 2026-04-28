@@ -211,3 +211,51 @@ class VPNMonitor:
             "wifi": self._last_wifi,
             "auto_cloak": self.auto_cloak,
         }
+
+    def connect(self) -> bool:
+        """Attempt to connect the VPN (engage cloak)."""
+        try:
+            if self.provider == "protonvpn":
+                result = subprocess.run(
+                    ["protonvpn-cli", "connect", "--fastest"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if result.returncode == 0:
+                    self._announce("Cloak engaged. Network traffic obfuscated.")
+                    return True
+                else:
+                    error(f"ProtonVPN connect failed: {result.stderr}")
+                    return False
+            else:
+                warning(f"VPN connect not implemented for provider: {self.provider}")
+                return False
+        except FileNotFoundError:
+            error("protonvpn-cli not found. Cannot engage cloak.")
+            return False
+        except Exception as e:
+            error(f"VPN connect failed: {e}")
+            return False
+
+    def disconnect(self) -> bool:
+        """Attempt to disconnect the VPN (disengage cloak)."""
+        try:
+            if self.provider == "protonvpn":
+                result = subprocess.run(
+                    ["protonvpn-cli", "disconnect"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if result.returncode == 0:
+                    self._announce("Cloak offline. We are exposed, Pilot.")
+                    return True
+                else:
+                    error(f"ProtonVPN disconnect failed: {result.stderr}")
+                    return False
+            else:
+                warning(f"VPN disconnect not implemented for provider: {self.provider}")
+                return False
+        except FileNotFoundError:
+            error("protonvpn-cli not found. Cannot disengage cloak.")
+            return False
+        except Exception as e:
+            error(f"VPN disconnect failed: {e}")
+            return False

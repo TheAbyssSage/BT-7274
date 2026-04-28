@@ -57,6 +57,7 @@ except ImportError:
 
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from stt import WhisperSTT
 from llm import OllamaClient, CloudLLMClient
 from tts import XTTSClient
@@ -1387,6 +1388,82 @@ class BT7274Assistant:
         
         return has_info_keyword and has_event_topic
 
+    def _is_todo_command(self, text: str) -> bool:
+        """Detect if the user is giving a todo/task command."""
+        lower = text.lower()
+        todo_phrases = [
+            "add todo", "add task", "new task", "new todo",
+            "add to my to do", "add to my todo", "add to the todo",
+            "put on my to do", "put on my todo", "put on the todo",
+            "put on to do list", "put on todo list",
+            "add to do list", "add todo list",
+            "list tasks", "list todos", "show tasks", "show todos", "what are my tasks",
+            "clear completed", "clear done tasks"
+        ]
+        return any(phrase in lower for phrase in todo_phrases)
+
+    def _is_note_command(self, text: str) -> bool:
+        """Detect if the user is giving a note command."""
+        lower = text.lower()
+        note_phrases = [
+            "add note", "make note", "write note", "take note",
+            "list notes", "show notes", "read notes", "view notes"
+        ]
+        return any(phrase in lower for phrase in note_phrases)
+
+    def _is_vpn_toggle_command(self, text: str) -> bool:
+        """Detect if the user is asking to turn VPN/cloak on or off."""
+        lower = text.lower()
+        # Turn on / enable / put on / activate
+        on_phrases = [
+            "turn on the vpn", "turn on vpn", "turn on cloak", "turn on the cloak",
+            "enable vpn", "enable cloak", "enable the vpn", "enable the cloak",
+            "put on cloak", "put on the cloak", "put on vpn", "put on the vpn",
+            "activate vpn", "activate cloak", "activate the vpn", "activate the cloak",
+            "start vpn", "start cloak", "start the vpn", "start the cloak",
+            "engage cloak", "engage vpn", "engage the cloak", "engage the vpn",
+            "cloak on", "vpn on"
+        ]
+        # Turn off / disable / take off / deactivate
+        off_phrases = [
+            "turn off the vpn", "turn off vpn", "turn off cloak", "turn off the cloak",
+            "disable vpn", "disable cloak", "disable the vpn", "disable the cloak",
+            "take off cloak", "take off the cloak", "take off vpn", "take off the vpn",
+            "deactivate vpn", "deactivate cloak", "deactivate the vpn", "deactivate the cloak",
+            "stop vpn", "stop cloak", "stop the vpn", "stop the cloak",
+            "disengage cloak", "disengage vpn", "disengage the cloak", "disengage the vpn",
+            "cloak off", "vpn off"
+        ]
+        return any(phrase in lower for phrase in on_phrases + off_phrases)
+
+    def _is_protocol_command(self, text: str) -> bool:
+        """Detect if the user is giving a protocol mode command."""
+        lower = text.lower()
+        protocol_phrases = [
+            "protocol brief", "enable protocol mode", "turn on protocol mode",
+            "activate protocol mode", "disable protocol mode", "turn off protocol mode",
+            "deactivate protocol mode"
+        ]
+        return any(phrase in lower for phrase in protocol_phrases)
+
+    def _is_maintenance_command(self, text: str) -> bool:
+        """Detect if the user is giving a maintenance/system command."""
+        lower = text.lower()
+        maintenance_phrases = [
+            "clear tts cache", "clear cache",
+            "turn on weather warnings", "enable weather warnings",
+            "turn on environmental warnings", "enable environmental warnings",
+            "turn off weather warnings", "disable weather warnings",
+            "turn off environmental warnings", "disable environmental warnings",
+            "enable auto cloak", "turn on auto cloak", "enable auto-cloak", "turn on auto-cloak",
+            "enable vpn auto connect", "turn on vpn auto connect",
+            "disable auto cloak", "turn off auto cloak", "disable auto-cloak", "turn off auto-cloak",
+            "disable vpn auto connect", "turn off vpn auto connect",
+            "enable vpn monitor", "turn on vpn monitor", "enable cloak monitor", "turn on cloak monitor",
+            "disable vpn monitor", "turn off vpn monitor", "disable cloak monitor", "turn off cloak monitor"
+        ]
+        return any(phrase in lower for phrase in maintenance_phrases)
+
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
         
@@ -1490,6 +1567,23 @@ class BT7274Assistant:
             min_confidence = self.config["stt"].get("min_confidence", 0.3)
             if stt_confidence is not None and stt_confidence < min_confidence:
                 warning(f"Low confidence transcription ({stt_confidence:.2f}). Treating as noise.")
+                # Log rejected utterance for debugging
+                try:
+                    self.logger.log_interaction(
+                        pilot_message=text,
+                        bt_response="[REJECTED - low confidence]",
+                        interaction_type="voice_rejected",
+                        ai_mode=self.ai_mode,
+                        performance_mode=self.performance_mode or "standard",
+                        stt_confidence=stt_confidence,
+                        audio_file_path=audio_path,
+                        session_id=self.session_id,
+                        protocol_reference="Protocol 3: Protect the Pilot",
+                        pilot_trust_level=self.pilot_trust_level,
+                        metadata={"rejection_reason": "low_confidence", "min_confidence": min_confidence}
+                    )
+                except Exception:
+                    pass
                 return False
 
         # Check wake words
@@ -1645,44 +1739,67 @@ class BT7274Assistant:
             return None
 
         # Special handling for gratitude expressions
-        if self._is_expression_of_gratitude(text):
-            quote("BT-7274", "You're welcome, Pilot.")
-            # Try to play pre-recorded "you're welcome" clip
-            key = self._normalize_phrase("you're welcome pilot")
-            # First check BT's original clips
-            wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
-            if wav_path and Path(wav_path).exists():
-                play_audio(wav_path)
+        # Check if gratitude is the ONLY intent (no other actionable commands)
+        gratitude_only = self._is_expression_of_gratitude(text)
+        if gratitude_only:
+            # Check if the same utterance also contains other actionable commands
+            has_other_commands = (
+                self._is_vpn_toggle_command(text) or
+                self._is_todo_command(text) or
+                self._is_note_command(text) or
+                self._is_weather_query(text) or
+                self._is_time_query(text) or
+                self._is_location_query(text) or
+                self._is_status_query(text) or
+                self._is_vpn_status_query(text) or
+                self._is_search_query(text) or
+                self._is_travel_query(text) or
+                self._is_protocol_command(text) or
+                self._is_maintenance_command(text)
+            )
+            if not has_other_commands:
+                quote("BT-7274", "You're welcome, Pilot.")
+                # Try to play pre-recorded "you're welcome" clip
+                key = self._normalize_phrase("you're welcome pilot")
+                # First check BT's original clips
+                wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
+                if wav_path and Path(wav_path).exists():
+                    play_audio(wav_path)
+                else:
+                    # Try other variations of gratitude responses
+                    gratitude_variations = [
+                        "you're welcome pilot",
+                        "you're welcome",
+                        "my pleasure pilot",
+                        "glad to assist pilot",
+                        "happy to help pilot",
+                        "anytime pilot"
+                    ]
+                    
+                    found_clip = False
+                    for variation in gratitude_variations:
+                        var_key = self._normalize_phrase(variation)
+                        var_path = self.standby_clips.get(var_key)
+                        if var_path and Path(var_path).exists():
+                            play_audio(var_path)
+                            found_clip = True
+                            break
+                            
+                    if not found_clip:
+                        # Fallback to TTS
+                        if self.tts:
+                            response_wav = self.tts.speak("You're welcome, Pilot.")
+                            if response_wav:
+                                play_audio(response_wav)
+                self.last_activity = time.time()
+                # Update conversation context
+                self._update_conversation_context(text, "You're welcome, Pilot.")
+                return True
             else:
-                # Try other variations of gratitude responses
-                gratitude_variations = [
-                    "you're welcome pilot",
-                    "you're welcome",
-                    "my pleasure pilot",
-                    "glad to assist pilot",
-                    "happy to help pilot",
-                    "anytime pilot"
-                ]
-                
-                found_clip = False
-                for variation in gratitude_variations:
-                    var_key = self._normalize_phrase(variation)
-                    var_path = self.standby_clips.get(var_key)
-                    if var_path and Path(var_path).exists():
-                        play_audio(var_path)
-                        found_clip = True
-                        break
-                        
-                if not found_clip:
-                    # Fallback to TTS
-                    if self.tts:
-                        response_wav = self.tts.speak("You're welcome, Pilot.")
-                        if response_wav:
-                            play_audio(response_wav)
-            self.last_activity = time.time()
-            # Update conversation context
-            self._update_conversation_context(text, "You're welcome, Pilot.")
-            return True
+                # Gratitude mixed with commands - add a gratitude response part
+                # and continue processing the rest of the commands below
+                response_parts.append("You're welcome, Pilot.")
+                handled_types.add("gratitude")
 
         # 2. Handle compound queries - detect all matching query types
         response_parts = []
@@ -1928,6 +2045,63 @@ class BT7274Assistant:
                 response_parts.append("VPN monitor is not initialized, Pilot.")
             handled_types.add("maintenance")
 
+        # Check for direct VPN/cloak on/off commands
+        if self._is_vpn_toggle_command(text) and "maintenance" not in handled_types:
+            lower = text.lower()
+            # Determine if turning on or off
+            on_phrases = [
+                "turn on the vpn", "turn on vpn", "turn on cloak", "turn on the cloak",
+                "enable vpn", "enable cloak", "enable the vpn", "enable the cloak",
+                "put on cloak", "put on the cloak", "put on vpn", "put on the vpn",
+                "activate vpn", "activate cloak", "activate the vpn", "activate the cloak",
+                "start vpn", "start cloak", "start the vpn", "start the cloak",
+                "engage cloak", "engage vpn", "engage the cloak", "engage the vpn",
+                "cloak on", "vpn on"
+            ]
+            off_phrases = [
+                "turn off the vpn", "turn off vpn", "turn off cloak", "turn off the cloak",
+                "disable vpn", "disable cloak", "disable the vpn", "disable the cloak",
+                "take off cloak", "take off the cloak", "take off vpn", "take off the vpn",
+                "deactivate vpn", "deactivate cloak", "deactivate the vpn", "deactivate the cloak",
+                "stop vpn", "stop cloak", "stop the vpn", "stop the cloak",
+                "disengage cloak", "disengage vpn", "disengage the cloak", "disengage the vpn",
+                "cloak off", "vpn off"
+            ]
+            is_turning_on = any(phrase in lower for phrase in on_phrases)
+            is_turning_off = any(phrase in lower for phrase in off_phrases)
+            
+            if is_turning_on:
+                status("VPN", "Engaging cloak...")
+                try:
+                    # Try to connect VPN using the VPN monitor
+                    if self.vpn:
+                        result = self.vpn.connect()
+                        if result:
+                            response_parts.append("Cloak engaged, Pilot. Network traffic is now obfuscated.")
+                        else:
+                            response_parts.append("Unable to engage cloak at this time, Pilot.")
+                    else:
+                        response_parts.append("VPN monitor is not initialized, Pilot.")
+                except Exception as e:
+                    self._report_error("vpn", "connect", e)
+                    response_parts.append("Cloak engagement failed, Pilot.")
+                handled_types.add("vpn")
+            elif is_turning_off:
+                status("VPN", "Disengaging cloak...")
+                try:
+                    if self.vpn:
+                        result = self.vpn.disconnect()
+                        if result:
+                            response_parts.append("Cloak disengaged, Pilot. We are exposed.")
+                        else:
+                            response_parts.append("Unable to disengage cloak at this time, Pilot.")
+                    else:
+                        response_parts.append("VPN monitor is not initialized, Pilot.")
+                except Exception as e:
+                    self._report_error("vpn", "disconnect", e)
+                    response_parts.append("Cloak disengagement failed, Pilot.")
+                handled_types.add("vpn")
+
         # Check for Protocol Mode commands
         lower_text = text.lower()
         if "protocol brief" in lower_text:
@@ -1957,15 +2131,27 @@ class BT7274Assistant:
             logger.info("[PROTOCOL] Protocol Mode disabled by pilot command")
             handled_types.add("protocol")
 
-        # Check for to-do commands
-        if any(phrase in lower_text for phrase in ["add todo", "add task", "new task", "new todo"]):
+        # Check for to-do commands (using improved detection)
+        if self._is_todo_command(text):
             status("PROTOCOL", "Adding to-do...")
             try:
                 # Extract task text after the command phrase
                 task_text = text
-                for phrase in ["add todo", "add task", "new task", "new todo"]:
+                # Expanded list of command phrases to strip
+                todo_phrases = [
+                    "add to my to do list", "add to my todo list",
+                    "add to the to do list", "add to the todo list",
+                    "add to do list", "add todo list",
+                    "put on my to do list", "put on my todo list",
+                    "put on the to do list", "put on the todo list",
+                    "put on to do list", "put on todo list",
+                    "add todo", "add task", "new task", "new todo"
+                ]
+                for phrase in todo_phrases:
                     if phrase in lower_text:
                         task_text = text[lower_text.find(phrase) + len(phrase):].strip()
+                        # Strip leading punctuation
+                        task_text = task_text.lstrip(",.:; ")
                         break
                 if task_text:
                     if self.protocol_brief:

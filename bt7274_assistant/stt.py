@@ -3,9 +3,13 @@ Speech-to-Text module using OpenAI Whisper.
 """
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Optional
+
+# Allow imports from project root
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import whisper
 import numpy as np

@@ -11,6 +11,7 @@ Architecture:
 """
 
 import os
+import sys
 import re
 import time
 import queue
@@ -20,6 +21,9 @@ from pathlib import Path
 from typing import Optional, Callable, List, Dict
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
+
+# Allow imports from project root
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 import sounddevice as sd
