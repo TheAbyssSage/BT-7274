@@ -86,9 +86,12 @@ def regenerate_standby_phrases(force_regenerate: bool = False):
     for phrase in phrases:
         safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
         safe_name = safe_name.replace(" ", "_").replace("-", "_")
-        output_path = output_dir / f"{safe_name}.wav"
+        
+        # Check recursively for existing file in subfolders
+        found_paths = list(output_dir.rglob(f"{safe_name}.wav"))
+        output_path = found_paths[0] if found_paths else output_dir / f"{safe_name}.wav"
 
-        if output_path.exists() and not force_regenerate:
+        if found_paths and not force_regenerate:
             print(f"  ⏭ Skipping: {phrase}")
             skipped += 1
             continue

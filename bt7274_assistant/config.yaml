@@ -176,6 +176,7 @@ pipeline:
     - "B.T"
     - "B,T"
     - "B T"
+    - "Beatee"
     # Noise-resistant variants for noisy environments
     - "hey b*t"
     - "b*t"

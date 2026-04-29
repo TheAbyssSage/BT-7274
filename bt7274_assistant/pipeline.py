@@ -452,16 +452,18 @@ class BT7274Assistant:
                 seen.add(p)
                 unique_phrases.append(p)
 
-        # First pass: check which files exist
+        # First pass: check which files exist (search recursively in subfolders)
         missing = []
         loaded = 0
         for phrase in unique_phrases:
             safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
             safe_name = safe_name.replace(" ", "_").replace("-", "_")
-            wav_path = standby_dir / f"{safe_name}.wav"
             key = self._normalize_phrase(phrase)
 
-            if wav_path.exists():
+            # Search recursively in standby_dir for the file
+            found_paths = list(standby_dir.rglob(f"{safe_name}.wav"))
+            if found_paths:
+                wav_path = found_paths[0]
                 self.standby_clips[key] = str(wav_path)
                 loaded += 1
             else:
@@ -573,13 +575,12 @@ class BT7274Assistant:
             # Try to load cached semantic vectors first
             vectorizer_state, clip_matrix, phrases = load_semantic_vectors()
             if vectorizer_state is not None and clip_matrix is not None and phrases:
-                from sklearn.feature_extraction.text import TfidfVectorizer
                 self.semantic_vectorizer = TfidfVectorizer(**vectorizer_state)
                 self.semantic_clip_matrix = clip_matrix
                 self.semantic_clip_phrases = phrases
                 success(f"Semantic similarity matching loaded from cache with {len(phrases)} phrases")
                 return
-            
+
             # Create TF-IDF vectorizer
             self.semantic_vectorizer = TfidfVectorizer(
                 lowercase=True,
@@ -1706,9 +1707,12 @@ class BT7274Assistant:
             # Create safe filename
             safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
             safe_name = safe_name.replace(" ", "_").replace("-", "_")
-            output_path = output_dir / f"{safe_name}.wav"
             
-            if output_path.exists() and not force_regenerate:
+            # Check recursively for existing file
+            found_paths = list(output_dir.rglob(f"{safe_name}.wav"))
+            output_path = found_paths[0] if found_paths else output_dir / f"{safe_name}.wav"
+            
+            if found_paths and not force_regenerate:
                 info(f"Skipping: {phrase}")
                 skipped_count += 1
                 continue
@@ -2514,11 +2518,11 @@ class BT7274Assistant:
                 status("LOG", "Clearing logs...")
                 try:
                     from bt7274_workstation.pilot_logger import PilotLogger
-                    logger = PilotLogger()
+                    pilot_logger = PilotLogger()
                     if is_bt_log:
-                        result = logger.delete_bt_logs()
+                        result = pilot_logger.delete_bt_logs()
                     else:
-                        result = logger.delete_pilot_logs()
+                        result = pilot_logger.delete_pilot_logs()
                     response_parts.append(result)
                     # Try to play a pre-recorded log voice line
                     log_clip = self._get_log_clip("delete")
@@ -2550,11 +2554,11 @@ class BT7274Assistant:
                     
                     if log_text:
                         from bt7274_workstation.pilot_logger import PilotLogger
-                        logger = PilotLogger()
+                        pilot_logger = PilotLogger()
                         if is_bt_log:
-                            result = logger.log_bt(log_text)
+                            result = pilot_logger.log_bt(log_text)
                         else:
-                            result = logger.log_pilot(log_text)
+                            result = pilot_logger.log_pilot(log_text)
                         response_parts.append(result)
                         # Try to play a pre-recorded log voice line
                         log_clip = self._get_log_clip("create")
@@ -2571,11 +2575,11 @@ class BT7274Assistant:
                 status("LOG", "Retrieving logs...")
                 try:
                     from bt7274_workstation.pilot_logger import PilotLogger
-                    logger = PilotLogger()
+                    pilot_logger = PilotLogger()
                     if is_bt_log:
-                        result = logger.read_bt_logs(lines=10)
+                        result = pilot_logger.read_bt_logs(lines=10)
                     else:
-                        result = logger.read_pilot_logs(lines=10)
+                        result = pilot_logger.read_pilot_logs(lines=10)
                     response_parts.append(result)
                     # Try to play a pre-recorded log voice line
                     log_clip = self._get_log_clip("read")

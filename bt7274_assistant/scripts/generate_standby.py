@@ -61,12 +61,15 @@ def generate_standby_phrases():
 
     for phrase in phrases:
         safe_name = "".join(c if c.isalnum() else "_" for c in phrase.lower())
-        output_path = output_dir / f"{safe_name}.wav"
-
-        if output_path.exists():
+        
+        # Check recursively for existing file in subfolders
+        found_paths = list(output_dir.rglob(f"{safe_name}.wav"))
+        if found_paths:
             print(f"  ⏭ Skipping: {phrase}")
             skipped += 1
             continue
+        
+        output_path = output_dir / f"{safe_name}.wav"
 
         print(f"  → Generating: {phrase}")
         wav_path = tts.speak(phrase)
