@@ -623,15 +623,29 @@ class BT7274Assistant:
         user_lower = user_query.lower()
         response_lower = bot_response.lower()
         
-        # Detect conversation topics
+        # Detect conversation topics - reset to general first, then detect new topic
+        detected_topic = "general"
         if any(word in user_lower for word in ["weather", "temperature", "forecast"]):
-            self.current_context["topic"] = "weather"
+            detected_topic = "weather"
         elif any(word in user_lower for word in ["time", "date", "clock"]):
-            self.current_context["topic"] = "time"
+            detected_topic = "time"
         elif any(word in user_lower for word in ["location", "where"]):
-            self.current_context["topic"] = "location"
+            detected_topic = "location"
         elif any(word in user_lower for word in ["thank", "thanks", "appreciate"]):
-            self.current_context["topic"] = "gratitude"
+            detected_topic = "gratitude"
+        elif any(word in user_lower for word in ["status", "systems", "operational"]):
+            detected_topic = "status"
+        elif any(word in user_lower for word in ["mission", "objective", "task", "todo"]):
+            detected_topic = "mission"
+        elif any(word in user_lower for word in ["vpn", "cloak", "network"]):
+            detected_topic = "network"
+        elif any(word in user_lower for word in ["log", "note", "entry"]):
+            detected_topic = "logs"
+        
+        # Only update topic if we detected something specific or if it was already general
+        # This prevents "general" from overwriting a specific topic on follow-ups
+        if detected_topic != "general" or self.current_context.get("topic", "general") == "general":
+            self.current_context["topic"] = detected_topic
             
         # Detect emotional tone from user
         if any(word in user_lower for word in ["help", "assist", "support"]):
@@ -640,6 +654,9 @@ class BT7274Assistant:
             self.current_context["user_emotion"] = "concerned"
         elif any(word in user_lower for word in ["good", "great", "awesome", "perfect"]):
             self.current_context["user_emotion"] = "positive"
+        else:
+            # Reset user emotion to neutral if no emotional indicators found
+            self.current_context["user_emotion"] = "neutral"
             
         # Detect emotional tone from bot response
         if any(word in response_lower for word in ["danger", "careful", "warning", "caution"]):
@@ -647,6 +664,9 @@ class BT7274Assistant:
         elif any(word in response_lower for word in ["congratulations", "well done", "excellent"]):
             self.current_context["bot_emotion"] = "positive"
         elif any(word in response_lower for word in ["understood", "acknowledged", "copy that"]):
+            self.current_context["bot_emotion"] = "neutral"
+        else:
+            # Reset bot emotion to neutral if no emotional indicators found
             self.current_context["bot_emotion"] = "neutral"
 
     def _get_context_aware_phrases(self) -> list[str]:
@@ -2641,6 +2661,17 @@ class BT7274Assistant:
             # This shouldn't happen, but just in case
             response = "Processing complete, Pilot."
 
+        # Try to parse and execute any actions embedded in the LLM response
+        # This handles cases where the LLM outputs action JSON instead of natural language
+        if self.actions and response and not response.startswith("Pilot,"):
+            try:
+                action_result = self.actions.parse_and_execute(response)
+                if action_result and not action_result.startswith("Action") and not action_result.startswith("Unknown"):
+                    # Action was executed successfully, use the result as the response
+                    response = action_result
+            except Exception:
+                pass
+
         # Strip markdown, JSON, and instruction blocks before TTS
         import re
         clean_response = response
@@ -2657,13 +2688,19 @@ class BT7274Assistant:
         # Strip meta-text and action narration that the LLM sometimes outputs
         # Remove lines that describe actions being taken
         meta_patterns = [
-            r'(?i)^\s*bt\s+(?:uses?|initiates?|performs?|executes?|triggers?|activates?|engages?|starts?)\s+.*$',
-            r'(?i)^\s*bt\s+(?:is\s+)?(?:now\s+)?(?:using|initiating|performing|executing|triggering|activating|engaging|starting)\s+.*$',
-            r'(?i)^\s*(?:simultaneously|meanwhile|at\s+the\s+same\s+time)\s*,?\s*bt\s+.*$',
-            r'(?i)^\s*bt\s+(?:also|additionally|furthermore|moreover)\s+.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+(?:uses?|initiates?|performs?|executes?|triggers?|activates?|engages?|starts?|clears?|clears?\s+the)\s+.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+(?:is\s+)?(?:now\s+)?(?:using|initiating|performing|executing|triggering|activating|engaging|starting|clearing)\s+.*$',
+            r'(?i)^\s*(?:simultaneously|meanwhile|at\s+the\s+same\s+time)\s*,?\s*bt[-\s]?7274?\s+.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+(?:also|additionally|furthermore|moreover)\s+.*$',
             r'(?i)^\s*(?:action|system|protocol)\s*:.*$',
-            r'(?i)^\s*\[.*?\]\s*bt\s+.*$',
-            r'(?i)^\s*bt\s+\[.*?\]\s+.*$',
+            r'(?i)^\s*\[.*?\]\s*bt[-\s]?7274?\s+.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+\[.*?\]\s+.*$',
+            r'(?i)^\s*based\s+on\s+the\s+information\s+given.*$',
+            r'(?i)^\s*however,\s+without\s+a\s+specified.*$',
+            r'(?i)^\s*your\s+transport\s+method\s+seems\s+like.*$',
+            r'(?i)^\s*since\s+these\s+are\s+typical\s+modes\s+of\s+travel.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+.*\s+(?:action|cache|tts|weather|forecast|location|data)\s+.*$',
+            r'(?i)^\s*bt[-\s]?7274?\s+.*\s+`[^`]+`\s+.*$',
         ]
         lines = clean_response.splitlines()
         filtered_lines = []
@@ -2813,7 +2850,11 @@ class BT7274Assistant:
         self._update_conversation_context(text, clean_response)
 
         # Log the interaction (after TTS so metrics are accurate)
-        tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}
+        # For performance mode, use last_metrics from streaming session
+        if self.performance_mode == "performance" and self.tts and hasattr(self.tts, '_last_metrics'):
+            tts_metrics = self.tts._last_metrics.copy() if self.tts._last_metrics else {}
+        else:
+            tts_metrics = getattr(self.tts, 'get_metrics', lambda: {})() if self.tts else {}
         
         # Determine cache hit type
         cache_hit_type = None

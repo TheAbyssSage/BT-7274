@@ -48,19 +48,41 @@ class ActionHandler:
 
         # Match JSON code blocks
         match = re.search(r'```json\s*(.*?)\s*```', llm_response, re.DOTALL)
-        if not match:
-            # Try inline JSON (handle nested braces)
-            match = re.search(r'\{[\s\S]*?"action"[\s\S]*?\}', llm_response)
+        if match:
+            try:
+                action_data = json.loads(match.group(1))
+                if "action" in action_data:
+                    return self._execute_action(action_data)
+            except json.JSONDecodeError:
+                pass
 
-        if not match:
-            return None
+        # Try inline JSON with "action" key (handle nested braces)
+        match = re.search(r'\{[\s\S]*?"action"[\s\S]*?\}', llm_response)
+        if match:
+            try:
+                action_data = json.loads(match.group(0))
+                if "action" in action_data:
+                    return self._execute_action(action_data)
+            except json.JSONDecodeError:
+                pass
 
-        try:
-            action_data = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            return None
+        # Handle LLM output like: make_log {"content":"...", "log_type":"bt"}
+        # or: add_todo {"task":"..."}
+        action_prefix_match = re.search(
+            r'^(\w+)\s*(\{[\s\S]*?\})',
+            llm_response.strip()
+        )
+        if action_prefix_match:
+            action_name = action_prefix_match.group(1)
+            json_str = action_prefix_match.group(2)
+            try:
+                params = json.loads(json_str)
+                action_data = {"action": action_name, "params": params}
+                return self._execute_action(action_data)
+            except json.JSONDecodeError:
+                pass
 
-        return self._execute_action(action_data)
+        return None
 
     def _execute_action(self, action_data: dict) -> Optional[str]:
         """Execute a parsed action."""
