@@ -68,15 +68,48 @@ class StreamingXTTSClient:
     def __init__(self, config: dict):
         self.config = config
         self.model_name = config.get("model", "tts_models/multilingual/multi-dataset/xtts_v2")
-        self.reference_wav = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
         self.language = config.get("language", "en")
         self.output_dir = Path(config.get("output_dir", str(get_tts_output_dir())))
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Resolve reference_wav: single file, list of files, or directory
+        raw_ref = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
+        self.reference_wav = self._resolve_references(raw_ref)
 
         # Model state
         self._model = None
         self._model_lock = threading.Lock()
         self._is_ready = False
+
+    def _resolve_references(self, raw_ref) -> list[str]:
+        """Resolve reference_wav config to a list of WAV file paths.
+
+        Supports:
+          - Single file path (string)
+          - List of file paths
+          - Directory path (auto-discover *.wav files)
+        """
+        import glob
+
+        if isinstance(raw_ref, list):
+            refs = [str(Path(p).resolve()) for p in raw_ref if Path(p).exists()]
+            if not refs:
+                raise FileNotFoundError(f"None of the reference WAVs exist: {raw_ref}")
+            return refs
+
+        path = Path(raw_ref)
+        if path.is_dir():
+            wavs = sorted(path.glob("*.wav"))
+            if not wavs:
+                raise FileNotFoundError(f"No WAV files found in reference directory: {path}")
+            refs = [str(p.resolve()) for p in wavs]
+            info(f"Using {len(refs)} BT reference clips from directory: {path}")
+            return refs
+
+        if path.exists():
+            return [str(path.resolve())]
+
+        raise FileNotFoundError(f"Reference WAV not found: {path}")
 
         # Streaming state
         self._synthesis_queue = queue.Queue(maxsize=3)
@@ -122,8 +155,8 @@ class StreamingXTTSClient:
         """Pre-compute speaker latents and do a dummy synthesis."""
         info("Warming up TTS (caching speaker voice)...")
         try:
-            # Try to load cached speaker latents first
-            cached_latents, cached_embedding = load_speaker_latents()
+            # Try to load cached speaker latents first (with reference validation)
+            cached_latents, cached_embedding = load_speaker_latents(self.reference_wav)
             if cached_latents is not None and cached_embedding is not None:
                 self._gpt_cond_latent = cached_latents
                 self._speaker_embedding = cached_embedding
@@ -134,9 +167,13 @@ class StreamingXTTSClient:
                hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
                 self._gpt_cond_latent, self._speaker_embedding = \
                     self._model.synthesizer.tts_model.get_conditioning_latents(
-                        audio_path=[self.reference_wav]
+                        audio_path=self.reference_wav
                     )
-                save_speaker_latents(self._gpt_cond_latent, self._speaker_embedding)
+                save_speaker_latents(
+                    self._gpt_cond_latent,
+                    self._speaker_embedding,
+                    reference_paths=self.reference_wav,
+                )
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:

@@ -210,32 +210,61 @@ def load_session_state() -> Optional[dict]:
 
 # ─── Speaker latents (PyTorch) ────────────────────────────────────
 
-def save_speaker_latents(gpt_cond_latent: Any, speaker_embedding: Any) -> bool:
+def _hash_references(reference_paths: list[str]) -> str:
+    """Create a stable hash of the reference file list for cache invalidation."""
+    import hashlib
+    # Sort for stability, hash the combined paths + sizes + mtimes
+    hasher = hashlib.md5()
+    for p in sorted(reference_paths):
+        path = Path(p)
+        if path.exists():
+            stat = path.stat()
+            hasher.update(f"{path.name}:{stat.st_size}:{stat.st_mtime}".encode())
+    return hasher.hexdigest()[:12]
+
+
+def save_speaker_latents(
+    gpt_cond_latent: Any,
+    speaker_embedding: Any,
+    reference_paths: list[str] | None = None,
+) -> bool:
     """Persist XTTS speaker conditioning latents."""
     try:
         import torch
         path = get_speaker_latents_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(
-            {
-                "gpt_cond_latent": gpt_cond_latent,
-                "speaker_embedding": speaker_embedding,
-                "timestamp": datetime.now().isoformat(),
-            },
-            path,
-        )
+        payload = {
+            "gpt_cond_latent": gpt_cond_latent,
+            "speaker_embedding": speaker_embedding,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if reference_paths:
+            payload["reference_hash"] = _hash_references(reference_paths)
+            payload["reference_count"] = len(reference_paths)
+        torch.save(payload, path)
         return True
     except Exception:
         return False
 
 
-def load_speaker_latents() -> tuple[Any, Any]:
-    """Load XTTS speaker conditioning latents."""
+def load_speaker_latents(
+    reference_paths: list[str] | None = None,
+) -> tuple[Any, Any]:
+    """Load XTTS speaker conditioning latents.
+
+    If reference_paths is provided, the cached latents are only returned
+    if they were computed from the same set of reference files.
+    """
     try:
         import torch
         path = get_speaker_latents_path()
         if path.exists():
             data = torch.load(path, weights_only=False)
+            # Validate reference hash if provided
+            if reference_paths and "reference_hash" in data:
+                expected = _hash_references(reference_paths)
+                if data["reference_hash"] != expected:
+                    return None, None  # References changed, invalidate cache
             return data.get("gpt_cond_latent"), data.get("speaker_embedding")
     except Exception:
         pass

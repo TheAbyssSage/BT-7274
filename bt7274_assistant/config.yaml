@@ -89,7 +89,12 @@ location:
 
 tts:
   model: tts_models/multilingual/multi-dataset/xtts_v2
-  reference_wav: bt7274_assistant/dataset/reference_speaker.wav
+  # Use BT-7274 original voice clips for multi-reference voice cloning
+  # Options:
+  #   - Single file: "bt7274_assistant/dataset/reference_speaker.wav"
+  #   - Directory (auto-discovers *.wav): "bt7274_assistant/dataset/bt_references"
+  #   - List of files: ["clip1.wav", "clip2.wav"]
+  reference_wav: bt7274_assistant/dataset/bt_references
   language: en
   speed: 1.0
   output_dir: bt7274_workstation/session_cache/tts_outputs
