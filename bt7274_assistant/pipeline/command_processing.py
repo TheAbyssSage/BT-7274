@@ -1,6 +1,7 @@
 """The main process_command method and its helpers."""
 
 import json
+import logging
 import os
 import re
 import time
@@ -12,6 +13,15 @@ from ui import (
     cache_hit, clip_play, listening, goodbye
 )
 from utils import play_audio, record_until_silence
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    SEMANTIC_SIMILARITY_AVAILABLE = True
+except ImportError:
+    SEMANTIC_SIMILARITY_AVAILABLE = False
+
+logger = logging.getLogger("BT7274")
 
 
 class CommandProcessingMixin:

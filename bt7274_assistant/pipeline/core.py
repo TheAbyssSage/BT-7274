@@ -23,6 +23,10 @@ from bt7274_workstation.session_cache_manager import (
     archive_and_clear_session,
 )
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
+from stt import WhisperSTT
+from llm import OllamaClient, CloudLLMClient
+from tts import XTTSClient
+from tts_fast import StreamingXTTSClient
 from ui import (
     header, section, sub_section, info, success, warning, error, status,
     bullet, spacer, divider, footer, prompt, choice_menu, box, progress,
@@ -41,7 +45,8 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
     def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None):
         if config_path is None:
-            config_path = str(Path(__file__).parent / "config.yaml")
+            # core.py is in bt7274_assistant/pipeline/, config.yaml is in bt7274_assistant/
+            config_path = str(Path(__file__).parent.parent / "config.yaml")
         self.config = self.load_config(config_path)
         self.ai_mode = ai_mode  # "local" or "cloud"
         self.performance_mode = performance_mode  # "standard" or "performance"
