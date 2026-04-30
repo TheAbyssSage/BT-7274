@@ -2,15 +2,15 @@
 # Adjust these settings for your M1 MacBook Air
 
 stt:
-  model: base.en              # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
+  model: base.en                  # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
   language: en
-  device: mps                   # 'mps' = Metal GPU (M1), 'cpu' = fallback
+  device: mps                     # 'mps' = Metal GPU (M1), 'cpu' = fallback
   sample_rate: 16000
-  silence_threshold: 0.015      # Lower = less likely to stop on brief pauses
+  silence_threshold: 0.015        # Lower = less likely to stop on brief pauses
   silence_duration: 2.5           # Longer = more time to finish your sentence after "BT"
   max_record_seconds: 15          # Cap recording length
   post_wake_grace: 1.5            # Extra seconds to keep recording after speech starts
-  min_confidence: 0.25             # Minimum confidence threshold for noisy environments
+  min_confidence: 0.25            # Minimum confidence threshold for noisy environments
 
 llm:
   # Local Ollama settings
@@ -18,13 +18,12 @@ llm:
     model: bt7274
     url: http://localhost:11434
     temperature: 0.7
-    max_tokens: 200              # Longer responses = more complete explanations
-  # Cloud Ollama settings (same server, different model)
+    max_tokens: 200               # Shorter responses for local models
   cloud:
     model: gpt-oss:120b-cloud
     url: http://localhost:11434
     temperature: 0.7
-    max_tokens: 300              # Larger context for cloud models
+    max_tokens: 300               # Larger context for cloud models
   # Current mode (local or cloud)
   mode: local
   system_prompt: |
@@ -161,9 +160,9 @@ actions:
 # Protocol Mode Configuration
 # Toggle at startup or via voice command
 protocol_mode:
-  enabled: false              # Start with protocol mode off by default
+  enabled: true               # Start with protocol mode off by default
   startup_announce: true      # Announce protocol mode status at startup
-  auto_brief_on_start: false  # Auto-run protocol brief when BT starts
+  auto_brief_on_start: true   # Auto-run protocol brief when BT starts
   log_protocol_events: true   # Log protocol mode events to system logs
 
 pipeline:
