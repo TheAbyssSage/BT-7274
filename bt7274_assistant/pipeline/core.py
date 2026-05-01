@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import uuid
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -108,6 +109,10 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.dialogue_state = "idle"    # Current dialogue state
         self.dialogue_history = []      # Track dialogue tree progress
         self.available_transitions = {} # Possible next lines in dialogue
+        
+        # Task focus management
+        self.focused_task = False       # Flag to indicate when BT is focusing on a task
+        self.task_lock = threading.Lock()  # Lock for thread-safe task management
 
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
@@ -137,6 +142,52 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         # Also log to system log for debugging
         import logging
         logging.error(f"BT-7274 Error - {component}.{function}: {exc}", exc_info=True)
+
+    def _process_command_async(self, audio_path: str):
+        """Process a command asynchronously to keep the microphone always listening."""
+        def process_thread():
+            try:
+                # Set task focus flag
+                with self.task_lock:
+                    self.focused_task = True
+                
+                # Process the command
+                self.process_command(audio_path)
+                
+                # Clean up temp file
+                try:
+                    os.remove(audio_path)
+                except:
+                    pass
+                    
+            except Exception as e:
+                self._report_error("pipeline", "process_command_async", e)
+                error(f"Error in async command processing: {e}")
+            finally:
+                # Release task focus flag
+                with self.task_lock:
+                    self.focused_task = False
+        
+        # Start processing in a separate thread with limited concurrency
+        # Limit to 3 concurrent threads to prevent resource exhaustion
+        if len([t for t in self.active_threads if t.is_alive()]) < 3:
+            thread = threading.Thread(target=process_thread, daemon=True)
+            thread.start()
+            self.active_threads.append(thread)
+            return thread
+        else:
+            # If too many threads are running, process synchronously to avoid overload
+            warning("Too many concurrent tasks, processing synchronously")
+            try:
+                self.process_command(audio_path)
+                try:
+                    os.remove(audio_path)
+                except:
+                    pass
+            except Exception as e:
+                self._report_error("pipeline", "process_command_sync", e)
+                error(f"Error in sync command processing: {e}")
+            return None
 
     def _save_session_state(self):
         """Persist current session metadata to session cache."""
@@ -452,33 +503,61 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         """Main voice interaction loop."""
         self.initialize()
         self.running = True
+        self.focused_task = False  # Flag to indicate when BT is focusing on a task
+        self.active_threads = []   # Track active processing threads
+        self.last_cleanup_time = time.time()  # For periodic cleanup
 
         try:
+            # Start continuous listening
+            if self.recorder:
+                self.recorder.start()
+            
             while self.running:
-                # Option 1: Voice-activated recording
-                if self.config["pipeline"].get("play_beep"):
-                    beep()
+                # Periodic cleanup of finished threads (every 5 seconds) to prevent memory leaks
+                current_time = time.time()
+                if current_time - self.last_cleanup_time > 5.0:
+                    self.active_threads = [t for t in self.active_threads if t.is_alive()]
+                    self.last_cleanup_time = current_time
+                
+                # Always keep listening unless focusing on a task
+                if not self.focused_task and self.recorder:
+                    # Check if audio is ready to be processed
+                    if self.recorder.is_audio_ready():
+                        # Get the ready audio without blocking
+                        audio_path = self.recorder.get_ready_audio()
+                        if audio_path:
+                            # Process command asynchronously to keep listening
+                            self._process_command_async(audio_path)
+                    
+                    # Adaptive delay based on system load
+                    # Shorter delay when threads are active for better responsiveness
+                    active_thread_count = len([t for t in self.active_threads if t.is_alive()])
+                    if active_thread_count > 0:
+                        time.sleep(0.005)  # 5ms when processing tasks
+                    else:
+                        time.sleep(0.01)   # 10ms when idle
+                else:
+                    # When focusing on a task, wait a bit before checking again
+                    time.sleep(0.02)  # 20ms when focused on task
 
-                listening("Listening... (speak now)")
-                audio_path = self.recorder.record() if self.recorder else record_until_silence(self.config["stt"])
-
-                if audio_path:
-                    self.process_command(audio_path)
-                    # Clean up temp file
-                    try:
-                        os.remove(audio_path)
-                    except:
-                        pass
-
-                # Idle timeout check
-                idle_timeout = self.config["pipeline"].get("idle_timeout", 300)
-                if time.time() - self.last_activity > idle_timeout:
-                    warning("Idle timeout. Unloading models to save RAM...")
-                    # Optional: unload models here if memory is tight
+                # Idle timeout check (reduced frequency to save CPU)
+                if current_time - self.last_activity > 60:  # Check every minute
+                    idle_timeout = self.config["pipeline"].get("idle_timeout", 300)
+                    if current_time - self.last_activity > idle_timeout:
+                        warning("Idle timeout. Unloading models to save RAM...")
+                        # Optional: unload models here if memory is tight
+                        self.last_activity = current_time  # Reset timer to prevent repeated warnings
 
         except KeyboardInterrupt:
             goodbye()
         finally:
+            # Wait for all processing threads to complete before shutting down (with timeout)
+            alive_threads = [t for t in self.active_threads if t.is_alive()]
+            if alive_threads:
+                info(f"Waiting for {len(alive_threads)} processing tasks to complete...")
+                for thread in alive_threads:
+                    thread.join(timeout=1.0)  # Wait up to 1 second for each thread
+            
             # Save session state before cleanup
             self._save_session_state()
             

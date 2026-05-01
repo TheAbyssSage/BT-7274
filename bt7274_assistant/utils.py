@@ -42,6 +42,7 @@ class PersistentAudioRecorder:
     """
     Keeps the microphone stream open for the entire session.
     Eliminates PortAudio open/close overhead and macOS alert sounds.
+    Optimized for continuous listening with minimal latency.
     """
 
     def __init__(self, config: dict):
@@ -52,54 +53,85 @@ class PersistentAudioRecorder:
         self.post_wake_grace = config.get("post_wake_grace", 1.5)
         # Adaptive noise floor settings
         self.adaptive_noise_floor = True
-        self.noise_floor_alpha = 0.01  # Smoothing factor for noise floor estimation
+        self.noise_floor_alpha = 0.1  # Balanced smoothing for adaptation
         self.current_noise_floor = self.silence_threshold
+        # Performance optimization settings
+        self.chunk_size = 0.05  # 50ms chunks for responsive detection
+        self.max_buffer_size = 500  # Limit buffer size to prevent memory issues
+        self.min_speech_chunks = 3  # Minimum chunks to qualify as speech
 
         self._stream: Optional[sd.InputStream] = None
         self._recording = False
         self._audio_buffer: list = []
         self._silence_counter = 0
         self._speech_detected = False
+        self._speech_chunks = 0  # Counter for actual speech chunks
+        self._ready_audio_segments: list = []  # Store completed audio segments
         self._lock = threading.Lock()
+        self._last_callback_time = time.time()
+        self._processing_queue = []  # Queue for segments being processed
 
     def _callback(self, indata, frames, time_info, status):
+        # Performance optimization: Skip processing if called too frequently
+        current_time = time.time()
+        if current_time - self._last_callback_time < 0.005:  # Minimum 5ms between callbacks
+            return
+        self._last_callback_time = current_time
+        
         with self._lock:
-            if not self._recording:
-                return
             rms = np.sqrt(np.mean(indata**2))
             self._audio_buffer.append(indata.copy())
+            
+            # Prevent buffer from growing too large
+            if len(self._audio_buffer) > self.max_buffer_size:
+                # Remove oldest chunks if buffer gets too large
+                excess_chunks = len(self._audio_buffer) - self.max_buffer_size + 25
+                self._audio_buffer = self._audio_buffer[excess_chunks:]
 
             # Update adaptive noise floor
             if self.adaptive_noise_floor:
-                # Exponential smoothing for noise floor estimation
+                # Balanced adaptation
                 self.current_noise_floor = (
                     self.noise_floor_alpha * rms + 
                     (1 - self.noise_floor_alpha) * self.current_noise_floor
                 )
                 # Ensure noise floor doesn't go below minimum threshold
                 self.current_noise_floor = max(self.current_noise_floor, 0.005)
+                # Dynamic threshold based on noise floor
                 effective_threshold = max(self.silence_threshold, self.current_noise_floor * 2.0)
             else:
                 effective_threshold = self.silence_threshold
 
-            if rms < effective_threshold:
-                self._silence_counter += 1
-            else:
+            # Speech detection logic
+            if rms >= effective_threshold:
                 self._silence_counter = 0
-                if not self._speech_detected:
+                self._speech_chunks += 1
+                if not self._speech_detected and self._speech_chunks >= self.min_speech_chunks:
                     self._speech_detected = True
-                    info("Speech detected, holding channel open...")
+            else:
+                self._silence_counter += 1
+                # Reset speech counter if silence is detected early
+                if not self._speech_detected:
+                    self._speech_chunks = 0
 
-            chunk_duration = 0.1
+            # Adjusted timing for the smaller chunk size
+            chunk_duration = self.chunk_size
             silence_chunks_needed = int(self.silence_duration / chunk_duration)
             grace_chunks = int(self.post_wake_grace / chunk_duration)
 
+            # Check if we have a complete audio segment ready
             if self._speech_detected:
-                if self._silence_counter >= silence_chunks_needed + grace_chunks and len(self._audio_buffer) > 10:
-                    self._recording = False
-            else:
-                if self._silence_counter >= silence_chunks_needed and len(self._audio_buffer) > 10:
-                    self._recording = False
+                # Require both silence and minimum speech duration
+                if (self._silence_counter >= silence_chunks_needed + grace_chunks and 
+                    len(self._audio_buffer) > 5 and 
+                    self._speech_chunks > self.min_speech_chunks):
+                    # Save the completed audio segment
+                    self._ready_audio_segments.append(self._audio_buffer.copy())
+                    # Reset for next recording
+                    self._audio_buffer = []
+                    self._speech_detected = False
+                    self._silence_counter = 0
+                    self._speech_chunks = 0
 
     def start(self):
         """Open the persistent input stream (call once at startup)."""
@@ -131,7 +163,6 @@ class PersistentAudioRecorder:
             self._audio_buffer = []
             self._silence_counter = 0
             self._speech_detected = False
-            self._recording = True
 
         info("Recording...")
         start_time = time.time()
@@ -146,6 +177,47 @@ class PersistentAudioRecorder:
             audio = np.concatenate(self._audio_buffer, axis=0).flatten()
 
         temp_path = tempfile.mktemp(suffix=".wav")
+        sf.write(temp_path, audio, self.sample_rate)
+        return temp_path
+
+    def is_audio_ready(self) -> bool:
+        """Check if audio is ready to be processed without blocking."""
+        with self._lock:
+            # Audio is ready if we have completed segments
+            return len(self._ready_audio_segments) > 0
+
+    def get_ready_audio(self) -> Optional[str]:
+        """Get audio that's ready to be processed, if any."""
+        with self._lock:
+            if not self._ready_audio_segments:
+                return None
+            # Get the first completed audio segment
+            audio_buffer = self._ready_audio_segments.pop(0)
+            
+        if len(audio_buffer) < 2:  # Minimum buffer size for valid audio
+            return None
+            
+        # More efficient audio concatenation with error handling
+        try:
+            # Pre-allocate array for better performance
+            total_frames = sum(len(chunk) for chunk in audio_buffer)
+            audio = np.empty((total_frames, 1), dtype=np.float32)
+            offset = 0
+            for chunk in audio_buffer:
+                audio[offset:offset+len(chunk)] = chunk
+                offset += len(chunk)
+            audio = audio.flatten()
+        except (ValueError, TypeError):
+            # Fallback method for incompatible shapes
+            try:
+                audio = np.concatenate(audio_buffer, axis=0).flatten()
+            except:
+                # Last resort method
+                audio = np.vstack(audio_buffer).flatten()
+        
+        # Use a more efficient temporary file creation with context manager
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+            temp_path = tmp_file.name
         sf.write(temp_path, audio, self.sample_rate)
         return temp_path
 

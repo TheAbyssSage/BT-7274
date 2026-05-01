@@ -1078,32 +1078,20 @@ class CommandProcessingMixin:
                 filtered_lines.append(line)
         clean_response = '\n'.join(filtered_lines)
         
-        # Optimize response for TTS - break into smaller segments for better pacing
-        # This helps with long responses that might cause TTS delays
+        # Enforce conciseness: limit to first 3 sentences max
+        sentences = re.split(r'(?<=[.!?])\s+', clean_response)
+        if len(sentences) > 3:
+            clean_response = ' '.join(sentences[:3]).strip()
+        
+        # Also hard-cap at 300 characters as a safety net
         if len(clean_response) > 300:
-            # Look for sentence boundaries to break the response
-            sentences = re.split(r'(?<=[.!?])\s+', clean_response)
-            if len(sentences) > 1:
-                # Join sentences until we get reasonable chunks
-                optimized_segments = []
-                current_segment = ""
-                
-                for sentence in sentences:
-                    if len(current_segment) + len(sentence) < 200:
-                        current_segment += " " + sentence if current_segment else sentence
-                    else:
-                        if current_segment:
-                            optimized_segments.append(current_segment)
-                        current_segment = sentence
-                        
-                if current_segment:
-                    optimized_segments.append(current_segment)
-                    
-                # If we have multiple segments, consider playing them separately
-                # for better responsiveness (but we'll keep as single for now)
-                if len(optimized_segments) > 1:
-                    # Could implement staggered playback here if needed
-                    pass
+            # Find the last sentence boundary before 300 chars
+            truncated = clean_response[:300]
+            last_period = max(truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
+            if last_period > 0:
+                clean_response = truncated[:last_period + 1].strip()
+            else:
+                clean_response = truncated.strip() + "..."
         
         # Post-process to correct location inaccuracies
         if "New London" in clean_response:

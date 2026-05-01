@@ -18,12 +18,12 @@ llm:
     model: bt7274
     url: http://localhost:11434
     temperature: 0.7
-    max_tokens: 200               # Shorter responses for local models
+    max_tokens: 80                # Keep responses concise (1-3 sentences)
   cloud:
     model: gpt-oss:120b-cloud
     url: http://localhost:11434
     temperature: 0.7
-    max_tokens: 300               # Larger context for cloud models
+    max_tokens: 120               # Slightly larger but still concise
   # Current mode (local or cloud)
   mode: local
   system_prompt: |
