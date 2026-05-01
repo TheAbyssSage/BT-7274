@@ -1,6 +1,7 @@
 # BT-7274 Pilot Command Reference
 
-> **Wake Word:** Say any of the trigger phrases below to activate BT-7274 before giving a command.
+> **Wake Word:** Say any of the trigger phrases below to activate BT-7274 before giving a command.  
+> **Console Chat Mode:** Run `./start_bt7274.sh` and select option 2 for text-only mode.
 
 ---
 
@@ -25,6 +26,8 @@ Say any of these to get BT's attention:
 | `BT, weather in [city]` | Weather for a specific location. |
 | `BT, what's the forecast?` | Upcoming weather forecast (3 days). |
 | `BT, forecast for [city]` | Forecast for a specific location. |
+| `BT, what's the weather? (raw)` | Current weather (full data dump). |
+| `BT, what's the forecast? (raw)` | Forecast (full data dump). |
 | `BT, what time is it?` | Current time. |
 | `BT, what's the date?` / `What day is it?` | Current date and day. |
 | `BT, where am I?` / `What's my location?` | Your current geographic location. |

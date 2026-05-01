@@ -1,6 +1,15 @@
 # BT-7274 Assistant Configuration
 # Adjust these settings for your M1 MacBook Air
 
+# Startup Mode Configuration
+# mic_mode: true = use microphone for voice input, false = console text input
+# console_chat_mode: true = run as terminal chat (like local ollama), false = full voice assistant
+startup:
+  mic_mode: true              # Enable microphone listening at startup
+  console_chat_mode: false    # Run as terminal chat interface (no mic, text input)
+  # When console_chat_mode is true, mic_mode is automatically disabled
+  # and BT runs like a local ollama in-terminal chat system.
+
 stt:
   model: base.en                  # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
   language: en

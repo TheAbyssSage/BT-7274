@@ -497,23 +497,27 @@ class CommandProcessingMixin:
 
                 if weather_result and not weather_result.startswith("Weather data unavailable") and not weather_result.startswith("Forecast data unavailable"):
                     status("WEATHER", weather_result)
-                    log_llm("Summarizing for Pilot...")
-                    summary_prompt = (
-                        f"Weather data: {weather_result}\n\n"
-                        f"Respond in character as BT-7274 with a detailed, complete explanation. "
-                        f"Use 3-7 sentences. Be thorough and helpful. "
-                        f"NEVER repeat the user's question. Just answer directly. "
-                        f"Only the response text. No quotes, no markdown, no extra text."
-                    )
-                    try:
-                        weather_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize weather: {weather_result}"
-                        response_parts.append(weather_response)
-                        # Use BT clip + TTS followup for immersive weather responses
-                        skip_normal_tts = True
-                        followup_tts_text = weather_response
-                    except Exception as e:
-                        self._report_error("llm", "chat_weather_summary", e)
-                        response_parts.append(f"Pilot, {weather_result}")
+                    # Check for raw data request
+                    if "raw" in text.lower() or "full" in text.lower():
+                        response_parts.append(weather_result)
+                    else:
+                        log_llm("Summarizing for Pilot...")
+                        summary_prompt = (
+                            f"Weather data: {weather_result}\n\n"
+                            f"Respond in character as BT-7274 with a detailed, complete explanation. "
+                            f"Use 3-7 sentences. Be thorough and helpful. "
+                            f"NEVER repeat the user's question. Just answer directly. "
+                            f"Only the response text. No quotes, no markdown, no extra text."
+                        )
+                        try:
+                            weather_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize weather: {weather_result}"
+                            response_parts.append(weather_response)
+                            # Use BT clip + TTS followup for immersive weather responses
+                            skip_normal_tts = True
+                            followup_tts_text = weather_response
+                        except Exception as e:
+                            self._report_error("llm", "chat_weather_summary", e)
+                            response_parts.append(f"Pilot, {weather_result}")
                     handled_types.add("weather")
                 else:
                     response_parts.append("Pilot, atmospheric sensors are offline.")
@@ -1306,7 +1310,7 @@ class CommandProcessingMixin:
         self.logger.log_interaction(
             pilot_message=text,
             bt_response=clean_response,
-            interaction_type="voice",
+            interaction_type="chat" if self.console_chat_mode else "voice",
             ai_mode=self.ai_mode,
             performance_mode=self.performance_mode or "standard",
             tts_metrics=tts_metrics if tts_metrics else None,
@@ -1334,9 +1338,9 @@ class CommandProcessingMixin:
         # Clear per-interaction errors for the next turn
         self.errors_this_interaction = []
 
-        # 5. Listen for follow-up if BT asked a question
+        # 5. Listen for follow-up if BT asked a question (voice mode only)
         max_depth = self.config["pipeline"].get("follow_up", {}).get("max_depth", 1)
-        if follow_up_depth < max_depth:
+        if not self.console_chat_mode and follow_up_depth < max_depth:
             self._listen_for_follow_up(follow_up_depth)
 
         return True

@@ -29,7 +29,44 @@ echo ""
 echo "  Say 'clear tts cache' or 'clear cache' to reset the TTS cache."
 echo ""
 
-# Performance Mode Selection
+# Input Mode Selection — waits indefinitely for a choice
+echo "──────────────────────────────────────────"
+echo "  Select Input Mode:"
+echo ""
+echo "    [1] Voice Mode (Microphone)"
+echo "        Full voice assistant with wake word detection"
+echo "        Best for: Hands-free operation, immersive experience"
+echo ""
+echo "    [2] Console Chat Mode"
+echo "        Text-based terminal chat like local Ollama"
+echo "        Best for: Testing, debugging, quiet environments"
+echo "        Looks like:  > BT, where are we?"
+echo ""
+echo "──────────────────────────────────────────"
+
+MODE_ARG=""
+while true; do
+    read -r -p "  > Select mode [1-2]: " mode_choice
+    case "$mode_choice" in
+        1)
+            echo "  [SELECT] Voice Mode (Microphone)"
+            MODE_ARG=""
+            break
+            ;;
+        2)
+            echo "  [SELECT] Console Chat Mode"
+            MODE_ARG="--console-chat-mode"
+            break
+            ;;
+        *)
+            echo "  Invalid choice. Please enter 1 or 2."
+            ;;
+    esac
+done
+
+echo ""
+
+# Performance Mode Selection — waits indefinitely for a choice
 echo "──────────────────────────────────────────"
 echo "  Select TTS Performance Mode:"
 echo ""
@@ -45,23 +82,28 @@ echo "        BT-7274's voice maintained throughout"
 echo ""
 echo "──────────────────────────────────────────"
 
-# Default to standard mode if no input
 PERFORMANCE_ARG=""
-read -t 10 -p "  > Select mode [1-2] (default: 1): " choice || choice="1"
-
-case "$choice" in
-    2)
-        echo "  [SELECT] Performance Mode (Streaming)"
-        PERFORMANCE_ARG="--performance-mode performance"
-        ;;
-    *)
-        echo "  [SELECT] Standard Mode"
-        PERFORMANCE_ARG="--performance-mode standard"
-        ;;
-esac
+while true; do
+    read -r -p "  > Select mode [1-2]: " choice
+    case "$choice" in
+        1)
+            echo "  [SELECT] Standard Mode"
+            PERFORMANCE_ARG="--performance-mode standard"
+            break
+            ;;
+        2)
+            echo "  [SELECT] Performance Mode (Streaming)"
+            PERFORMANCE_ARG="--performance-mode performance"
+            break
+            ;;
+        *)
+            echo "  Invalid choice. Please enter 1 or 2."
+            ;;
+    esac
+done
 
 echo ""
 
 # Suppress deprecation warnings from dependencies
 export PYTHONWARNINGS="ignore::UserWarning"
-python bt7274_assistant/pipeline.py $PERFORMANCE_ARG
+python bt7274_assistant/pipeline.py $MODE_ARG $PERFORMANCE_ARG

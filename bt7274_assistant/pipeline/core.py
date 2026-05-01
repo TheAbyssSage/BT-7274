@@ -30,7 +30,7 @@ from tts import XTTSClient
 from tts_fast import StreamingXTTSClient
 from ui import (
     header, section, sub_section, info, success, warning, error, status,
-    bullet, spacer, divider, footer, prompt, choice_menu, box, progress,
+    bullet, spacer, divider, footer, prompt, choice_menu, box, progress, loading_bar,
     quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit,
     clip_play, listening, goodbye
 )
@@ -44,13 +44,14 @@ from bt7274_assistant.pipeline.command_processing import CommandProcessingMixin
 class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMixin, CommandProcessingMixin):
     """BT-7274 Voice Assistant - Main Pipeline."""
 
-    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None, console_chat_mode: bool = False):
         if config_path is None:
             # core.py is in bt7274_assistant/pipeline/, config.yaml is in bt7274_assistant/
             config_path = str(Path(__file__).parent.parent / "config.yaml")
         self.config = self.load_config(config_path)
         self.ai_mode = ai_mode  # "local" or "cloud"
         self.performance_mode = performance_mode  # "standard" or "performance"
+        self.console_chat_mode = console_chat_mode  # True = text input, no mic
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
         self.tts: Optional[XTTSClient | StreamingXTTSClient] = None  # Can be XTTSClient or StreamingXTTSClient
@@ -207,6 +208,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                 "personality_weights": self.personality_weights,
                 "weather_context": self.weather_context,
                 "protocol_mode_enabled": self.protocol_mode_enabled,
+                "console_chat_mode": self.console_chat_mode,
             }
             save_session_state(state)
         except Exception as e:
@@ -240,19 +242,30 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         """Initialize all components."""
         header("BT-7274 AI ASSISTANT  |  Protocol 1: Link to Pilot")
 
+        # Console chat mode announcement
+        if self.console_chat_mode:
+            section("MODE: Console Chat")
+            info("Microphone disabled. Text input only.")
+            info("Type your messages and press Enter.")
+            spacer()
+
         section("[0/10] Checking log directories")
         self._ensure_log_directories()
         success("Log directories verified.")
 
-        section("[1/10] Initializing Speech-to-Text")
-        try:
-            self.stt = WhisperSTT(self.config["stt"])
-            # Preload Whisper model to avoid delays during first transcription
-            _ = self.stt.model
-            success("Whisper model loaded and ready.")
-        except Exception as e:
-            self._report_error("stt", "initialize", e)
-            error(f"STT initialization failed: {e}")
+        if not self.console_chat_mode:
+            section("[1/10] Initializing Speech-to-Text")
+            try:
+                self.stt = WhisperSTT(self.config["stt"])
+                # Preload Whisper model to avoid delays during first transcription
+                _ = self.stt.model
+                success("Whisper model loaded and ready.")
+            except Exception as e:
+                self._report_error("stt", "initialize", e)
+                error(f"STT initialization failed: {e}")
+        else:
+            section("[1/10] Speech-to-Text")
+            info("Skipped (console chat mode)")
 
         section("[2/10] Which LLM?")
         if self.ai_mode is None:
@@ -373,10 +386,14 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             self._report_error("location", "initialize", e)
             error(f"Location services initialization failed: {e}")
 
-        section("[9/10] Opening persistent audio stream")
-        self.recorder = PersistentAudioRecorder(self.config["stt"])
-        self.recorder.start()
-        success("Microphone stream active.")
+        if not self.console_chat_mode:
+            section("[9/10] Opening persistent audio stream")
+            self.recorder = PersistentAudioRecorder(self.config["stt"])
+            self.recorder.start()
+            success("Microphone stream active.")
+        else:
+            section("[9/10] Audio Stream")
+            info("Skipped (console chat mode)")
 
         section("[10.1/10] Starting battery monitor")
         try:
@@ -421,11 +438,18 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             warning(f"Protocol Brief initialization failed: {e}")
 
         footer("All systems online")
-        if self.performance_mode == "performance":
+        if self.console_chat_mode:
+            status("MODE", "Console Chat Mode: Type your messages below")
+            log_system("Session started in console chat mode")
+        elif self.performance_mode == "performance":
             status("MODE", "Performance Mode: Streaming TTS active")
+            log_system("Session started in voice mode (performance)")
+        else:
+            log_system("Session started in voice mode (standard)")
         if self.protocol_mode_enabled:
             status("PROTOCOL", "Protocol Mode is active. Say 'BT, protocol brief' for a status summary.")
-        info("Say 'Hey BT' or press Enter to speak.")
+        if not self.console_chat_mode:
+            info("Say 'Hey BT' or press Enter to speak.")
 
     def _check_and_generate_standby_clips(self):
         """Check all standby phrases from config and generate missing .wav files."""
@@ -500,25 +524,71 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         success(f"Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
 
     def run(self):
-        """Main voice interaction loop."""
+        """Main interaction loop."""
         self.initialize()
         self.running = True
         self.focused_task = False  # Flag to indicate when BT is focusing on a task
         self.active_threads = []   # Track active processing threads
         self.last_cleanup_time = time.time()  # For periodic cleanup
 
+        if self.console_chat_mode:
+            self._run_console_chat()
+        else:
+            self._run_voice_mode()
+
+    def _run_console_chat(self):
+        """Console chat mode — text input like a local ollama terminal chat."""
+        try:
+            while self.running:
+                try:
+                    # Prompt looks like: > BT, where are we?
+                    user_input = input("\n  > ")
+                except (EOFError, KeyboardInterrupt):
+                    goodbye()
+                    break
+
+                if not user_input or not user_input.strip():
+                    continue
+
+                user_input = user_input.strip()
+
+                # Exit commands
+                lower = user_input.lower()
+                if lower in ("exit", "quit", "bye", "goodbye", "shutdown"):
+                    quote("BT-7274", "Goodbye, Pilot.")
+                    break
+
+                # Update activity timestamp
+                self.last_activity = time.time()
+                self.interaction_count += 1
+                self.errors_this_interaction = []
+
+                # Process the text command directly (skip wake word, skip STT)
+                self.process_command(
+                    audio_path=None,
+                    skip_wake_word=True,
+                    pre_transcribed_text=user_input
+                )
+
+        except KeyboardInterrupt:
+            goodbye()
+        finally:
+            self._shutdown()
+
+    def _run_voice_mode(self):
+        """Voice mode — continuous microphone listening."""
         try:
             # Start continuous listening
             if self.recorder:
                 self.recorder.start()
-            
+
             while self.running:
                 # Periodic cleanup of finished threads (every 5 seconds) to prevent memory leaks
                 current_time = time.time()
                 if current_time - self.last_cleanup_time > 5.0:
                     self.active_threads = [t for t in self.active_threads if t.is_alive()]
                     self.last_cleanup_time = current_time
-                
+
                 # Always keep listening unless focusing on a task
                 if not self.focused_task and self.recorder:
                     # Check if audio is ready to be processed
@@ -528,7 +598,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                         if audio_path:
                             # Process command asynchronously to keep listening
                             self._process_command_async(audio_path)
-                    
+
                     # Adaptive delay based on system load
                     # Shorter delay when threads are active for better responsiveness
                     active_thread_count = len([t for t in self.active_threads if t.is_alive()])
@@ -551,59 +621,69 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         except KeyboardInterrupt:
             goodbye()
         finally:
-            # Wait for all processing threads to complete before shutting down (with timeout)
-            alive_threads = [t for t in self.active_threads if t.is_alive()]
-            if alive_threads:
-                info(f"Waiting for {len(alive_threads)} processing tasks to complete...")
-                for thread in alive_threads:
-                    thread.join(timeout=1.0)  # Wait up to 1 second for each thread
-            
-            # Save session state before cleanup
-            self._save_session_state()
-            
-            if self.recorder:
-                log_system("Closing microphone stream...")
-                self.recorder.stop()
-            if self.battery:
-                log_system("Stopping battery monitor...")
-                self.battery.stop()
-            if self.weather:
-                log_system("Stopping environmental monitor...")
-                self.weather.stop()
-            self.running = False
-            
-            # Archive session cache and clear for next session
-            log_system("Archiving session cache...")
-            archive_path = archive_and_clear_session()
-            if archive_path:
-                success(f"Session archived to: {archive_path}")
-            else:
-                info("No session cache to archive.")
+            self._shutdown()
+
+    def _shutdown(self):
+        """Clean shutdown sequence."""
+        # Wait for all processing threads to complete before shutting down (with timeout)
+        alive_threads = [t for t in self.active_threads if t.is_alive()]
+        if alive_threads:
+            info(f"Waiting for {len(alive_threads)} processing tasks to complete...")
+            for thread in alive_threads:
+                thread.join(timeout=1.0)  # Wait up to 1 second for each thread
+
+        # Save session state before cleanup
+        self._save_session_state()
+
+        if self.recorder:
+            log_system("Closing microphone stream...")
+            self.recorder.stop()
+        if self.battery:
+            log_system("Stopping battery monitor...")
+            self.battery.stop()
+        if self.weather:
+            log_system("Stopping environmental monitor...")
+            self.weather.stop()
+        self.running = False
+
+        # Archive session cache and clear for next session
+        log_system("Archiving session cache...")
+        archive_path = archive_and_clear_session()
+        if archive_path:
+            success(f"Session archived to: {archive_path}")
+        else:
+            info("No session cache to archive.")
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="BT-7274 Voice Assistant")
-    parser.add_argument("--generate-responses", action="store_true", 
+    parser.add_argument("--generate-responses", action="store_true",
                         help="Generate missing standby response audio files")
-    parser.add_argument("--force-regenerate", action="store_true", 
+    parser.add_argument("--force-regenerate", action="store_true",
                         help="Force regenerate ALL standby audio files")
-    parser.add_argument("--ai-mode", choices=["local", "cloud"], 
+    parser.add_argument("--ai-mode", choices=["local", "cloud"],
                         help="AI mode (local or cloud)")
-    parser.add_argument("--performance-mode", choices=["standard", "performance"], 
+    parser.add_argument("--performance-mode", choices=["standard", "performance"],
                         help="TTS mode (standard or performance)")
+    parser.add_argument("--console-chat-mode", action="store_true",
+                        help="Run in console chat mode (text input, no microphone)")
     args = parser.parse_args()
-    
+
     # Initialize with no preset modes so user can choose during startup
-    assistant = BT7274Assistant(ai_mode=args.ai_mode, performance_mode=args.performance_mode)
-    
+    assistant = BT7274Assistant(
+        ai_mode=args.ai_mode,
+        performance_mode=args.performance_mode,
+        console_chat_mode=args.console_chat_mode,
+    )
+
     if args.generate_responses or args.force_regenerate:
         # Initialize all components first
         assistant.initialize()
         count = assistant.generate_standby_responses(force_regenerate=args.force_regenerate)
         footer(f"Successfully generated {count} standby responses!")
         return
-    
+
     assistant.run()
 
 

@@ -81,6 +81,33 @@ class StreamingXTTSClient:
         self._model_lock = threading.Lock()
         self._is_ready = False
 
+        # Streaming state
+        self._synthesis_queue = queue.Queue(maxsize=3)
+        self._audio_queue = queue.Queue(maxsize=5)
+        self._streaming = False
+        self._threads: List[threading.Thread] = []
+
+        # Cache for complete responses
+        self._response_cache: Dict[str, str] = load_tts_cache_index()
+        self._max_cache_size = 50
+        self._cache_lock = threading.Lock()
+
+        # Audio playback state
+        self._current_audio = None
+        self._playback_lock = threading.Lock()
+        self._playback_stream = None
+
+        # Performance metrics
+        self._metrics = {
+            'sentences_synthesized': 0,
+            'sentences_played': 0,
+            'total_synthesis_time': 0.0,
+            'total_playback_time': 0.0,
+        }
+
+        # Last metrics for external retrieval
+        self._last_metrics: Dict[str, float | str | bool] = {}
+
     def _resolve_references(self, raw_ref) -> list[str]:
         """Resolve reference_wav config to a list of WAV file paths.
 
@@ -110,33 +137,6 @@ class StreamingXTTSClient:
             return [str(path.resolve())]
 
         raise FileNotFoundError(f"Reference WAV not found: {path}")
-
-        # Streaming state
-        self._synthesis_queue = queue.Queue(maxsize=3)
-        self._audio_queue = queue.Queue(maxsize=5)
-        self._streaming = False
-        self._threads: List[threading.Thread] = []
-
-        # Cache for complete responses
-        self._response_cache: Dict[str, str] = load_tts_cache_index()
-        self._max_cache_size = 50
-        self._cache_lock = threading.Lock()
-
-        # Audio playback state
-        self._current_audio = None
-        self._playback_lock = threading.Lock()
-        self._playback_stream = None
-
-        # Performance metrics
-        self._metrics = {
-            'sentences_synthesized': 0,
-            'sentences_played': 0,
-            'total_synthesis_time': 0.0,
-            'total_playback_time': 0.0,
-        }
-
-        # Last metrics for external retrieval
-        self._last_metrics: Dict[str, float | str | bool] = {}
 
     # ─── Model Management ────────────────────────────────────────────
 

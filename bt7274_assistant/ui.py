@@ -126,6 +126,23 @@ def progress(current: int, total: int, label: str = ""):
     print(f"  │  [{bar}] {pct} {label}")
 
 
+def loading_bar(label: str, current: int = 0, total: int = 10, width: int = 30):
+    """Print a loading bar for a task.
+
+    Args:
+        label: Description of the task being loaded.
+        current: Current progress step.
+        total: Total number of steps.
+        width: Width of the bar in characters.
+    """
+    filled = int(width * current / total) if total else 0
+    bar = "█" * filled + "░" * (width - filled)
+    pct = int(100 * current / total) if total else 0
+    print(f"\r  │  [{bar}] {pct}% {label}", end="", flush=True)
+    if current >= total:
+        print()  # New line when complete
+
+
 def quote(speaker: str, text: str):
     """Print a quoted dialogue line."""
     print(f"\n  {speaker}: \"{text}\"")
