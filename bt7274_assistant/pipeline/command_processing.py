@@ -29,20 +29,33 @@ class CommandProcessingMixin:
 
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
-        
+
+        Phrases are organized into category subfolders under standby/:
+          generic/, weather/, search/, location/, time/, translate/
+
         Args:
             force_regenerate: If True, regenerate all clips even if they exist.
         """
         section("Generating standby responses with BT's voice")
-        
-        # Collect all phrases from config
-        all_phrases = []
+
+        # Map each standby_phrases_* key to its subfolder
+        CATEGORY_MAP = {
+            "standby_phrases": "generic",
+            "standby_phrases_weather": "weather",
+            "standby_phrases_search": "search",
+            "standby_phrases_location": "location",
+            "standby_phrases_time": "time",
+            "standby_phrases_translate": "translate",
+        }
+
+        # Collect phrases grouped by category
         pipeline = self.config.get("pipeline", {})
-        for key in pipeline:
-            if key.startswith("standby_phrases"):
-                all_phrases.extend(pipeline[key])
-        
-        # Add common response patterns for better caching coverage
+        phrases_by_category: dict[str, list[str]] = {}
+        for key, subfolder in CATEGORY_MAP.items():
+            if key in pipeline:
+                phrases_by_category.setdefault(subfolder, []).extend(pipeline[key])
+
+        # Add common response patterns to generic
         common_responses = [
             "Processing complete, Pilot.",
             "Operation complete, Pilot.",
@@ -53,46 +66,50 @@ class CommandProcessingMixin:
             "Mission accomplished, Pilot.",
             "Objective achieved, Pilot."
         ]
-        all_phrases.extend(common_responses)
-        
-        # Remove duplicates while preserving order
+        phrases_by_category.setdefault("generic", []).extend(common_responses)
+
+        # Flatten for deduplication while preserving category for the first occurrence
         seen = set()
-        phrases = []
-        for p in all_phrases:
-            if p not in seen:
-                seen.add(p)
-                phrases.append(p)
-        
+        phrase_to_category: dict[str, str] = {}
+        for subfolder, phrases in phrases_by_category.items():
+            for p in phrases:
+                if p not in seen:
+                    seen.add(p)
+                    phrase_to_category[p] = subfolder
+
         generated_count = 0
         skipped_count = 0
-        output_dir = Path(__file__).parent / "standby"
-        output_dir.mkdir(exist_ok=True)
-        
-        for phrase in phrases:
+        standby_dir = Path(__file__).parent.parent / "standby"
+        standby_dir.mkdir(exist_ok=True)
+
+        for phrase, subfolder in phrase_to_category.items():
             # Create safe filename
             safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
             safe_name = safe_name.replace(" ", "_").replace("-", "_")
-            
-            # Check recursively for existing file
-            found_paths = list(output_dir.rglob(f"{safe_name}.wav"))
-            output_path = found_paths[0] if found_paths else output_dir / f"{safe_name}.wav"
-            
+
+            # Determine the correct category subfolder
+            category_dir = standby_dir / subfolder
+            category_dir.mkdir(exist_ok=True)
+            output_path = category_dir / f"{safe_name}.wav"
+
+            # Check if file already exists (in correct subfolder or anywhere in standby/)
+            found_paths = list(standby_dir.rglob(f"{safe_name}.wav"))
             if found_paths and not force_regenerate:
                 info(f"Skipping: {phrase}")
                 skipped_count += 1
                 continue
-                
+
             info(f"Generating: {phrase}")
             try:
                 # Remove old file if forcing regeneration
                 if output_path.exists() and force_regenerate:
                     output_path.unlink()
-                    
+
                 wav_path = self.tts.speak(phrase) if self.tts else None
                 if wav_path:
                     import shutil
                     shutil.move(wav_path, str(output_path))
-                    success(f"Saved: {output_path.name}")
+                    success(f"Saved: {subfolder}/{output_path.name}")
                     generated_count += 1
                 else:
                     error(f"Failed: {phrase}")

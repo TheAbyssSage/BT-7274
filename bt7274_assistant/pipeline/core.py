@@ -445,55 +445,81 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             info("Say 'Hey BT' or press Enter to speak")
 
     def _check_and_generate_standby_clips(self):
-        """Check all standby phrases from config and generate missing .wav files."""
-        standby_dir = Path(__file__).parent / "standby"
+        """Check all standby phrases from config and generate missing .wav files.
+
+        Phrases are organized into category subfolders under standby/:
+          generic/, weather/, search/, location/, time/, translate/
+        Missing clips are generated into their respective subfolder.
+        """
+        standby_dir = Path(__file__).parent.parent / "standby"
         standby_dir.mkdir(exist_ok=True)
 
-        # Collect all phrases from config
-        all_phrases = []
+        # Map each standby_phrases_* key to its subfolder
+        CATEGORY_MAP = {
+            "standby_phrases": "generic",
+            "standby_phrases_weather": "weather",
+            "standby_phrases_search": "search",
+            "standby_phrases_location": "location",
+            "standby_phrases_time": "time",
+            "standby_phrases_translate": "translate",
+        }
+
+        # Collect phrases grouped by category
         pipeline = self.config.get("pipeline", {})
-        for key in pipeline:
-            if key.startswith("standby_phrases"):
-                all_phrases.extend(pipeline[key])
+        phrases_by_category: dict[str, list[str]] = {}
+        for key, subfolder in CATEGORY_MAP.items():
+            if key in pipeline:
+                phrases_by_category.setdefault(subfolder, []).extend(pipeline[key])
 
-        # Remove duplicates while preserving order
+        # Flatten for deduplication while preserving category for the first occurrence
         seen = set()
-        unique_phrases = []
-        for p in all_phrases:
-            if p not in seen:
-                seen.add(p)
-                unique_phrases.append(p)
+        phrase_to_category: dict[str, str] = {}
+        for subfolder, phrases in phrases_by_category.items():
+            for p in phrases:
+                if p not in seen:
+                    seen.add(p)
+                    phrase_to_category[p] = subfolder
 
-        # First pass: check which files exist (search recursively in subfolders)
+        # First pass: check which files exist (search category subfolder, then fallback recursive)
         missing = []
         loaded = 0
-        for phrase in unique_phrases:
+        for phrase, subfolder in phrase_to_category.items():
             safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
             safe_name = safe_name.replace(" ", "_").replace("-", "_")
             key = self._normalize_phrase(phrase)
 
-            # Search recursively in standby_dir for the file
+            # 1. Check the correct category subfolder first
+            category_dir = standby_dir / subfolder
+            category_dir.mkdir(exist_ok=True)
+            category_path = category_dir / f"{safe_name}.wav"
+            if category_path.exists():
+                self.standby_clips[key] = str(category_path)
+                loaded += 1
+                continue
+
+            # 2. Fallback: search recursively anywhere in standby/
             found_paths = list(standby_dir.rglob(f"{safe_name}.wav"))
             if found_paths:
-                wav_path = found_paths[0]
-                self.standby_clips[key] = str(wav_path)
+                self.standby_clips[key] = str(found_paths[0])
                 loaded += 1
             else:
-                missing.append((phrase, safe_name, key))
+                missing.append((phrase, safe_name, key, subfolder))
 
         # Report status
-        total = len(unique_phrases)
+        total = len(phrase_to_category)
         if not missing:
             success(f"All {total} standby clips present and loaded.")
             return
 
         warning(f"{len(missing)} of {total} clips missing. Generating now...")
 
-        # Second pass: generate missing files
+        # Second pass: generate missing files into their category subfolder
         generated = 0
         failed = 0
-        for phrase, safe_name, key in missing:
-            wav_path = standby_dir / f"{safe_name}.wav"
+        for phrase, safe_name, key, subfolder in missing:
+            category_dir = standby_dir / subfolder
+            category_dir.mkdir(exist_ok=True)
+            wav_path = category_dir / f"{safe_name}.wav"
             info(f"[{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
             try:
                 if self.tts:
@@ -503,7 +529,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                         shutil.move(generated_wav, str(wav_path))
                         self.standby_clips[key] = str(wav_path)
                         generated += 1
-                        success(f"Saved: {wav_path.name}")
+                        success(f"Saved: {subfolder}/{wav_path.name}")
                     else:
                         error(f"Failed to generate: {phrase}")
                         failed += 1
