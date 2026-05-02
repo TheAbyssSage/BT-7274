@@ -16,7 +16,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 from typing import Tuple
-from ui import info, success, warning, error
+from ui import info, success, warning, error, loading_bar
 
 from bt7274_workstation.session_cache_manager import get_stt_temp_dir
 
@@ -33,8 +33,9 @@ class WhisperSTT:
     def model(self):
         """Lazy-load the Whisper model."""
         if self._model is None:
-            info(f"Loading Whisper model '{self.model_name}' on {self.device}...")
+            loading_bar(f"Loading Whisper model '{self.model_name}'", 1, 2)
             self._model = whisper.load_model(self.model_name).to(self.device)
+            loading_bar(f"Loading Whisper model '{self.model_name}'", 2, 2)
         return self._model
 
     def transcribe(self, audio_path: str) -> dict:

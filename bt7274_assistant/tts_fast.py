@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import numpy as np
 import sounddevice as sd
 
-from ui import info, success, warning, error, cache_hit, log_tts
+from ui import info, success, warning, error, cache_hit, log_tts, loading_bar
 import soundfile as sf
 
 from bt7274_workstation.session_cache_manager import (
@@ -145,11 +145,13 @@ class StreamingXTTSClient:
         """Thread-safe lazy model loading."""
         with self._model_lock:
             if self._model is None:
-                info("Loading XTTS v2 model (performance mode)...")
+                loading_bar("Loading XTTS v2 model (performance mode)", 1, 3)
                 from utils import suppress_stdout
                 with suppress_stdout():
                     self._model = TTS(self.model_name)
+                loading_bar("Loading XTTS v2 model (performance mode)", 2, 3)
                 self._warmup()
+                loading_bar("Loading XTTS v2 model (performance mode)", 3, 3)
                 self._is_ready = True
             return self._model
 

@@ -10,7 +10,7 @@ from typing import Optional
 
 from ui import (
     quote, status, info, error, warning, log_stt, log_llm, log_tts, log_action,
-    cache_hit, clip_play, listening, goodbye
+    cache_hit, clip_play, listening, goodbye, loading_bar
 )
 from utils import play_audio, record_until_silence
 
@@ -82,7 +82,9 @@ class CommandProcessingMixin:
         standby_dir = Path(__file__).parent.parent / "standby"
         standby_dir.mkdir(exist_ok=True)
 
-        for phrase, subfolder in phrase_to_category.items():
+        total_phrases = len(phrase_to_category)
+        for i, (phrase, subfolder) in enumerate(phrase_to_category.items()):
+            loading_bar("Regenerating standby clips", i, total_phrases)
             # Create safe filename
             safe_name = "".join(c if c.isalnum() or c in [' ', '-'] else "_" for c in phrase.lower())
             safe_name = safe_name.replace(" ", "_").replace("-", "_")
@@ -95,11 +97,9 @@ class CommandProcessingMixin:
             # Check if file already exists (in correct subfolder or anywhere in standby/)
             found_paths = list(standby_dir.rglob(f"{safe_name}.wav"))
             if found_paths and not force_regenerate:
-                info(f"Skipping: {phrase}")
                 skipped_count += 1
                 continue
 
-            info(f"Generating: {phrase}")
             try:
                 # Remove old file if forcing regeneration
                 if output_path.exists() and force_regenerate:
@@ -109,13 +109,13 @@ class CommandProcessingMixin:
                 if wav_path:
                     import shutil
                     shutil.move(wav_path, str(output_path))
-                    success(f"Saved: {subfolder}/{output_path.name}")
                     generated_count += 1
                 else:
                     error(f"Failed: {phrase}")
             except Exception as e:
                 error(f"Error generating '{phrase}': {e}")
-        
+        loading_bar("Regenerating standby clips", total_phrases, total_phrases)
+
         footer(f"Done! Generated: {generated_count}, Skipped: {skipped_count}")
         return generated_count
 

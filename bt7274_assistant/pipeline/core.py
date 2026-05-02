@@ -516,11 +516,12 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         # Second pass: generate missing files into their category subfolder
         generated = 0
         failed = 0
-        for phrase, safe_name, key, subfolder in missing:
+        total_missing = len(missing)
+        for i, (phrase, safe_name, key, subfolder) in enumerate(missing):
+            loading_bar("Generating standby clips", i, total_missing)
             category_dir = standby_dir / subfolder
             category_dir.mkdir(exist_ok=True)
             wav_path = category_dir / f"{safe_name}.wav"
-            info(f"[{generated + failed + 1}/{len(missing)}] Generating: {phrase}")
             try:
                 if self.tts:
                     generated_wav = self.tts.speak(phrase)
@@ -529,7 +530,6 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                         shutil.move(generated_wav, str(wav_path))
                         self.standby_clips[key] = str(wav_path)
                         generated += 1
-                        success(f"Saved: {subfolder}/{wav_path.name}")
                     else:
                         error(f"Failed to generate: {phrase}")
                         failed += 1
@@ -539,6 +539,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             except Exception as e:
                 error(f"Error generating '{phrase}': {e}")
                 failed += 1
+        loading_bar("Generating standby clips", total_missing, total_missing)
 
         success(f"Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
 

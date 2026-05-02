@@ -12,7 +12,7 @@ from bt7274_workstation.session_cache_manager import (
     save_semantic_vectors,
     load_semantic_vectors,
 )
-from ui import success, warning, info, status
+from ui import success, warning, info, status, loading_bar
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -64,14 +64,15 @@ class ClipMatchingMixin:
                 with open(phrases_to_files, 'r') as f:
                     phrase_map = json.load(f)
                 loaded = 0
-                for phrase, filename in phrase_map.items():
+                total = len(phrase_map)
+                for i, (phrase, filename) in enumerate(phrase_map.items()):
+                    loading_bar("Loading BT voice clips", i, total)
                     wav_path = bt_clips_dir / filename
                     if wav_path.exists():
                         self.bt_clips[phrase] = str(wav_path)
-                        # Extract original text from filename if needed
-                        # This is a simplified approach - in practice you'd want to store the original text too
                         self.bt_clip_texts[filename] = phrase
                         loaded += 1
+                loading_bar("Loading BT voice clips", total, total)
                 success(f"Loaded {loaded} BT-7274 original voice clips from mappings.")
                 return
             except Exception as e:
@@ -89,19 +90,21 @@ class ClipMatchingMixin:
         try:
             with open(csv_file, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
+                rows = list(reader)
+                total = len(rows)
                 loaded = 0
-                for row in reader:
+                for i, row in enumerate(rows):
+                    loading_bar("Loading BT voice clips", i, total)
                     filename = row['filename']
                     text = row['text']
                     wav_path = bt_clips_dir / filename
                     
                     if wav_path.exists():
-                        # Normalize the text for matching
                         normalized_text = self._normalize_phrase(text)
                         self.bt_clips[normalized_text] = str(wav_path)
                         self.bt_clip_texts[filename] = text
                         loaded += 1
-                        
+                loading_bar("Loading BT voice clips", total, total)
                 success(f"Loaded {loaded} BT-7274 original voice clips from CSV.")
         except Exception as e:
             error(f"Error loading BT-7274 original clips: {e}")
@@ -136,7 +139,9 @@ class ClipMatchingMixin:
             self.semantic_clip_phrases = list(self.bt_clips.keys())
             
             # Fit the vectorizer on all BT clip phrases
+            loading_bar("Building semantic index", 1, 2)
             self.semantic_clip_matrix = self.semantic_vectorizer.fit_transform(self.semantic_clip_phrases)
+            loading_bar("Building semantic index", 2, 2)
             
             # Persist to session cache
             vectorizer_state = {

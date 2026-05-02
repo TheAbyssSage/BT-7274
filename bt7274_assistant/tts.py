@@ -14,7 +14,7 @@ import hashlib
 # Allow imports from project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ui import info, success, warning, error, cache_hit
+from ui import info, success, warning, error, cache_hit, loading_bar
 from bt7274_workstation.session_cache_manager import (
     get_tts_output_dir,
     load_tts_cache_index,
@@ -100,12 +100,13 @@ class XTTSClient:
     def model(self):
         """Lazy-load the XTTS v2 model."""
         if self._model is None:
-            info("Loading XTTS v2 model...")
-            info("(This may take 30-60 seconds on first run)")
+            loading_bar("Loading XTTS v2 model", 1, 3)
             from utils import suppress_stdout
             with suppress_stdout():
                 self._model = TTS(self.model_name)
+            loading_bar("Loading XTTS v2 model", 2, 3)
             self._warmup()
+            loading_bar("Loading XTTS v2 model", 3, 3)
         return self._model
 
     def _warmup(self):

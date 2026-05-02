@@ -116,7 +116,7 @@ def progress(current: int, total: int, label: str = ""):
 
 
 def loading_bar(label: str, current: int = 0, total: int = 10, width: int = 30):
-    """Print a loading bar for a task.
+    """Print a loading bar for a task with enhanced visual feedback.
 
     Args:
         label: Description of the task being loaded.
@@ -124,12 +124,31 @@ def loading_bar(label: str, current: int = 0, total: int = 10, width: int = 30):
         total: Total number of steps.
         width: Width of the bar in characters.
     """
+    # Auto-adjust width based on terminal size for better fit
+    if width == 30:  # Default value - auto-adjust
+        try:
+            from shutil import get_terminal_size
+            term_width = get_terminal_size().columns
+            # Clamp width between 20-50 chars based on terminal
+            width = max(20, min(50, term_width // 3))
+        except:
+            width = 30  # Fallback if terminal size unavailable
+    
+    # Handle edge case where total is 0
+    if total <= 0:
+        bar = "░" * width
+        print(f"\r  │  [{bar}] ???% {label} …", end="", flush=True)
+        return
+
     filled = int(width * current / total) if total else 0
     bar = "█" * filled + "░" * (width - filled)
     pct = int(100 * current / total) if total else 0
-    print(f"\r  │  [{bar}] {pct}% {label}", end="", flush=True)
+    
+    # Add visual completion indicator
     if current >= total:
-        print()  # New line when complete
+        print(f"\r  │  [{bar}] {pct}% {label} ✓")  # Checkmark for completion
+    else:
+        print(f"\r  │  [{bar}] {pct}% {label} …", end="", flush=True)  # Ellipsis for ongoing
 
 
 def quote(speaker: str, text: str):
