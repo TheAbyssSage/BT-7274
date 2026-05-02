@@ -4,9 +4,13 @@ Gets current geolocation from macOS CoreLocation or IP fallback.
 """
 
 import json
+import warnings
 import requests
 from typing import Optional, Tuple
 from datetime import datetime, timedelta
+
+# Suppress harmless pyobjc super() warning
+warnings.filterwarnings("ignore", category=UserWarning, module="objc")
 
 from bt7274_workstation.session_cache_manager import (
     save_location_cache,
@@ -82,28 +86,32 @@ class LocationProvider:
         try:
             from Foundation import NSObject, NSRunLoop, NSDate
             from CoreLocation import CLLocationManager
+            import warnings
 
-            class LocationDelegate(NSObject):
-                def init(self):
-                    self = super(LocationDelegate, self).init()
-                    if self is None:
-                        return None
-                    self.location = None
-                    self.error = None
-                    return self
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
 
-                def locationManager_didUpdateLocations_(self, manager, locations):
-                    if locations:
-                        self.location = locations[-1]
+                class LocationDelegate(NSObject):
+                    def init(self):
+                        self = super(LocationDelegate, self).init()
+                        if self is None:
+                            return None
+                        self.location = None
+                        self.error = None
+                        return self
 
-                def locationManager_didFailWithError_(self, manager, error):
-                    self.error = error
+                    def locationManager_didUpdateLocations_(self, manager, locations):
+                        if locations:
+                            self.location = locations[-1]
 
-            manager = CLLocationManager.alloc().init()
-            delegate = LocationDelegate.alloc().init()
-            manager.setDelegate_(delegate)
-            manager.requestWhenInUseAuthorization()
-            manager.startUpdatingLocation()
+                    def locationManager_didFailWithError_(self, manager, error):
+                        self.error = error
+
+                manager = CLLocationManager.alloc().init()
+                delegate = LocationDelegate.alloc().init()
+                manager.setDelegate_(delegate)
+                manager.requestWhenInUseAuthorization()
+                manager.startUpdatingLocation()
 
             # Wait briefly for location
             import time

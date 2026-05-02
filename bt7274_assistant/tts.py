@@ -102,7 +102,9 @@ class XTTSClient:
         if self._model is None:
             info("Loading XTTS v2 model...")
             info("(This may take 30-60 seconds on first run)")
-            self._model = TTS(self.model_name)
+            from utils import suppress_stdout
+            with suppress_stdout():
+                self._model = TTS(self.model_name)
             self._warmup()
         return self._model
 
@@ -133,11 +135,13 @@ class XTTSClient:
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:
-                    _ = self._model.tts(
-                        text="Ready.",
-                        speaker_wav=self.reference_wav,
-                        language=self.language
-                    )
+                    from utils import suppress_stdout
+                    with suppress_stdout():
+                        _ = self._model.tts(
+                            text="Ready.",
+                            speaker_wav=self.reference_wav,
+                            language=self.language
+                        )
                 except Exception as e:
                     warning(f"TTS warmup synthesis failed: {e}")
             success("TTS warmed up and ready.")
@@ -247,11 +251,13 @@ class XTTSClient:
         try:
             start_time = time.time()
             # Use the standard TTS API (cached latents path is unstable on some setups)
-            wav = self.model.tts(
-                text=text,
-                speaker_wav=self.reference_wav,
-                language=self.language
-            )
+            from utils import suppress_stdout
+            with suppress_stdout():
+                wav = self.model.tts(
+                    text=text,
+                    speaker_wav=self.reference_wav,
+                    language=self.language
+                )
             synthesis_time = time.time() - start_time
             sf.write(str(output_path), wav, 24000)
 

@@ -3,16 +3,34 @@ Audio utilities for recording, playback, and processing.
 """
 
 import os
+import sys
 import tempfile
 import time
 import threading
 from pathlib import Path
 from typing import Optional
+from contextlib import contextmanager
 
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
 from ui import info, success, warning, error
+
+
+@contextmanager
+def suppress_stdout():
+    """Temporarily suppress stdout (useful for noisy third-party libraries)."""
+    import builtins
+    original_stdout = sys.stdout
+    original_print = builtins.print
+    sys.stdout = open(os.devnull, 'w')
+    builtins.print = lambda *args, **kwargs: None
+    try:
+        yield
+    finally:
+        sys.stdout.close()
+        sys.stdout = original_stdout
+        builtins.print = original_print
 
 
 def play_audio(wav_path: str, device: Optional[int] = None):

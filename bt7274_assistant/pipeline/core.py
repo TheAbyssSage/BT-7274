@@ -242,40 +242,16 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         """Initialize all components."""
         header("BT-7274 AI ASSISTANT  |  Protocol 1: Link to Pilot")
 
-        # Console chat mode announcement
         if self.console_chat_mode:
-            section("MODE: Console Chat")
-            info("Microphone disabled. Text input only.")
-            info("Type your messages and press Enter.")
+            info("Console Chat Mode — Text input only")
             spacer()
 
-        section("[0/10] Checking log directories")
-        self._ensure_log_directories()
-        success("Log directories verified.")
-
-        if not self.console_chat_mode:
-            section("[1/10] Initializing Speech-to-Text")
-            try:
-                self.stt = WhisperSTT(self.config["stt"])
-                # Preload Whisper model to avoid delays during first transcription
-                _ = self.stt.model
-                success("Whisper model loaded and ready.")
-            except Exception as e:
-                self._report_error("stt", "initialize", e)
-                error(f"STT initialization failed: {e}")
-        else:
-            section("[1/10] Speech-to-Text")
-            info("Skipped (console chat mode)")
-
-        section("[2/10] Which LLM?")
+        # Pre-init: LLM selection (moved above system init)
         if self.ai_mode is None:
-            # Simple and reliable model selection
             local_model = self.config["llm"]["local"]["model"]
             cloud_model = self.config["llm"]["cloud"]["model"]
-
             info(f"[1] Local Ollama  ({local_model})")
             info(f"[2] Cloud Ollama  ({cloud_model})")
-
             while True:
                 try:
                     choice = prompt("Select model [1-2]:")
@@ -293,44 +269,24 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                     info("Exiting...")
                     sys.exit(0)
         else:
-            # Use the provided AI mode
-            mode_name = "Local Ollama" if self.ai_mode == "local" else "Cloud Ollama"
+            mode_name = "Local" if self.ai_mode == "local" else "Cloud"
             model_name = self.config["llm"][self.ai_mode]["model"]
-            status("USING", f"{mode_name} ({model_name}) (preselected)")
+            status("USING", f"{mode_name} Ollama ({model_name})")
 
-        section(f"[3/10] Initializing LLM ({'Local' if self.ai_mode == 'local' else 'Cloud'} Ollama)")
-        try:
-            # Use OllamaClient for both local and cloud since they use the same API
-            # Merge system prompt from top-level llm config
-            llm_config = self.config["llm"][self.ai_mode].copy()
-            llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
-            self.llm = OllamaClient(llm_config)
-        except Exception as e:
-            self._report_error("llm", "initialize", e)
-            error(f"LLM initialization failed: {e}")
-
-        section("[4/10] Performance Mode Selection")
+        # Pre-init: Performance mode selection (moved above system init)
         if self.performance_mode is None:
-            info("[1] Standard Mode")
-            info("    Full response synthesized, then played")
-            info("    Best for: Short responses, maximum voice quality")
-            spacer()
-            info("[2] Performance Mode (STREAMING)")
-            info("    Sentence-level streaming with parallel synthesis")
-            info("    Best for: Long responses, minimal latency")
-            info("    First audio plays in ~2-4 seconds")
-            info("    BT-7274's voice maintained throughout")
-
+            info("[1] Standard — Full synthesis, then play")
+            info("[2] Streaming — Sentence-level parallel playback")
             while True:
                 try:
                     choice = prompt("Select mode [1-2]:")
                     if choice == "1":
                         self.performance_mode = "standard"
-                        status("SELECT", "Standard Mode")
+                        status("SELECT", "Standard")
                         break
                     elif choice == "2":
                         self.performance_mode = "performance"
-                        status("SELECT", "Performance Mode (Streaming)")
+                        status("SELECT", "Streaming")
                         break
                     else:
                         warning("Invalid choice. Please enter 1 or 2.")
@@ -338,118 +294,143 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                     info("Exiting...")
                     sys.exit(0)
         else:
-            mode_display = "Standard" if self.performance_mode == "standard" else "Performance (Streaming)"
+            mode_display = "Standard" if self.performance_mode == "standard" else "Streaming"
             status("USING", f"{mode_display} (preselected)")
 
-        section(f"[5/10] Initializing Text-to-Speech ({self.performance_mode.upper()} MODE)")
+        spacer()
+        section("Initializing Systems")
+
+        # [0] Log directories
+        self._ensure_log_directories()
+        success("Log directories")
+
+        # [1] Speech-to-Text
+        if not self.console_chat_mode:
+            try:
+                self.stt = WhisperSTT(self.config["stt"])
+                _ = self.stt.model
+                success("Speech-to-Text")
+            except Exception as e:
+                self._report_error("stt", "initialize", e)
+                warning("Speech-to-Text failed")
+        else:
+            info("Speech-to-Text — skipped (chat mode)")
+
+        # [2] LLM
+        try:
+            llm_config = self.config["llm"][self.ai_mode].copy()
+            llm_config["system_prompt"] = self.config["llm"].get("system_prompt", "")
+            self.llm = OllamaClient(llm_config)
+            success("LLM")
+        except Exception as e:
+            self._report_error("llm", "initialize", e)
+            error("LLM failed")
+
+        # [3] Text-to-Speech
         try:
             if self.performance_mode == "performance":
                 self.tts = StreamingXTTSClient(self.config["tts"])
-                status("STREAM", "Streaming TTS engine initialized")
-                status("STREAM", "Sentence-level parallel synthesis enabled")
+                status("STREAM", "Streaming TTS initialized")
             else:
                 self.tts = XTTSClient(self.config["tts"])
-                success("Standard TTS engine initialized")
-
-            # Preload TTS model at startup to avoid delays during first synthesis
+                success("Standard TTS initialized")
             self.tts.ensure_ready()
-            success("TTS model loaded and ready.")
+            success("TTS ready")
         except Exception as e:
             self._report_error("tts", "initialize", e)
-            error(f"TTS initialization failed: {e}")
+            error("TTS failed")
 
-        section("[6/10] Checking standby audio files")
+        # [4] Standby clips
         self._check_and_generate_standby_clips()
 
-        section("[6.1/10] Loading BT-7274 original voice clips")
+        # [5] BT original clips + semantic matching
         self._load_bt_original_clips()
-
-        section("[6.2/10] Initializing semantic matching for BT clips")
         self._initialize_semantic_matching()
 
-        section("[7/10] Initializing Action Handler")
+        # [6] Action Handler
         try:
             self.actions = ActionHandler(self.config["actions"])
+            success("Action Handler")
         except Exception as e:
             self._report_error("actions", "initialize", e)
-            error(f"Action handler initialization failed: {e}")
+            warning("Action Handler failed")
 
-        section("[8/10] Initializing Location Services")
+        # [7] Location
         try:
             manual_loc = self.config.get("location", {}).get("manual")
             self.location = LocationProvider(manual_location=manual_loc)
             if self.location.update():
-                status("LOC", f"Location: {self.location.location_str}")
+                status("LOC", self.location.location_str)
             else:
-                warning("Location unavailable.")
+                warning("Location unavailable")
         except Exception as e:
             self._report_error("location", "initialize", e)
-            error(f"Location services initialization failed: {e}")
+            warning("Location failed")
 
+        # [8] Audio Stream
         if not self.console_chat_mode:
-            section("[9/10] Opening persistent audio stream")
             self.recorder = PersistentAudioRecorder(self.config["stt"])
             self.recorder.start()
-            success("Microphone stream active.")
+            success("Audio stream active")
         else:
-            section("[9/10] Audio Stream")
-            info("Skipped (console chat mode)")
+            info("Audio stream — skipped (chat mode)")
 
-        section("[10.1/10] Starting battery monitor")
+        # [9] Monitors
         try:
             self.battery = BatteryMonitor(self.config.get("battery", {}))
             self.battery.start()
+            success("Battery monitor")
         except Exception as e:
             self._report_error("battery", "initialize", e)
-            warning(f"Battery monitor failed to start: {e}")
+            warning("Battery monitor failed")
 
-        section("[10.2/10] Starting environmental monitor")
         try:
             self.weather = WeatherMonitor(self.config.get("environmental_warnings", {}))
             self.weather.start()
+            success("Environmental monitor")
         except Exception as e:
             self._report_error("weather", "initialize", e)
-            warning(f"Environmental monitor failed to start: {e}")
+            warning("Environmental monitor failed")
 
-        section("[10.3/10] Starting VPN monitor")
         try:
             self.vpn = VPNMonitor(self.config.get("vpn", {}))
             self.vpn.start()
+            success("VPN monitor")
         except Exception as e:
             self._report_error("vpn", "initialize", e)
-            warning(f"VPN monitor failed to start: {e}")
+            warning("VPN monitor failed")
 
-        section("[10.4/10] Initializing Protocol Brief")
+        # [10] Protocol Brief
         try:
             self.protocol_brief = ProtocolBrief()
             protocol_cfg = self.config.get("protocol_mode", {})
             if protocol_cfg.get("enabled", False):
                 self.protocol_mode_enabled = True
-                status("PROTOCOL", "Protocol Mode enabled")
+                status("PROTOCOL", "Enabled")
                 if protocol_cfg.get("auto_brief_on_start", False):
                     brief = self.protocol_brief.get_brief()
-                    info("Auto protocol brief:")
                     for line in brief.split("\n"):
                         info(f"  {line}")
             else:
-                status("PROTOCOL", "Protocol Mode disabled")
+                status("PROTOCOL", "Disabled")
         except Exception as e:
             self._report_error("protocol_brief", "initialize", e)
-            warning(f"Protocol Brief initialization failed: {e}")
+            warning("Protocol Brief failed")
 
+        divider()
         footer("All systems online")
         if self.console_chat_mode:
-            status("MODE", "Console Chat Mode: Type your messages below")
+            status("MODE", "Console Chat — Type your messages below")
             log_system("Session started in console chat mode")
         elif self.performance_mode == "performance":
-            status("MODE", "Performance Mode: Streaming TTS active")
+            status("MODE", "Performance Mode — Streaming TTS active")
             log_system("Session started in voice mode (performance)")
         else:
             log_system("Session started in voice mode (standard)")
         if self.protocol_mode_enabled:
-            status("PROTOCOL", "Protocol Mode is active. Say 'BT, protocol brief' for a status summary.")
+            status("PROTOCOL", "Say 'BT, protocol brief' for a status summary")
         if not self.console_chat_mode:
-            info("Say 'Hey BT' or press Enter to speak.")
+            info("Say 'Hey BT' or press Enter to speak")
 
     def _check_and_generate_standby_clips(self):
         """Check all standby phrases from config and generate missing .wav files."""

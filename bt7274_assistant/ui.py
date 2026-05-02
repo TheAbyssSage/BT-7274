@@ -15,25 +15,19 @@ def term_width() -> int:
 
 
 def header(text: str, width: int = None):
-    """Print a centered header with block borders."""
-    w = width or term_width()
-    line = "█" * w
-    pad = "█" + " " * (w - 2) + "█"
-    text_line = f"█  {text}"
-    text_line = text_line.ljust(w - 1) + "█"
-    print(f"\n{line}\n{pad}\n{text_line}\n{pad}\n{line}")
+    """Print a clean header line."""
+    print(f"\n  {text}")
 
 
 def section(title: str):
     """Print a section divider with title."""
-    w = term_width()
-    line = "─" * w
-    print(f"\n{line}\n  {title}\n{line}")
+    print(f"\n  {title}")
+    print(f"  {'─' * 40}")
 
 
 def sub_section(title: str):
     """Print a subsection title."""
-    print(f"\n  ┌─ {title}")
+    print(f"\n  {title}")
 
 
 def info(msg: str):
@@ -77,15 +71,10 @@ def divider():
 
 
 def footer(text: str = ""):
-    """Print a footer block."""
-    w = term_width()
-    line = "█" * w
+    """Print a clean footer line."""
     if text:
-        text_line = f"█  {text}"
-        text_line = text_line.ljust(w - 1) + "█"
-        print(f"{line}\n{text_line}\n{line}\n")
-    else:
-        print(f"{line}\n")
+        print(f"\n  {text}")
+    print("")
 
 
 def prompt(text: str) -> str:

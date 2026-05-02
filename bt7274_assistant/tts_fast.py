@@ -146,7 +146,9 @@ class StreamingXTTSClient:
         with self._model_lock:
             if self._model is None:
                 info("Loading XTTS v2 model (performance mode)...")
-                self._model = TTS(self.model_name)
+                from utils import suppress_stdout
+                with suppress_stdout():
+                    self._model = TTS(self.model_name)
                 self._warmup()
                 self._is_ready = True
             return self._model
@@ -177,11 +179,13 @@ class StreamingXTTSClient:
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:
-                    _ = self._model.tts(
-                        text="Ready.",
-                        speaker_wav=self.reference_wav,
-                        language=self.language
-                    )
+                    from utils import suppress_stdout
+                    with suppress_stdout():
+                        _ = self._model.tts(
+                            text="Ready.",
+                            speaker_wav=self.reference_wav,
+                            language=self.language
+                        )
                 except Exception as e:
                     warning(f"TTS warmup synthesis failed: {e}")
             success("TTS warmed up and ready for streaming.")
@@ -271,11 +275,13 @@ class StreamingXTTSClient:
             start_time = time.time()
 
             # Use standard TTS API for reliable synthesis
-            wav = self.model.tts(
-                text=text,
-                speaker_wav=self.reference_wav,
-                language=self.language
-            )
+            from utils import suppress_stdout
+            with suppress_stdout():
+                wav = self.model.tts(
+                    text=text,
+                    speaker_wav=self.reference_wav,
+                    language=self.language
+                )
 
             # Convert to numpy if needed
             if wav is not None:
@@ -537,11 +543,13 @@ class StreamingXTTSClient:
             return str(output_path)
 
         try:
-            wav = self.model.tts(
-                text=text,
-                speaker_wav=self.reference_wav,
-                language=self.language
-            )
+            from utils import suppress_stdout
+            with suppress_stdout():
+                wav = self.model.tts(
+                    text=text,
+                    speaker_wav=self.reference_wav,
+                    language=self.language
+                )
             sf.write(str(output_path), wav, 24000)
 
             with self._cache_lock:
