@@ -349,3 +349,124 @@ class IntentDetectionMixin:
         ]
         return any(re.search(pattern, lower) for pattern in log_patterns)
 
+    # ─── Translator Intent Detection ─────────────────────────────────────
+
+    def _is_translate_command(self, text: str) -> bool:
+        """Detect if the user wants to start a translation session."""
+        lower = text.lower().strip()
+        translate_start_phrases = [
+            "start translating", "begin translating", "activate translator",
+            "enable translator", "turn on translator", "start translation",
+            "begin translation", "activate translation", "enable translation",
+            "turn on translation", "translator on", "translation on",
+            "translate mode", "translation mode", "translator mode",
+            "i need a translator", "i need translation", "translate for me",
+            "be my translator", "act as translator", "translation protocol",
+            "protocol 4: translate", "protocol 4 translate",
+        ]
+        return any(phrase in lower for phrase in translate_start_phrases)
+
+    def _is_translate_stop_command(self, text: str) -> bool:
+        """Detect if the user wants to stop translating."""
+        lower = text.lower().strip()
+        translate_stop_phrases = [
+            "stop translating", "end translating", "deactivate translator",
+            "disable translator", "turn off translator", "stop translation",
+            "end translation", "deactivate translation", "disable translation",
+            "turn off translation", "translator off", "translation off",
+            "exit translate mode", "exit translation mode", "exit translator mode",
+            "quit translating", "quit translation", "translator stop",
+            "translation stop", "stop translator", "end translator",
+            "disengage translator", "disengage translation",
+        ]
+        return any(phrase in lower for phrase in translate_stop_phrases)
+
+    def _is_translate_status_command(self, text: str) -> bool:
+        """Detect if the user is asking for translation status."""
+        lower = text.lower().strip()
+        status_phrases = [
+            "translation status", "translator status", "translate status",
+            "what language", "what is the language", "detected language",
+            "current language", "translation session", "are you translating",
+            "is translation active", "is translator active",
+        ]
+        return any(phrase in lower for phrase in status_phrases)
+
+    def _extract_translate_language(self, text: str) -> Optional[str]:
+        """Extract target language from a translate command.
+
+        Handles phrases like:
+        - "start translating Spanish"
+        - "translate from French to English"
+        - "begin translation to German"
+        - "activate translator for Japanese"
+        """
+        import re
+        lower = text.lower().strip()
+
+        # Pattern: "translate X" or "translating X" or "translation X"
+        # where X is a language name
+        patterns = [
+            # "start translating Spanish"
+            r"(?:start|begin|activate|enable|turn on)\s+(?:translat(?:e|ing|ion)|translator)\s+(?:to\s+)?([a-z\s]+)",
+            # "translate from Spanish to English"
+            r"translat(?:e|ing|ion)\s+(?:from\s+)?([a-z\s]+)\s+to\s+([a-z\s]+)",
+            # "translate Spanish to English"
+            r"translat(?:e|ing|ion)\s+([a-z\s]+)\s+to\s+([a-z\s]+)",
+            # "translator for Spanish"
+            r"(?:translator|translation)\s+(?:for|in|to)\s+([a-z\s]+)",
+            # "translate to Spanish"
+            r"translat(?:e|ing|ion)\s+to\s+([a-z\s]+)",
+            # "translate from Spanish"
+            r"translat(?:e|ing|ion)\s+from\s+([a-z\s]+)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, lower)
+            if match:
+                groups = match.groups()
+                if len(groups) == 2:
+                    # Two languages found: source and target
+                    source = groups[0].strip()
+                    target = groups[1].strip()
+                    return f"{source}|{target}"
+                elif len(groups) == 1:
+                    # One language found: assume it's the source
+                    return groups[0].strip()
+
+        # Fallback: look for any known language name in the text
+        from bt7274_assistant.translator import TranslatorTool
+        for lang_name in TranslatorTool.list_supported_languages():
+            if lang_name.lower() in lower:
+                return lang_name
+
+        return None
+
+    def _is_in_translation_session(self, text: str, translator_active: bool) -> bool:
+        """Detect if the user is speaking during an active translation session.
+
+        When a translation session is active, most utterances are treated as
+        content to be translated rather than commands.
+        """
+        if not translator_active:
+            return False
+
+        lower = text.lower().strip()
+
+        # If the text matches a stop/status command, it's NOT session content
+        if self._is_translate_stop_command(text):
+            return False
+        if self._is_translate_status_command(text):
+            return False
+
+        # If the text is very short (1-2 words), it might be a command
+        word_count = len(lower.split())
+        if word_count <= 2:
+            # Check if it's a known wake word or command
+            wake_words = ["hey bt", "bt", "bt-7274", "b.t.", "beatee"]
+            if any(ww in lower for ww in wake_words):
+                return False
+
+        # Otherwise, treat as session content
+        return True
+

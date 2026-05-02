@@ -257,6 +257,13 @@ pipeline:
     - "Accessing temporal systems."
     - "Querying time databases."
     - "Retrieving current timestamp."
+  standby_phrases_translate:  # Spoken while processing translations
+    - "Processing translation."
+    - "Analyzing linguistic data."
+    - "Translating now, Pilot."
+    - "Interpreting foreign speech."
+    - "Running translation protocol."
+    - "Decoding language patterns."
 
 paths:
   dataset: dataset

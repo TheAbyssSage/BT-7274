@@ -39,6 +39,7 @@ from bt7274_assistant.pipeline.clip_matching import ClipMatchingMixin
 from bt7274_assistant.pipeline.intent_detection import IntentDetectionMixin
 from bt7274_assistant.pipeline.response_helpers import ResponseHelpersMixin
 from bt7274_assistant.pipeline.command_processing import CommandProcessingMixin
+from bt7274_assistant.translator import TranslatorTool
 
 
 class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMixin, CommandProcessingMixin):
@@ -114,6 +115,9 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         # Task focus management
         self.focused_task = False       # Flag to indicate when BT is focusing on a task
         self.task_lock = threading.Lock()  # Lock for thread-safe task management
+
+        # Translator tool
+        self.translator: Optional[TranslatorTool] = None
 
     def clear_tts_cache(self):
         """Clear the TTS response cache."""
@@ -416,6 +420,14 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         except Exception as e:
             self._report_error("protocol_brief", "initialize", e)
             warning("Protocol Brief failed")
+
+        # [11] Translator
+        try:
+            self.translator = TranslatorTool(llm_client=self.llm)
+            status("TRANSLATE", "Ready")
+        except Exception as e:
+            self._report_error("translator", "initialize", e)
+            warning("Translator failed")
 
         divider()
         footer("All systems online")

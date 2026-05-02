@@ -137,6 +137,18 @@ These are handled automatically when the LLM recognizes the intent:
 
 ---
 
+## Translation Protocol
+
+| Command | What It Does |
+|---------|-------------|
+| `BT, start translating` | Activates translation mode. BT listens and translates foreign speech to English. |
+| `BT, start translating [language]` | Starts translation from a specific language (e.g., "start translating Spanish"). |
+| `BT, translate from [lang] to [lang]` | Sets specific source and target languages. |
+| `BT, stop translating` / `End translation` | Disengages translation mode. |
+| `BT, translation status` | Reports current translation session status. |
+
+> **How it works:** Once active, everything BT hears is treated as speech to translate. BT tells you what it means in English. When you reply, BT translates your English back into the foreign language so you can speak it.
+
 ## Quick Reference: Command Categories
 
 ```
@@ -146,6 +158,7 @@ Protocol Brief → tasks, notes, mission, protocol brief
 Logging        → make log, read logs, delete logs
 Travel         → how to get to, how far is, best way to
 Maintenance    → clear cache, weather warnings, protocol mode
+Translation    → start translating, stop translating, translation status
 Social         → thanks, goodbye, never mind
 ```
 

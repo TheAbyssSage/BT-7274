@@ -969,6 +969,96 @@ class CommandProcessingMixin:
                     response_parts.append("Failed to retrieve logs, Pilot.")
                 handled_types.add("log")
 
+        # ─── Translator Commands ───────────────────────────────────────────────
+
+        # Check for translation session start
+        if self._is_translate_command(text) and "translate" not in handled_types:
+            status("TRANSLATE", "Initializing translation protocol...")
+            try:
+                if self.translator:
+                    # Extract language if specified
+                    lang_spec = self._extract_translate_language(text)
+                    source_lang = None
+                    target_lang = "English"
+                    if lang_spec:
+                        if "|" in lang_spec:
+                            parts = lang_spec.split("|")
+                            source_lang = parts[0].strip()
+                            target_lang = parts[1].strip()
+                        else:
+                            source_lang = lang_spec.strip()
+
+                    result = self.translator.start_session(
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        auto_detect=(source_lang is None),
+                    )
+                    response_parts.append(result)
+                    logger.info(f"[TRANSLATE] Session started: {source_lang} -> {target_lang}")
+                else:
+                    response_parts.append("Translation protocol is offline, Pilot.")
+            except Exception as e:
+                self._report_error("translator", "start_session", e)
+                response_parts.append("Failed to initialize translation protocol.")
+            handled_types.add("translate")
+
+        # Check for translation session stop
+        if self._is_translate_stop_command(text) and "translate" not in handled_types:
+            status("TRANSLATE", "Disengaging translation protocol...")
+            try:
+                if self.translator:
+                    result = self.translator.end_session()
+                    response_parts.append(result)
+                    logger.info("[TRANSLATE] Session ended")
+                else:
+                    response_parts.append("Translation protocol is offline, Pilot.")
+            except Exception as e:
+                self._report_error("translator", "end_session", e)
+                response_parts.append("Failed to disengage translation protocol.")
+            handled_types.add("translate")
+
+        # Check for translation status
+        if self._is_translate_status_command(text) and "translate" not in handled_types:
+            status("TRANSLATE", "Checking translation status...")
+            try:
+                if self.translator:
+                    result = self.translator.get_session_status()
+                    response_parts.append(result)
+                else:
+                    response_parts.append("Translation protocol is offline, Pilot.")
+            except Exception as e:
+                self._report_error("translator", "get_session_status", e)
+                response_parts.append("Unable to retrieve translation status.")
+            handled_types.add("translate")
+
+        # If a translation session is active, treat the utterance as content to translate
+        if self.translator and self.translator.is_session_active() and "translate" not in handled_types:
+            status("TRANSLATE", "Processing translation...")
+            try:
+                # Determine if this is the Pilot speaking or a foreign speaker
+                # Heuristic: if the text is very short and contains wake words, it's likely a command
+                # Otherwise, treat as content
+                is_pilot_speaking = self._is_in_translation_session(text, True)
+
+                if is_pilot_speaking:
+                    # Pilot is responding — translate TO the foreign language
+                    translated, bt_response = self.translator.translate_outgoing(text)
+                    response_parts.append(bt_response)
+                    # Also display the translated text clearly for the Pilot to read/speak
+                    quote("TRANSLATED", translated)
+                else:
+                    # Foreign speaker — translate TO the Pilot's language
+                    translated, bt_response = self.translator.translate_incoming(text)
+                    response_parts.append(bt_response)
+                    # Also display the original for context
+                    quote("ORIGINAL", text)
+
+                handled_types.add("translate")
+            except Exception as e:
+                self._report_error("translator", "session_translate", e)
+                response_parts.append("Translation processing failed, Pilot.")
+                handled_types.add("translate")
+
         # Check for travel queries - always let LLM handle these with location context
         # But don't process travel context for event information queries (dates, prices, etc.)
         is_information_query = self._is_event_information_query(text)
