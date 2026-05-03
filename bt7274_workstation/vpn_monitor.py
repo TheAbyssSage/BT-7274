@@ -2,7 +2,7 @@
 VPN monitoring for BT-7274.
 Detects Proton VPN connect/disconnect events.
 Speaks voice lines on state changes.
-Logs all state changes to logs/system_logs.
+Logs all state changes to telemetry/network.
 """
 
 import re
@@ -31,7 +31,8 @@ class VPNMonitor:
         self._last_server: Optional[str] = None
         self._last_wifi: Optional[str] = None
         self._tts_callback = tts_callback
-        self._log_dir = Path(__file__).parent.parent / "logs" / "system_logs"
+        from bt7274_workstation.log_manager import get_telemetry_network_dir, append_log, daily_log_path
+        self._log_dir = get_telemetry_network_dir()
         self._log_dir.mkdir(parents=True, exist_ok=True)
         self._public_wifi_warned = False
 
@@ -114,18 +115,11 @@ class VPNMonitor:
         return any(pattern in ssid_lower for pattern in public_patterns)
 
     def _log_state_change(self, state: str, server: Optional[str] = None, wifi: Optional[str] = None):
-        """Log VPN state change to logs/system_logs."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        """Log VPN state change to telemetry/network."""
         server_str = f" {server}" if server else ""
         wifi_str = f" wifi={wifi}" if wifi else ""
-        log_line = f"{timestamp} [vpn] {state}{server_str}{wifi_str}\n"
-        today = datetime.now().strftime("%Y-%m-%d")
-        log_file = self._log_dir / f"bt7274_system_{today}.log"
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(log_line)
-        except Exception as e:
-            error(f"Failed to write VPN log: {e}")
+        log_file = daily_log_path(self._log_dir, "bt7274_network")
+        append_log(log_file, f"[vpn] {state}{server_str}{wifi_str}")
 
     def _announce(self, message: str):
         """Announce a message via TTS callback or UI."""

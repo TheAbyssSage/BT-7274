@@ -13,6 +13,7 @@ from ui import (
     cache_hit, clip_play, listening, goodbye, loading_bar
 )
 from utils import play_audio, record_until_silence
+from bt7274_workstation.voice_telemetry import VoiceTelemetry
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -175,6 +176,17 @@ class CommandProcessingMixin:
             if wake_words and not any(ww.lower() in text.lower() for ww in wake_words):
                 info("Wake word not detected. Ignoring.")
                 return False
+
+        # Voice telemetry: log wake + STT
+        if self.voice_telemetry:
+            try:
+                self.voice_telemetry.log_stt_event(
+                    transcript=text,
+                    confidence=stt_confidence,
+                    model=self.config.get("stt", {}).get("model") if hasattr(self, "config") else None,
+                )
+            except Exception:
+                pass
 
         # Helper: speak a standby phrase immediately (pre-recorded if available)
         def speak_standby(task: str = "generic"):
@@ -1361,6 +1373,19 @@ class CommandProcessingMixin:
 
         # Update conversation context with the current interaction
         self._update_conversation_context(text, clean_response)
+
+        # Voice telemetry: log TTS event
+        if self.voice_telemetry:
+            try:
+                self.voice_telemetry.log_tts_event(
+                    text=clean_response,
+                    generation_time_ms=tts_metrics.get("processing_time") if tts_metrics else None,
+                    cache_hit=bool(cache_hit_type),
+                    model=getattr(self.tts, "model_name", None) if self.tts else None,
+                    streaming=self.performance_mode == "performance",
+                )
+            except Exception:
+                pass
 
         # Log the interaction (after TTS so metrics are accurate)
         # For performance mode, use last_metrics from streaming session

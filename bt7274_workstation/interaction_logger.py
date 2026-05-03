@@ -2,7 +2,7 @@
 Interaction Logger for BT-7274 Voice Assistant.
 
 Logs all exchanges between the Pilot and BT-7274 with timestamps,
-storing them in daily JSONL files under the logs/bt-pilot_interactions/ directory.
+storing them in daily JSONL files under the logs/conversations/ directory.
 """
 
 import json
@@ -12,13 +12,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
 
+from bt7274_workstation.log_manager import (
+    get_conversations_dir,
+    get_pilot_memory_dir,
+    daily_jsonl_path,
+    append_jsonl,
+    RecentHashSet,
+)
+
 
 class InteractionLogger:
     """Logger for Pilot ↔ BT-7274 interactions."""
 
     def __init__(self, log_dir: Optional[str] = None):
         if log_dir is None:
-            log_dir = str(Path(__file__).parent.parent / "logs" / "bt-pilot_interactions")
+            log_dir = str(get_conversations_dir())
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.current_file = None
@@ -46,8 +54,7 @@ class InteractionLogger:
 
     def _update_current_file(self):
         """Update the current log file based on today's date."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        self.current_file = self.log_dir / f"bt7274_interactions_{today}.jsonl"
+        self.current_file = daily_jsonl_path(self.log_dir, "bt7274_interactions")
 
     def log_interaction(
         self,
@@ -169,15 +176,10 @@ class InteractionLogger:
         self._log_interaction_details(entry)
 
     def _log_interaction_details(self, entry: dict):
-        """Log detailed interaction info to pilot_logs directory."""
-        pilot_logs_dir = self.log_dir.parent / "pilot_logs"
-        pilot_logs_dir.mkdir(parents=True, exist_ok=True)
-        
-        today = datetime.now().strftime("%Y-%m-%d")
-        details_file = pilot_logs_dir / f"interaction_details_{today}.jsonl"
-        
-        with open(details_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        """Log detailed interaction info to pilot_memory directory."""
+        pilot_logs_dir = get_pilot_memory_dir()
+        details_file = daily_jsonl_path(pilot_logs_dir, "interaction_details")
+        append_jsonl(details_file, entry)
 
     def get_today_log(self) -> list:
         """Get all interactions from today."""

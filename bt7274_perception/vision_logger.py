@@ -1,7 +1,7 @@
 """
 Vision Logger for BT-7274 Perception.
 
-Logs all visual observations to logs/bt_vision/ with timestamps,
+Logs all visual observations to logs/vision/ with timestamps,
 image references, and analysis results.
 """
 
@@ -12,13 +12,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from bt7274_workstation.log_manager import get_vision_dir
+
 
 class VisionLogger:
     """Logger for BT-7274's visual observations."""
 
     def __init__(self, log_dir: Optional[str] = None):
         if log_dir is None:
-            log_dir = str(Path(__file__).parent.parent / "logs" / "bt_vision")
+            log_dir = str(get_vision_dir())
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self._current_day = None

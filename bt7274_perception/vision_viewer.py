@@ -39,11 +39,12 @@ from bt7274_perception.vision_logger import VisionLogger
 class VisionViewerWindow:
     """Tkinter window for BT-7274's camera vision."""
 
-    PREVIEW_WIDTH = 320
-    PREVIEW_HEIGHT = 240
+    # Base preview settings (power-efficient)
+    PREVIEW_WIDTH = 160
+    PREVIEW_HEIGHT = 120
     CAPTURE_WIDTH = 640
     CAPTURE_HEIGHT = 480
-    PREVIEW_INTERVAL_MS = 500  # ms between preview updates (slower to avoid camera contention)
+    PREVIEW_INTERVAL_MS = 1000  # Start slow, adapt based on visibility
 
     def __init__(
         self,
@@ -56,6 +57,12 @@ class VisionViewerWindow:
         self._ollama_url = ollama_url
         self._vision_model = vision_model
         self._log_dir = log_dir
+
+        # Power management
+        self._power_saving_mode = False
+        self._window_visible = True
+        self._last_window_check = 0
+        self._adaptive_interval = self.PREVIEW_INTERVAL_MS
 
         # Single shared camera with lock — prevents preview and LOOK from fighting
         self._camera_lock = threading.Lock()
@@ -75,6 +82,7 @@ class VisionViewerWindow:
         self._camera_combo: Optional[ttk.Combobox] = None
         self._progress_var: Optional[tk.DoubleVar] = None
         self._progress_bar: Optional[ttk.Progressbar] = None
+        self._power_btn: Optional[tk.Button] = None
 
         self._preview_job: Optional[str] = None
         self._preview_running = False
@@ -91,10 +99,11 @@ class VisionViewerWindow:
     def _rebuild_camera(self):
         """Rebuild the single shared camera instance."""
         with self._camera_lock:
+            # Use lower resolution for shared camera to reduce bandwidth
             self._shared_camera = CameraCapture(
                 device=self._camera_device,
-                width=self.CAPTURE_WIDTH,
-                height=self.CAPTURE_HEIGHT,
+                width=self.CAPTURE_WIDTH if not self._power_saving_mode else self.PREVIEW_WIDTH,
+                height=self.CAPTURE_HEIGHT if not self._power_saving_mode else self.PREVIEW_HEIGHT,
             )
 
     def _capture_locked(self, for_preview: bool = False) -> Optional[str]:
@@ -102,6 +111,14 @@ class VisionViewerWindow:
         with self._camera_lock:
             if self._shared_camera is None:
                 return None
+            # For preview captures, use lower resolution
+            if for_preview:
+                temp_camera = CameraCapture(
+                    device=self._camera_device,
+                    width=self.PREVIEW_WIDTH,
+                    height=self.PREVIEW_HEIGHT,
+                )
+                return temp_camera.capture()
             return self._shared_camera.capture()
 
     def _build_ui(self):
@@ -233,6 +250,17 @@ class VisionViewerWindow:
         )
         self._look_btn.pack(fill=tk.X, pady=(0, 5))
 
+        # Power saving toggle
+        self._power_btn = tk.Button(
+            ctrl_frame,
+            text="POWER SAVING: OFF",
+            font=("Courier", 10),
+            bg="#333333",
+            fg="#ffffff",
+            command=self._toggle_power_saving,
+        )
+        self._power_btn.pack(fill=tk.X, pady=(0, 5))
+
         # Progress bar
         self._progress_var = tk.DoubleVar(value=0.0)
         self._progress_bar = ttk.Progressbar(
@@ -338,11 +366,19 @@ class VisionViewerWindow:
         try:
             if self._has_pil:
                 from PIL import Image, ImageTk
-                img = Image.open(path)
-                label_w = max(label.winfo_width(), self.PREVIEW_WIDTH)
-                label_h = max(label.winfo_height(), self.PREVIEW_HEIGHT)
-                img.thumbnail((label_w - 20, label_h - 20), Image.Resampling.LANCZOS)
-                photo = ImageTk.PhotoImage(img)
+                # Use faster loading for previews
+                if label == self._preview_label:
+                    img = Image.open(path)
+                    # Fast resize for preview
+                    img.thumbnail((self.PREVIEW_WIDTH, self.PREVIEW_HEIGHT), Image.Resampling.LANCZOS)
+                    photo = ImageTk.PhotoImage(img)
+                else:
+                    # Full quality for capture
+                    img = Image.open(path)
+                    label_w = max(label.winfo_width(), self.PREVIEW_WIDTH)
+                    label_h = max(label.winfo_height(), self.PREVIEW_HEIGHT)
+                    img.thumbnail((label_w - 20, label_h - 20), Image.Resampling.LANCZOS)
+                    photo = ImageTk.PhotoImage(img)
                 label.config(image=photo, text="", bg="#0a0a0a")
                 label.image = photo
             else:
@@ -356,8 +392,46 @@ class VisionViewerWindow:
         """Schedule the next preview frame using tkinter's after."""
         if not self._preview_running or self._root is None:
             return
+        
+        # Adaptive preview rate based on window visibility and power mode
+        self._update_adaptive_interval()
         self._capture_preview_frame()
-        self._preview_job = self._root.after(self.PREVIEW_INTERVAL_MS, self._schedule_preview)
+        self._preview_job = self._root.after(self._adaptive_interval, self._schedule_preview)
+
+    def _update_adaptive_interval(self):
+        """Adjust preview interval based on window visibility and power mode."""
+        import time
+        current_time = time.time()
+        
+        # Check window visibility every 5 seconds
+        if current_time - self._last_window_check > 5.0:
+            self._last_window_check = current_time
+            try:
+                # Simple heuristic: if window is minimized, it's not visible
+                self._window_visible = self._root.winfo_viewable()
+            except Exception:
+                self._window_visible = True  # Assume visible if check fails
+        
+        # Base interval
+        interval = self.PREVIEW_INTERVAL_MS
+        
+        # Slow down if window not visible
+        if not self._window_visible:
+            interval *= 4  # 4x slower when hidden
+        
+        # Power saving mode
+        if self._power_saving_mode:
+            interval *= 2  # 2x slower in power saving mode
+        
+        self._adaptive_interval = min(interval, 10000)  # Cap at 10 seconds
+
+    def _toggle_power_saving(self):
+        """Toggle power saving mode."""
+        self._power_saving_mode = not self._power_saving_mode
+        mode_text = "ON" if self._power_saving_mode else "OFF"
+        if self._power_btn:
+            self._power_btn.config(text=f"POWER SAVING: {mode_text}")
+        self._set_status(f"Power saving mode {'enabled' if self._power_saving_mode else 'disabled'}")
 
     def _capture_preview_frame(self):
         """Capture one preview frame and update the label."""
@@ -493,7 +567,7 @@ class VisionViewerWindow:
         self._preview_running = True
         self._schedule_preview()
 
-        self._set_status("Optical sensors active. Select camera and press LOOK.")
+        self._set_status("Optical sensors active. POWER SAVING: OFF")
         self._root.mainloop()
 
     def start_nonblocking(self):
@@ -502,7 +576,7 @@ class VisionViewerWindow:
         self._refresh_history()
         self._preview_running = True
         self._schedule_preview()
-        self._set_status("Optical sensors active.")
+        self._set_status("Optical sensors active. POWER SAVING: OFF")
         threading.Thread(target=self._root.mainloop, daemon=True).start()
 
     def is_open(self) -> bool:

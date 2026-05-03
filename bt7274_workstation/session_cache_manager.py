@@ -10,7 +10,7 @@ Provides centralized utilities for session-scoped temporary data:
 - Model warmup artifacts (speaker latents)
 - Session state
 
-When a session ends, data is archived to logs/session_archive/<timestamp>/
+When a session ends, data is archived to logs/archive/<timestamp>/
 and the session_cache is cleared for the next session.
 """
 
@@ -28,7 +28,8 @@ import numpy as np
 SESSION_CACHE_DIR = Path(__file__).parent.parent / "bt7274_workstation" / "session_cache"
 
 # Archive directory for ended sessions
-ARCHIVE_DIR = Path(__file__).parent.parent / "logs" / "session_archive"
+from bt7274_workstation.log_manager import get_archive_dir
+ARCHIVE_DIR = get_archive_dir()
 
 
 def _ensure_dirs():
@@ -275,7 +276,7 @@ def load_speaker_latents(
 
 def archive_and_clear_session() -> Optional[Path]:
     """
-    Archive the current session cache to logs/session_archive/<timestamp>/
+    Archive the current session cache to logs/archive/<timestamp>/
     and clear the session_cache directory for the next session.
 
     Returns the archive directory path, or None if nothing to archive.

@@ -2,8 +2,8 @@
 Protocol Brief for BT-7274 Voice Assistant.
 
 Manages pilot to-do lists and personal notes.
-- To-do list: logs/pilot_todo/<name>_todo.json
-- Notes: logs/pilot_notes/<name>_notes.jsonl
+- To-do list: logs/pilot_memory/<name>_todo.json
+- Notes: logs/pilot_memory/<name>_notes.jsonl
 
 Command: "BT, protocol brief."
 """
@@ -15,16 +15,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from bt7274_workstation.log_manager import get_pilot_memory_dir
+
 
 class ProtocolBrief:
     """Manages pilot to-do lists and personal notes."""
 
     def __init__(self, base_log_dir: Optional[str] = None):
         if base_log_dir is None:
-            base_log_dir = str(Path(__file__).parent.parent / "logs")
-        self.base_log_dir = Path(base_log_dir)
-        self.todo_dir = self.base_log_dir / "pilot_todo"
-        self.notes_dir = self.base_log_dir / "pilot_notes"
+            self.base_log_dir = get_pilot_memory_dir()
+        else:
+            self.base_log_dir = Path(base_log_dir)
+        self.todo_dir = self.base_log_dir
+        self.notes_dir = self.base_log_dir
         self._ensure_directories()
 
     def _ensure_directories(self):

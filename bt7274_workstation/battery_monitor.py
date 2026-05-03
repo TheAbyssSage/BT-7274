@@ -1,7 +1,7 @@
 """
 Battery monitoring for BT-7274.
 Warns at 50%, 20%, 10%, 5% battery levels.
-Only logs critical levels (<= 10%) to logs/system_logs.
+Only logs critical levels (<= 10%) to telemetry/system.
 """
 
 import os
@@ -33,7 +33,8 @@ class BatteryMonitor:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._last_level: Optional[int] = None
-        self._log_dir = Path(__file__).parent.parent / "logs" / "system_logs"
+        from bt7274_workstation.log_manager import get_telemetry_system_dir, append_log, daily_log_path
+        self._log_dir = get_telemetry_system_dir()
         self._log_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_battery_level(self) -> Optional[int]:
@@ -49,16 +50,9 @@ class BatteryMonitor:
         return None
 
     def _log_critical(self, level: int):
-        """Log critical battery level to logs/system_logs."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-        log_line = f"{timestamp} [battery] level={level}%\n"
-        today = datetime.now().strftime("%Y-%m-%d")
-        log_file = self._log_dir / f"bt7274_system_{today}.log"
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(log_line)
-        except Exception as e:
-            error(f"Failed to write battery log: {e}")
+        """Log critical battery level to telemetry/system."""
+        log_file = daily_log_path(self._log_dir, "bt7274_system")
+        append_log(log_file, f"[battery] level={level}%")
 
     def _warn(self, level: int):
         """Issue a battery warning."""

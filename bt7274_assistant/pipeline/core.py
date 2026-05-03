@@ -18,6 +18,9 @@ from bt7274_workstation.interaction_logger import InteractionLogger
 from bt7274_workstation.battery_monitor import BatteryMonitor
 from bt7274_workstation.weather_monitor import WeatherMonitor
 from bt7274_workstation.vpn_monitor import VPNMonitor
+from bt7274_workstation.hardware_telemetry import HardwareTelemetry
+from bt7274_workstation.network_telemetry import NetworkTelemetry
+from bt7274_workstation.voice_telemetry import VoiceTelemetry
 from bt7274_workstation.protocol_brief import ProtocolBrief
 from bt7274_workstation.session_cache_manager import (
     save_session_state,
@@ -80,6 +83,9 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.battery: Optional[BatteryMonitor] = None
         self.weather: Optional[WeatherMonitor] = None
         self.vpn: Optional[VPNMonitor] = None
+        self.hardware_telemetry: Optional[HardwareTelemetry] = None
+        self.network_telemetry: Optional[NetworkTelemetry] = None
+        self.voice_telemetry: Optional[VoiceTelemetry] = None
         self.perception: Optional[PerceptionManager] = None
         
         # Protocol reference cooldown to prevent spam
@@ -225,24 +231,33 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             return yaml.safe_load(f)
 
     def _ensure_log_directories(self):
-        """Ensure all required log directories exist at startup."""
-        base_log_dir = Path(__file__).parent.parent / "logs"
-        required_dirs = [
-            base_log_dir,
-            base_log_dir / "bt-pilot_interactions",
-            base_log_dir / "bt_logs",
-            base_log_dir / "system_logs",
-            base_log_dir / "pilot_logs",
-            base_log_dir / "pilot_health",
-            base_log_dir / "bt_workstation",
-            base_log_dir / "bt_brief",
-            base_log_dir / "pilot_voice_commands",
-            base_log_dir / "bt_vision",
-        ]
-        for dir_path in required_dirs:
-            dir_path.mkdir(parents=True, exist_ok=True)
-            if not dir_path.exists():
-                error(f"Failed to create log directory: {dir_path}")
+        """Ensure all required log directories exist at startup via centralized manager."""
+        from bt7274_workstation.log_manager import (
+            get_conversations_dir,
+            get_bt_memory_dir,
+            get_pilot_memory_dir,
+            get_telemetry_system_dir,
+            get_telemetry_health_dir,
+            get_telemetry_voice_dir,
+            get_telemetry_hardware_dir,
+            get_telemetry_network_dir,
+            get_vision_dir,
+            get_archive_dir,
+            migrate_legacy_logs,
+        )
+        # Ensure new hierarchy exists
+        _ = get_conversations_dir()
+        _ = get_bt_memory_dir()
+        _ = get_pilot_memory_dir()
+        _ = get_telemetry_system_dir()
+        _ = get_telemetry_health_dir()
+        _ = get_telemetry_voice_dir()
+        _ = get_telemetry_hardware_dir()
+        _ = get_telemetry_network_dir()
+        _ = get_vision_dir()
+        _ = get_archive_dir()
+        # One-shot migration of old flat layout
+        migrate_legacy_logs()
 
     def initialize(self):
         """Initialize all components."""
@@ -405,6 +420,30 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         except Exception as e:
             self._report_error("vpn", "initialize", e)
             warning("VPN monitor failed")
+
+        # [9b] Telemetry monitors
+        try:
+            self.hardware_telemetry = HardwareTelemetry(self.config.get("hardware_telemetry", {}))
+            self.hardware_telemetry.start()
+            success("Hardware telemetry")
+        except Exception as e:
+            self._report_error("hardware_telemetry", "initialize", e)
+            warning("Hardware telemetry failed")
+
+        try:
+            self.network_telemetry = NetworkTelemetry(self.config.get("network_telemetry", {}))
+            self.network_telemetry.start()
+            success("Network telemetry")
+        except Exception as e:
+            self._report_error("network_telemetry", "initialize", e)
+            warning("Network telemetry failed")
+
+        try:
+            self.voice_telemetry = VoiceTelemetry(self.config.get("voice_telemetry", {}))
+            success("Voice telemetry")
+        except Exception as e:
+            self._report_error("voice_telemetry", "initialize", e)
+            warning("Voice telemetry failed")
 
         # [10] Perception (Camera Vision)
         try:
@@ -685,6 +724,12 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         if self.weather:
             log_system("Stopping environmental monitor...")
             self.weather.stop()
+        if self.hardware_telemetry:
+            log_system("Stopping hardware telemetry...")
+            self.hardware_telemetry.stop()
+        if self.network_telemetry:
+            log_system("Stopping network telemetry...")
+            self.network_telemetry.stop()
         self.running = False
 
         # Archive session cache and clear for next session

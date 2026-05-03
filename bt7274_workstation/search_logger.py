@@ -2,7 +2,7 @@
 Search Logger for BT-7274 Voice Assistant.
 
 Logs all internet searches performed by BT-7274 with timestamps,
-storing them in daily JSONL files under the logs/bt_logs/ directory.
+storing them in daily JSONL files under the logs/bt_memory/ directory.
 """
 
 import json
@@ -12,13 +12,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from bt7274_workstation.log_manager import get_bt_memory_dir, daily_jsonl_path, append_jsonl
+
 
 class SearchLogger:
     """Logger for internet searches performed by BT-7274."""
 
     def __init__(self, log_dir: str = None):
         if log_dir is None:
-            log_dir = str(Path(__file__).parent.parent / "logs" / "bt_logs")
+            log_dir = str(get_bt_memory_dir())
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.current_file = None
@@ -43,8 +45,7 @@ class SearchLogger:
 
     def _update_current_file(self):
         """Update the current log file based on today's date."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        self.current_file = self.log_dir / f"bt_logs_{today}.jsonl"
+        self.current_file = daily_jsonl_path(self.log_dir, "bt_logs")
 
     def log_search(
         self,
@@ -77,8 +78,7 @@ class SearchLogger:
         if response_time is not None:
             entry["response_time"] = round(response_time, 3)
 
-        with open(self.current_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        append_jsonl(self.current_file, entry)
 
     def get_today_log(self) -> list:
         """Get all searches from today."""

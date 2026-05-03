@@ -2,8 +2,8 @@
 Pilot Logger for BT-7274 Voice Assistant.
 
 Handles free-form pilot logs and BT internal logs.
-- Pilot logs: logs/pilot_logs/<name>_<date>.log or logs/pilot_logs/pilot_logs.md
-- BT logs: logs/bt_logs/<name>_<date>.log
+- Pilot logs: logs/pilot_memory/<name>_<date>.log or logs/pilot_memory/pilot_logs.md
+- BT logs: logs/bt_memory/<name>_<date>.log
 
 Each entry includes a timestamp, raw text, and optional tags.
 """
@@ -14,22 +14,34 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from bt7274_workstation.log_manager import (
+    get_pilot_memory_dir,
+    get_bt_memory_dir,
+)
+
 
 class PilotLogger:
     """Logger for Pilot and BT free-form text logs."""
 
     def __init__(self, base_log_dir: Optional[str] = None):
         if base_log_dir is None:
-            base_log_dir = str(Path(__file__).parent.parent / "logs")
-        self.base_log_dir = Path(base_log_dir)
-        self.pilot_logs_dir = self.base_log_dir / "pilot_logs"
-        self.bt_logs_dir = self.base_log_dir / "bt_logs"
+            self.pilot_logs_dir = get_pilot_memory_dir()
+            self.bt_logs_dir = get_bt_memory_dir()
+        else:
+            self.base_log_dir = Path(base_log_dir)
+            self.pilot_logs_dir = self.base_log_dir / "pilot_memory"
+            self.bt_logs_dir = self.base_log_dir / "bt_memory"
         self._ensure_directories()
 
     def _ensure_directories(self):
         """Ensure log directories exist."""
         self.pilot_logs_dir.mkdir(parents=True, exist_ok=True)
         self.bt_logs_dir.mkdir(parents=True, exist_ok=True)
+        # Also ensure legacy dirs exist for backward-compat reads
+        legacy_pilot = self.pilot_logs_dir.parent / "pilot_logs"
+        legacy_bt = self.bt_logs_dir.parent / "bt_logs"
+        legacy_pilot.mkdir(parents=True, exist_ok=True)
+        legacy_bt.mkdir(parents=True, exist_ok=True)
 
     def _sanitize_name(self, name: str) -> str:
         """Sanitize a log name for use in filenames."""

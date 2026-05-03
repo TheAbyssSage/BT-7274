@@ -1,8 +1,8 @@
 """
 Environmental / Weather warnings for BT-7274.
 Warns about rain, heavy rain, hail, thunderstorms, and extreme temperatures.
-Logs warnings per-day to logs/pilot_health.
-Logs state changes to logs/system_logs.
+Logs warnings per-day to telemetry/health.
+Logs state changes to telemetry/system.
 """
 
 import time
@@ -55,9 +55,10 @@ class WeatherMonitor:
         self._warned_temps: set[str] = set()
         self._last_weather: Optional[dict] = None
 
+        from bt7274_workstation.log_manager import get_telemetry_system_dir, get_telemetry_health_dir, append_log, append_jsonl, daily_log_path, daily_jsonl_path
         # Log directories
-        self._system_log_dir = Path(__file__).parent.parent / "logs" / "system_logs"
-        self._health_log_dir = Path(__file__).parent.parent / "logs" / "pilot_health"
+        self._system_log_dir = get_telemetry_system_dir()
+        self._health_log_dir = get_telemetry_health_dir()
         self._system_log_dir.mkdir(parents=True, exist_ok=True)
         self._health_log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -94,32 +95,20 @@ class WeatherMonitor:
         return None
 
     def _log_state_change(self, state: str):
-        """Log state changes to logs/system_logs (per-day)."""
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-        log_line = f"{timestamp} [environmental_warnings] {state}\n"
-        today = datetime.now().strftime("%Y-%m-%d")
-        log_file = self._system_log_dir / f"bt7274_system_{today}.log"
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(log_line)
-        except Exception as e:
-            error(f"Failed to write system log: {e}")
+        """Log state changes to telemetry/system (per-day)."""
+        log_file = daily_log_path(self._system_log_dir, "bt7274_system")
+        append_log(log_file, f"[environmental_warnings] {state}")
 
     def _log_warning(self, alert_type: str, severity: str, details: dict):
-        """Log weather warnings to logs/pilot_health (per-day JSONL)."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        log_file = self._health_log_dir / f"weather_warnings_{today}.jsonl"
+        """Log weather warnings to telemetry/health (per-day JSONL)."""
+        log_file = daily_jsonl_path(self._health_log_dir, "weather_warnings")
         entry = {
             "timestamp": datetime.now().isoformat(),
             "type": alert_type,
             "severity": severity,
             "details": details,
         }
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        except Exception as e:
-            error(f"Failed to write health log: {e}")
+        append_jsonl(log_file, entry)
 
     def _warn(self, message: str, severity: str = "medium"):
         """Issue a weather warning to the UI."""
