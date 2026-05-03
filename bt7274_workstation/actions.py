@@ -726,3 +726,58 @@ def action_list_notes(name: str = "pilot", lines: int = 10, tag: str = None):
         return pb.list_notes(name=name, lines=lines, tag=tag)
     except Exception as e:
         return f"Failed to list notes: {str(e)}"
+
+
+# ─── Vision / Perception Actions ────────────────────────────────────
+
+@register_action("look")
+def action_look(pilot_query: str = None):
+    """
+    Capture a frame from the camera and analyze what BT-7274 sees.
+
+    Args:
+        pilot_query: The Pilot's exact words that triggered the look.
+
+    Returns:
+        Description of the scene, or error message.
+    """
+    try:
+        from bt7274_perception import PerceptionManager
+        pm = PerceptionManager()
+        result = pm.look(trigger="voice_command", pilot_query=pilot_query)
+        if result["success"]:
+            return result["description"]
+        return f"Optical sensors offline: {result.get('error', 'Unknown error')}"
+    except Exception as e:
+        return f"Vision system error: {str(e)}"
+
+
+@register_action("vision_summary")
+def action_vision_summary():
+    """Return a human-readable summary of today's visual observations."""
+    try:
+        from bt7274_perception import PerceptionManager
+        pm = PerceptionManager()
+        return pm.get_today_summary()
+    except Exception as e:
+        return f"Failed to retrieve vision summary: {str(e)}"
+
+
+@register_action("vision_status")
+def action_vision_status():
+    """Return the current status of BT-7274's optical sensors."""
+    try:
+        from bt7274_perception import PerceptionManager
+        pm = PerceptionManager()
+        status = pm.status()
+        lines = [
+            "BT-7274 Optical Sensor Status",
+            "─" * 30,
+            f"Camera ready: {'Yes' if status['camera_ready'] else 'No'}",
+            f"Vision model: {status['vision_model']}",
+            f"Model available: {'Yes' if status['vision_model_available'] else 'No'}",
+            f"Observations today: {status['observations_today']}",
+        ]
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Vision status unavailable: {str(e)}"

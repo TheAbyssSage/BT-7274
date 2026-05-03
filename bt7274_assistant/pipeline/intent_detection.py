@@ -349,6 +349,38 @@ class IntentDetectionMixin:
         ]
         return any(re.search(pattern, lower) for pattern in log_patterns)
 
+    def _is_vision_query(self, text: str) -> bool:
+        """Detect if the user is asking BT to look / scan / describe what he sees."""
+        lower = text.lower().strip()
+        vision_phrases = [
+            "what do you see", "what can you see", "what are you seeing",
+            "look around", "look at this", "look here", "look there",
+            "scan the room", "scan the area", "scan environment",
+            "describe your surroundings", "describe what you see",
+            "what is in front of you", "what is around you",
+            "use your eyes", "optical scan", "visual scan",
+            "bt, look", "bt look", "bt-7274 look", "bt-7274, look",
+            "take a look", "have a look", "check the room",
+            "what's in front of you", "whats in front of you",
+            "what's around you", "whats around you",
+            "show me what you see", "tell me what you see",
+            "do you see anything", "can you see anything",
+            "identify objects", "recognize this", "what is this",
+            "read this", "read the screen", "read the text",
+        ]
+        return any(phrase in lower for phrase in vision_phrases)
+
+    def _is_vision_log_query(self, text: str) -> bool:
+        """Detect if the user is asking to read vision logs."""
+        lower = text.lower().strip()
+        log_phrases = [
+            "vision log", "visual log", "what did you see",
+            "read vision", "show vision", "vision summary",
+            "optical log", "camera log", "sight log",
+            "what have you seen", "recent sightings",
+        ]
+        return any(phrase in lower for phrase in log_phrases)
+
     # ─── Translator Intent Detection ─────────────────────────────────────
 
     def _is_translate_command(self, text: str) -> bool:

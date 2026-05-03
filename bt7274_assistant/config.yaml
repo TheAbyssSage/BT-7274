@@ -84,6 +84,9 @@ llm:
     When the Pilot asks to clear completed tasks, use the clear_todo action.
     When the Pilot says "make note" or "add note" followed by text, use the add_note action.
     When the Pilot asks to read or view notes, use the list_notes action.
+    When the Pilot asks "what do you see", "look around", "scan the room", or any vision-related query, use the look action to analyze the camera feed.
+    When the Pilot asks about past visual observations or "what did you see", use the vision_summary action.
+    When the Pilot asks about optical sensor status, use the vision_status action.
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
@@ -165,6 +168,16 @@ actions:
     - clear_todo
     - add_note
     - list_notes
+    - look
+    - vision_summary
+    - vision_status
+
+# Vision / Perception Configuration
+vision:
+  enabled: true
+  camera_device: "0"              # AVFoundation device index (0 = default FaceTime HD)
+  ollama_url: http://localhost:11434
+  vision_model: llava             # Options: llava, moondream, bakllava
 
 # Protocol Mode Configuration
 # Toggle at startup or via voice command
@@ -264,6 +277,13 @@ pipeline:
     - "Interpreting foreign speech."
     - "Running translation protocol."
     - "Decoding language patterns."
+  standby_phrases_vision:     # Spoken while activating optical sensors
+    - "Activating optical sensors."
+    - "Scanning visual spectrum."
+    - "Engaging camera systems."
+    - "Initializing optical scan."
+    - "Accessing visual feed."
+    - "Running visual analysis."
 
 paths:
   dataset: dataset

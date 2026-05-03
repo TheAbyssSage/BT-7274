@@ -391,6 +391,51 @@ class CommandProcessingMixin:
                 response_parts.append("You're welcome, Pilot.")
                 handled_types.add("gratitude")
 
+        # Check for vision / "what do you see" queries
+        if self._is_vision_query(text) and "vision" not in handled_types:
+            status("VISION", "Activating optical sensors...")
+            try:
+                if self.perception:
+                    speak_standby("generic")
+                    vision_result = self.perception.look(
+                        trigger="voice_command",
+                        pilot_query=text,
+                    )
+                    if vision_result["success"]:
+                        description = vision_result["description"]
+                        status("VISION", description[:80] + "..." if len(description) > 80 else description)
+                        response_parts.append(description)
+                        handled_types.add("vision")
+                        skip_normal_tts = True
+                        followup_tts_text = description
+                    else:
+                        error_msg = vision_result.get("error", "Optical sensors failed.")
+                        response_parts.append(f"Pilot, my optical sensors are offline. {error_msg}")
+                        handled_types.add("vision")
+                else:
+                    response_parts.append("Pilot, my optical sensors are not initialized.")
+                    handled_types.add("vision")
+            except Exception as e:
+                self._report_error("perception", "look", e)
+                response_parts.append("Pilot, my optical sensors encountered an error.")
+                handled_types.add("vision")
+
+        # Check for vision log queries
+        if self._is_vision_log_query(text) and "vision" not in handled_types:
+            status("VISION", "Retrieving optical logs...")
+            try:
+                if self.perception:
+                    summary = self.perception.get_today_summary()
+                    response_parts.append(summary)
+                    handled_types.add("vision")
+                else:
+                    response_parts.append("Pilot, my optical sensors are not initialized.")
+                    handled_types.add("vision")
+            except Exception as e:
+                self._report_error("perception", "get_today_summary", e)
+                response_parts.append("Pilot, unable to retrieve vision logs.")
+                handled_types.add("vision")
+
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
             status("LOC", "Locating Pilot...")

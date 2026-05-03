@@ -23,6 +23,7 @@ from bt7274_workstation.session_cache_manager import (
     save_session_state,
     archive_and_clear_session,
 )
+from bt7274_perception import PerceptionManager
 from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from stt import WhisperSTT
 from llm import OllamaClient, CloudLLMClient
@@ -79,6 +80,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.battery: Optional[BatteryMonitor] = None
         self.weather: Optional[WeatherMonitor] = None
         self.vpn: Optional[VPNMonitor] = None
+        self.perception: Optional[PerceptionManager] = None
         
         # Protocol reference cooldown to prevent spam
         self._last_protocol_reference: Optional[str] = None
@@ -404,7 +406,26 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             self._report_error("vpn", "initialize", e)
             warning("VPN monitor failed")
 
-        # [10] Protocol Brief
+        # [10] Perception (Camera Vision)
+        try:
+            vision_cfg = self.config.get("vision", {})
+            if vision_cfg.get("enabled", True):
+                self.perception = PerceptionManager(
+                    camera_device=vision_cfg.get("camera_device", "0"),
+                    ollama_url=vision_cfg.get("ollama_url", "http://localhost:11434"),
+                    vision_model=vision_cfg.get("vision_model", "llava"),
+                )
+                if self.perception.is_ready():
+                    success("Optical sensors online")
+                else:
+                    status("VISION", "Optical sensors standby (install a vision model: ollama pull llava)")
+            else:
+                info("Vision — disabled in config")
+        except Exception as e:
+            self._report_error("perception", "initialize", e)
+            warning("Optical sensors failed")
+
+        # [11] Protocol Brief
         try:
             self.protocol_brief = ProtocolBrief()
             protocol_cfg = self.config.get("protocol_mode", {})
