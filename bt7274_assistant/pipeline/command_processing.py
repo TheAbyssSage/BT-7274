@@ -6,11 +6,19 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+import numpy as np
+
+if TYPE_CHECKING:
+    from bt7274_assistant.pipeline.core import BT7274Assistant as _MixinBase
+else:
+    class _MixinBase:
+        pass
 
 from ui import (
     quote, status, info, error, warning, log_stt, log_llm, log_tts, log_action,
-    cache_hit, clip_play, listening, goodbye, loading_bar
+    cache_hit, clip_play, listening, goodbye, loading_bar, section, footer
 )
 from utils import play_audio, record_until_silence
 from bt7274_workstation.voice_telemetry import VoiceTelemetry
@@ -21,11 +29,12 @@ try:
     SEMANTIC_SIMILARITY_AVAILABLE = True
 except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
+    cosine_similarity = None
 
 logger = logging.getLogger("BT7274")
 
 
-class CommandProcessingMixin:
+class CommandProcessingMixin(_MixinBase):
     """Mixin containing the main process_command method and follow-up listener."""
 
     def generate_standby_responses(self, force_regenerate: bool = False):
@@ -271,13 +280,13 @@ class CommandProcessingMixin:
                         return path
             
             # 5. Try semantic similarity matching if available
-            if self.semantic_vectorizer and self.semantic_clip_matrix is not None:
+            if self.semantic_vectorizer and self.semantic_clip_matrix is not None and cosine_similarity is not None:
                 try:
                     response_vector = self.semantic_vectorizer.transform([normalized])
                     similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)
                     best_match_idx = np.argmax(similarities)
                     best_similarity = similarities[0][best_match_idx]
-                    
+
                     if best_similarity > 0.3:
                         best_phrase = self.semantic_clip_phrases[best_match_idx]
                         path = self.bt_clips.get(best_phrase)
@@ -1371,6 +1380,10 @@ class CommandProcessingMixin:
                 except Exception as e:
                     self._report_error("tts", "speak", e, {"text": clean_response})
 
+        # Initialize variables to prevent undefined errors
+        tts_metrics = {}
+        cache_hit_type = None
+        
         # Update conversation context with the current interaction
         self._update_conversation_context(text, clean_response)
 
@@ -1442,7 +1455,7 @@ class CommandProcessingMixin:
         current_time = time.time()
         if protocol_reference == self._last_protocol_reference and current_time < self._protocol_cooldown_until:
             # Same protocol as last time and still in cooldown - suppress it
-            protocol_reference = None
+            protocol_reference = ""
         else:
             # New protocol or cooldown expired - update tracking
             self._last_protocol_reference = protocol_reference
