@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from bt7274_assistant.ui import info, success, warning, error, status
+from bt7274_workstation.log_manager import get_telemetry_network_dir, append_log, daily_log_path
 
 
 class VPNMonitor:
@@ -31,7 +32,6 @@ class VPNMonitor:
         self._last_server: Optional[str] = None
         self._last_wifi: Optional[str] = None
         self._tts_callback = tts_callback
-        from bt7274_workstation.log_manager import get_telemetry_network_dir, append_log, daily_log_path
         self._log_dir = get_telemetry_network_dir()
         self._log_dir.mkdir(parents=True, exist_ok=True)
         self._public_wifi_warned = False
@@ -64,7 +64,7 @@ class VPNMonitor:
 
         return None
 
-    def _get_vpn_state(self) -> tuple[Optional[str], Optional[str]]:
+    def _get_vpn_state(self) -> tuple[str, Optional[str]]:
         """Get current VPN connection state and server name."""
         # Method 1: Check scutil for VPN connections
         try:
