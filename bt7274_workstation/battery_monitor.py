@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from bt7274_assistant.ui import info, success, warning, error, status
+from bt7274_workstation.log_manager import get_telemetry_system_dir, append_log, daily_log_path
 
 
 class BatteryMonitor:
@@ -33,7 +34,6 @@ class BatteryMonitor:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._last_level: Optional[int] = None
-        from bt7274_workstation.log_manager import get_telemetry_system_dir, append_log, daily_log_path
         self._log_dir = get_telemetry_system_dir()
         self._log_dir.mkdir(parents=True, exist_ok=True)
 

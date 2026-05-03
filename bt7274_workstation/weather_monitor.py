@@ -15,6 +15,7 @@ from typing import Optional
 import requests
 
 from bt7274_assistant.ui import info, success, warning, error, status
+from bt7274_workstation.log_manager import get_telemetry_system_dir, get_telemetry_health_dir, append_log, append_jsonl, daily_log_path, daily_jsonl_path
 
 
 # WMO weather codes that trigger warnings
@@ -55,7 +56,6 @@ class WeatherMonitor:
         self._warned_temps: set[str] = set()
         self._last_weather: Optional[dict] = None
 
-        from bt7274_workstation.log_manager import get_telemetry_system_dir, get_telemetry_health_dir, append_log, append_jsonl, daily_log_path, daily_jsonl_path
         # Log directories
         self._system_log_dir = get_telemetry_system_dir()
         self._health_log_dir = get_telemetry_health_dir()
