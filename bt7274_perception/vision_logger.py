@@ -91,10 +91,11 @@ class VisionLogger:
                 ext = Path(image_path).suffix or ".png"
                 safe_time = now.strftime("%H%M%S")
                 archive_name = f"bt_vision_{safe_time}{ext}"
-                dest = self._current_image_dir / archive_name
-                shutil.copy2(image_path, dest)
-                archived_image_path = str(dest)
-                entry["image_path"] = archived_image_path
+                if self._current_image_dir is not None:
+                    dest = self._current_image_dir / archive_name
+                    shutil.copy2(image_path, dest)
+                    archived_image_path = str(dest)
+                    entry["image_path"] = archived_image_path
             except Exception:
                 pass
 
@@ -103,8 +104,9 @@ class VisionLogger:
 
         # Write to JSONL log
         try:
-            with open(self._current_log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            if self._current_log_file is not None:
+                with open(self._current_log_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except Exception:
             pass
 
@@ -170,7 +172,7 @@ class VisionLogger:
     def get_observation_count_today(self) -> int:
         """Return number of observations logged today."""
         self._update_paths()
-        if not self._current_log_file.exists():
+        if self._current_log_file is None or not self._current_log_file.exists():
             return 0
         try:
             with open(self._current_log_file, "r", encoding="utf-8") as f:

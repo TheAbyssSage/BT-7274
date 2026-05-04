@@ -344,25 +344,29 @@ class VisionViewerWindow:
             self._progress_var.set(value)
             self._root.update_idletasks()
 
-    def _update_text(self, widget: tk.Text, text: str):
+    def _update_text(self, widget: tk.Text | None, text: str):
         """Safely update a disabled Text widget."""
         if widget is None or self._root is None:
             return
         self._root.after(0, lambda: self._do_update_text(widget, text))
 
-    def _do_update_text(self, widget: tk.Text, text: str):
+    def _do_update_text(self, widget: tk.Text | None, text: str):
+        if widget is None:
+            return
         widget.config(state=tk.NORMAL)
         widget.delete("1.0", tk.END)
         widget.insert("1.0", text)
         widget.config(state=tk.DISABLED)
 
-    def _update_image(self, label: tk.Label, path: str):
+    def _update_image(self, label: tk.Label | None, path: str):
         """Update a Label with an image from path."""
         if label is None or self._root is None:
             return
         self._root.after(0, lambda: self._do_update_image(label, path))
 
-    def _do_update_image(self, label: tk.Label, path: str):
+    def _do_update_image(self, label: tk.Label | None, path: str):
+        if label is None:
+            return
         try:
             if self._has_pil:
                 from PIL import Image, ImageTk
@@ -380,11 +384,11 @@ class VisionViewerWindow:
                     img.thumbnail((label_w - 20, label_h - 20), Image.Resampling.LANCZOS)
                     photo = ImageTk.PhotoImage(img)
                 label.config(image=photo, text="", bg="#0a0a0a")
-                label.image = photo
+                label.image = photo  # type: ignore[attr-defined]
             else:
                 photo = tk.PhotoImage(file=path)
                 label.config(image=photo, text="", bg="#0a0a0a")
-                label.image = photo
+                label.image = photo  # type: ignore[attr-defined]
         except Exception as e:
             label.config(text=f"[Image error: {e}]", image="")
 
@@ -408,6 +412,7 @@ class VisionViewerWindow:
             self._last_window_check = current_time
             try:
                 # Simple heuristic: if window is minimized, it's not visible
+                assert self._root is not None
                 self._window_visible = self._root.winfo_viewable()
             except Exception:
                 self._window_visible = True  # Assume visible if check fails
@@ -527,7 +532,8 @@ class VisionViewerWindow:
                 self._update_text(self._desc_text, f"System error: {e}")
             finally:
                 if self._look_btn and self._root:
-                    self._root.after(0, lambda: self._look_btn.config(state=tk.NORMAL, text="LOOK"))
+                    btn = self._look_btn
+                    self._root.after(0, lambda: btn.config(state=tk.NORMAL, text="LOOK"))
                 if self._root:
                     self._root.after(2000, lambda: self._set_progress(0))
 
@@ -568,6 +574,7 @@ class VisionViewerWindow:
         self._schedule_preview()
 
         self._set_status("Optical sensors active. POWER SAVING: OFF")
+        assert self._root is not None
         self._root.mainloop()
 
     def start_nonblocking(self):
@@ -577,6 +584,7 @@ class VisionViewerWindow:
         self._preview_running = True
         self._schedule_preview()
         self._set_status("Optical sensors active. POWER SAVING: OFF")
+        assert self._root is not None
         threading.Thread(target=self._root.mainloop, daemon=True).start()
 
     def is_open(self) -> bool:
