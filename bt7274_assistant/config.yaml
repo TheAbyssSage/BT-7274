@@ -87,6 +87,7 @@ llm:
     When the Pilot asks "what do you see", "look around", "scan the room", or any vision-related query, use the look action to analyze the camera feed.
     When the Pilot asks about past visual observations or "what did you see", use the vision_summary action.
     When the Pilot asks about optical sensor status, use the vision_status action.
+    You have an autonomous memory system. Important interactions are automatically recorded in your personal bt_memory logs without the Pilot needing to ask.
   autonomous_logging:
     enabled: true              # Master switch
     cooldown_seconds: 60       # Minimum seconds between autonomous logs
