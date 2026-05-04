@@ -49,6 +49,10 @@ class BatteryMonitor:
             error(f"Battery check failed: {e}")
         return None
 
+    def get_level(self) -> Optional[int]:
+        """Public alias for _get_battery_level."""
+        return self._get_battery_level()
+
     def _log_critical(self, level: int):
         """Log critical battery level to telemetry/system."""
         log_file = daily_log_path(self._log_dir, "bt7274_system")

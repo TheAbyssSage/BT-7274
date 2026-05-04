@@ -4,11 +4,12 @@ import threading
 from pathlib import Path
 from typing import Optional
 
+from bt7274_assistant.pipeline._base import _AssistantBase
 from ui import status, clip_play, log_tts, warning
 from utils import play_audio
 
 
-class ResponseHelpersMixin:
+class ResponseHelpersMixin(_AssistantBase):
     """Mixin for response helper methods."""
 
     def _get_status_response_clip(self) -> Optional[str]:

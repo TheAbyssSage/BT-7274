@@ -7,7 +7,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 from functools import lru_cache
 import hashlib
 
@@ -44,7 +44,7 @@ class XTTSClient:
         self.speed = config.get("speed", 1.0)
         self.output_dir = Path(config.get("output_dir", str(get_tts_output_dir())))
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self._model = None
+        self._model: Any = None
         self._gpt_cond_latent = None
         self._speaker_embedding = None
         # Cache for generated responses to avoid re-synthesis
@@ -138,9 +138,9 @@ class XTTSClient:
                 try:
                     from utils import suppress_stdout
                     with suppress_stdout():
-                        _ = self._model.tts(
+                        _ = self._model.tts(  # type: ignore[operator]
                             text="Ready.",
-                            speaker_wav=self.reference_wav,
+                            speaker_wav=self.reference_wav,  # type: ignore[arg-type]
                             language=self.language
                         )
                 except Exception as e:
@@ -254,9 +254,9 @@ class XTTSClient:
             # Use the standard TTS API (cached latents path is unstable on some setups)
             from utils import suppress_stdout
             with suppress_stdout():
-                wav = self.model.tts(
+                wav: Any = self.model.tts(  # type: ignore[operator]
                     text=text,
-                    speaker_wav=self.reference_wav,
+                    speaker_wav=self.reference_wav,  # type: ignore[arg-type]
                     language=self.language
                 )
             synthesis_time = time.time() - start_time
@@ -301,7 +301,7 @@ class XTTSClient:
 
     def unload(self):
         """Free model from memory."""
-        self._model = None
+        self._model: Any = None
         self._gpt_cond_latent = None
         self._speaker_embedding = None
         # Clear cache but keep the cache structure

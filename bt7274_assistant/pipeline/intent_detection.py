@@ -3,8 +3,10 @@
 import re
 from typing import Optional
 
+from bt7274_assistant.pipeline._base import _AssistantBase
 
-class IntentDetectionMixin:
+
+class IntentDetectionMixin(_AssistantBase):
     """Mixin for detecting pilot command intents from transcribed text."""
 
     def _extract_location_from_query(self, text: str) -> Optional[str]:

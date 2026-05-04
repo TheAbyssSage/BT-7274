@@ -8,9 +8,11 @@ import time
 import uuid
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 import yaml
+
+from bt7274_assistant.pipeline._base import _AssistantBase
 
 from bt7274_workstation.actions import ActionHandler
 from bt7274_workstation.location import LocationProvider
@@ -138,7 +140,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         """Report an error to the current interaction's error list for logging."""
         import traceback
         from datetime import datetime
-        error_entry = {
+        error_entry: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "component": component,
             "function": function,

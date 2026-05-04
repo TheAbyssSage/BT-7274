@@ -8,11 +8,12 @@ from typing import Optional
 
 import numpy as np
 
+from bt7274_assistant.pipeline._base import _AssistantBase
 from bt7274_workstation.session_cache_manager import (
     save_semantic_vectors,
     load_semantic_vectors,
 )
-from ui import success, warning, info, status, loading_bar
+from ui import success, warning, info, status, loading_bar, error
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -20,13 +21,15 @@ try:
     SEMANTIC_SIMILARITY_AVAILABLE = True
 except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
+    TfidfVectorizer = None  # type: ignore[misc,assignment]
+    cosine_similarity = None  # type: ignore[misc,assignment]
     import logging
     logging.getLogger("BT7274").warning(
         "Semantic similarity matching not available. Install scikit-learn for this feature."
     )
 
 
-class ClipMatchingMixin:
+class ClipMatchingMixin(_AssistantBase):
     """Mixin for BT-7274 original voice clip loading, semantic matching, and dynamic selection."""
 
     def _normalize_phrase(self, phrase: str) -> str:
@@ -121,6 +124,7 @@ class ClipMatchingMixin:
             # Try to load cached semantic vectors first
             vectorizer_state, clip_matrix, phrases = load_semantic_vectors()
             if vectorizer_state is not None and clip_matrix is not None and phrases:
+                assert TfidfVectorizer is not None
                 self.semantic_vectorizer = TfidfVectorizer(**vectorizer_state)
                 self.semantic_clip_matrix = clip_matrix
                 self.semantic_clip_phrases = phrases
@@ -128,6 +132,9 @@ class ClipMatchingMixin:
                 return
 
             # Create TF-IDF vectorizer
+            if not SEMANTIC_SIMILARITY_AVAILABLE:
+                return
+            assert TfidfVectorizer is not None
             self.semantic_vectorizer = TfidfVectorizer(
                 lowercase=True,
                 stop_words='english',
@@ -150,7 +157,7 @@ class ClipMatchingMixin:
                 "ngram_range": self.semantic_vectorizer.ngram_range,
                 "max_features": self.semantic_vectorizer.max_features,
             }
-            save_semantic_vectors(vectorizer_state, self.semantic_clip_matrix, self.semantic_clip_phrases)
+            save_semantic_vectors(vectorizer_state, np.asarray(self.semantic_clip_matrix), self.semantic_clip_phrases)
             
             success(f"Semantic similarity matching initialized with {len(self.semantic_clip_phrases)} phrases")
         except Exception as e:
@@ -269,7 +276,7 @@ class ClipMatchingMixin:
         
         # Return the tone with highest score, or "neutral" if no matches
         if tone_scores:
-            return max(tone_scores, key=tone_scores.get)
+            return max(tone_scores, key=lambda k: tone_scores[k])
         return "neutral"
 
     def _get_emotion_matching_phrases(self, text: str) -> list[str]:
@@ -318,7 +325,7 @@ class ClipMatchingMixin:
             candidates.append((self.bt_clips[normalized], 1.0, "exact"))
         
         # 2. Semantic similarity matching
-        if self.semantic_vectorizer and self.semantic_clip_matrix is not None:
+        if self.semantic_vectorizer and self.semantic_clip_matrix is not None and cosine_similarity is not None:
             try:
                 response_vector = self.semantic_vectorizer.transform([normalized])
                 similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)

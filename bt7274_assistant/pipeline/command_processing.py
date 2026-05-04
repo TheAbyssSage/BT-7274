@@ -6,15 +6,11 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from bt7274_assistant.pipeline.core import BT7274Assistant as _MixinBase
-else:
-    class _MixinBase:
-        pass
+from bt7274_assistant.pipeline._base import _AssistantBase
 
 from ui import (
     quote, status, info, error, warning, log_stt, log_llm, log_tts, log_action,
@@ -34,7 +30,7 @@ except ImportError:
 logger = logging.getLogger("BT7274")
 
 
-class CommandProcessingMixin(_MixinBase):
+class CommandProcessingMixin(_AssistantBase):
     """Mixin containing the main process_command method and follow-up listener."""
 
     def generate_standby_responses(self, force_regenerate: bool = False):

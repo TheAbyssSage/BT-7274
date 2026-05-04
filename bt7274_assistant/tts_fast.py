@@ -18,7 +18,7 @@ import queue
 import threading
 import hashlib
 from pathlib import Path
-from typing import Optional, Callable, List, Dict
+from typing import Any, Optional, Callable, List, Dict
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 
@@ -77,7 +77,7 @@ class StreamingXTTSClient:
         self.reference_wav = self._resolve_references(raw_ref)
 
         # Model state
-        self._model = None
+        self._model: Any = None
         self._model_lock = threading.Lock()
         self._is_ready = False
 
@@ -183,9 +183,9 @@ class StreamingXTTSClient:
                 try:
                     from utils import suppress_stdout
                     with suppress_stdout():
-                        _ = self._model.tts(
+                        _ = self._model.tts(  # type: ignore[operator]
                             text="Ready.",
-                            speaker_wav=self.reference_wav,
+                            speaker_wav=self.reference_wav,  # type: ignore[arg-type]
                             language=self.language
                         )
                 except Exception as e:
@@ -279,9 +279,9 @@ class StreamingXTTSClient:
             # Use standard TTS API for reliable synthesis
             from utils import suppress_stdout
             with suppress_stdout():
-                wav = self.model.tts(
+                wav: Any = self.model.tts(  # type: ignore[operator]
                     text=text,
-                    speaker_wav=self.reference_wav,
+                    speaker_wav=self.reference_wav,  # type: ignore[arg-type]
                     language=self.language
                 )
 
@@ -547,9 +547,9 @@ class StreamingXTTSClient:
         try:
             from utils import suppress_stdout
             with suppress_stdout():
-                wav = self.model.tts(
+                wav: Any = self.model.tts(  # type: ignore[operator]
                     text=text,
-                    speaker_wav=self.reference_wav,
+                    speaker_wav=self.reference_wav,  # type: ignore[arg-type]
                     language=self.language
                 )
             sf.write(str(output_path), wav, 24000)
@@ -592,7 +592,7 @@ class StreamingXTTSClient:
 
         # Clear model
         with self._model_lock:
-            self._model = None
+            self._model: Any = None
             self._is_ready = False
 
         with self._cache_lock:

@@ -14,7 +14,7 @@ def term_width() -> int:
         return 60
 
 
-def header(text: str, width: int = None):
+def header(text: str, width: int | None = None):
     """Print a clean header line."""
     print(f"\n  {text}")
 
@@ -82,7 +82,7 @@ def prompt(text: str) -> str:
     return input(f"  > {text} ")
 
 
-def choice_menu(title: str, options: list[str], default: str = None) -> str:
+def choice_menu(title: str, options: list[str], default: str | None = None) -> str:
     """
     Display a choice menu and return the selected option string.
     options: list of strings like '1) Option A'.
