@@ -126,6 +126,14 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.focused_task = False       # Flag to indicate when BT is focusing on a task
         self.task_lock = threading.Lock()  # Lock for thread-safe task management
 
+        # Autonomous logging state
+        self.autonomous_log_cooldown_until: float = 0.0
+        self.autonomous_logs_this_session: int = 0
+        self.autonomous_log_max_per_session: int = self.config.get("llm", {}).get("autonomous_logging", {}).get("max_per_session", 10)
+        self.autonomous_log_enabled: bool = self.config.get("llm", {}).get("autonomous_logging", {}).get("enabled", True)
+        self.autonomous_log_cooldown_seconds: float = self.config.get("llm", {}).get("autonomous_logging", {}).get("cooldown_seconds", 60)
+        self._last_autonomous_log_hash: str = ""  # Deduplication hash
+
         # Translator tool
         self.translator: Optional[TranslatorTool] = None
 
