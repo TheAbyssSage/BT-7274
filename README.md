@@ -27,6 +27,10 @@ A fully local AI assistant based on BT-7274 from Titanfall 2, designed to run on
 | Text-to-Speech | Coqui TTS (XTTS v2) | BT-7274 voice cloning & synthesis | ✅ ~4-6 GB RAM, CPU inference feasible |
 | Action Handler | Python + AppleScript / shell | Execute tasks, control apps, run scripts | ✅ Native macOS integration |
 
+## Features
+
+- **Autonomous Memory**: BT automatically decides which conversations are worth remembering and logs them to his personal `bt_memory` without the Pilot needing to ask.
+
 ## Recent Improvements
 
 ### Authentic BT-7274 Voice Clips Integration
