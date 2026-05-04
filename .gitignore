@@ -55,3 +55,7 @@ models/
 # Logs
 *.log
 *logs/
+
+# Superpowers
+.github
+.superpowers
