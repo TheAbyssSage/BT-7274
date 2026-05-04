@@ -18,7 +18,7 @@ from bt7274_workstation.log_manager import get_bt_memory_dir, daily_jsonl_path, 
 class SearchLogger:
     """Logger for internet searches performed by BT-7274."""
 
-    def __init__(self, log_dir: str = None):
+    def __init__(self, log_dir: str | None = None):
         if log_dir is None:
             log_dir = str(get_bt_memory_dir())
         self.log_dir = Path(log_dir)
@@ -78,12 +78,14 @@ class SearchLogger:
         if response_time is not None:
             entry["response_time"] = round(response_time, 3)
 
+        if self.current_file is None:
+            return
         append_jsonl(self.current_file, entry)
 
     def get_today_log(self) -> list:
         """Get all searches from today."""
         self._update_current_file()
-        if not self.current_file.exists():
+        if self.current_file is None or not self.current_file.exists():
             return []
 
         searches = []

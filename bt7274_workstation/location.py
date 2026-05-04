@@ -38,7 +38,7 @@ def _reverse_geocode(lat: float, lon: float) -> Tuple[str, str, str]:
 
 
 class LocationProvider:
-    def __init__(self, manual_location: dict = None):
+    def __init__(self, manual_location: dict | None = None):
         self._lat: Optional[float] = None
         self._lon: Optional[float] = None
         self._city: Optional[str] = None
@@ -84,8 +84,8 @@ class LocationProvider:
     def _get_macos_location(self) -> Optional[Tuple[float, float, str, str, str]]:
         """Try to get location via macOS CoreLocation using pyobjc."""
         try:
-            from Foundation import NSObject, NSRunLoop, NSDate
-            from CoreLocation import CLLocationManager
+            from Foundation import NSObject, NSRunLoop, NSDate  # type: ignore
+            from CoreLocation import CLLocationManager  # type: ignore
             import warnings
 
             with warnings.catch_warnings():

@@ -87,7 +87,7 @@ class ActionHandler:
     def _execute_action(self, action_data: dict) -> Optional[str]:
         """Execute a parsed action."""
         import json
-        action_name = action_data.get("action")
+        action_name = action_data.get("action") or ""
         params = action_data.get("params", {})
 
         if action_name not in self.allowed:
@@ -346,7 +346,7 @@ def action_get_weather_for_location(location: str):
 
 
 @register_action("get_weather_forecast")
-def action_get_weather_forecast(days: int = 3, location: str = None):
+def action_get_weather_forecast(days: int = 3, location: str | None = None):
     """Fetch upcoming weather forecast for the current or a specified location."""
     try:
         from bt7274_workstation.location import LocationProvider
@@ -377,7 +377,7 @@ def action_get_weather_forecast(days: int = 3, location: str = None):
         return f"Forecast data unavailable: {str(e)}"
 
 
-def _fetch_weather(lat: float, lon: float, city_name: str = None):
+def _fetch_weather(lat: float, lon: float, city_name: str | None = None):
     """Helper to fetch weather from Open-Meteo."""
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
@@ -410,7 +410,7 @@ def _fetch_weather(lat: float, lon: float, city_name: str = None):
     )
 
 
-def _fetch_weather_forecast(lat: float, lon: float, city_name: str = None, days: int = 3):
+def _fetch_weather_forecast(lat: float, lon: float, city_name: str | None = None, days: int = 3):
     """Helper to fetch daily weather forecast from Open-Meteo."""
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
@@ -462,7 +462,7 @@ def action_clear_tts_cache():
 
 
 @register_action("read_logs")
-def action_read_logs(lines: int = 10, date: str = None, search: str = None):
+def action_read_logs(lines: int = 10, date: str | None = None, search: str | None = None):
     """Read recent interaction logs with optional search capability."""
     try:
         from bt7274_workstation.interaction_logger import InteractionLogger
@@ -579,7 +579,7 @@ def action_read_logs(lines: int = 10, date: str = None, search: str = None):
 
 
 @register_action("make_log")
-def action_make_log(text: str, name: str = "pilot", tags: str = None, log_type: str = "pilot"):
+def action_make_log(text: str, name: str = "pilot", tags: str | None = None, log_type: str = "pilot"):
     """
     Append a free-form log entry for the Pilot or BT.
 
@@ -601,7 +601,7 @@ def action_make_log(text: str, name: str = "pilot", tags: str = None, log_type: 
 
 
 @register_action("read_bt_logs")
-def action_read_bt_logs(lines: int = 20, date: str = None):
+def action_read_bt_logs(lines: int = 20, date: str | None = None):
     """
     Read BT's own personal memory logs.
 
@@ -618,7 +618,7 @@ def action_read_bt_logs(lines: int = 20, date: str = None):
 
 
 @register_action("delete_logs")
-def action_delete_logs(log_type: str = "pilot", name: str = None, date: str = None):
+def action_delete_logs(log_type: str = "pilot", name: str | None = None, date: str | None = None):
     """
     Delete log files.
 
@@ -706,7 +706,7 @@ def action_clear_todo(name: str = "pilot"):
 
 
 @register_action("add_note")
-def action_add_note(text: str, name: str = "pilot", tags: str = None):
+def action_add_note(text: str, name: str = "pilot", tags: str | None = None):
     """Append a note to the personal log."""
     try:
         from bt7274_workstation.protocol_brief import ProtocolBrief
@@ -718,7 +718,7 @@ def action_add_note(text: str, name: str = "pilot", tags: str = None):
 
 
 @register_action("list_notes")
-def action_list_notes(name: str = "pilot", lines: int = 10, tag: str = None):
+def action_list_notes(name: str = "pilot", lines: int = 10, tag: str | None = None):
     """Read recent personal notes."""
     try:
         from bt7274_workstation.protocol_brief import ProtocolBrief
@@ -731,7 +731,7 @@ def action_list_notes(name: str = "pilot", lines: int = 10, tag: str = None):
 # ─── Vision / Perception Actions ────────────────────────────────────
 
 @register_action("look")
-def action_look(pilot_query: str = None):
+def action_look(pilot_query: str | None = None):
     """
     Capture a frame from the camera and analyze what BT-7274 sees.
 

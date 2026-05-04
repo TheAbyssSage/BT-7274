@@ -24,7 +24,7 @@ import json
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 
 # ─── Root resolution ──────────────────────────────────────────────
@@ -210,7 +210,7 @@ def migrate_legacy_logs():
 def list_log_structure() -> dict:
     """Return a human-readable summary of the current log tree."""
     root = get_logs_root()
-    result: dict[str, any] = {}
+    result: dict[str, Any] = {}
     for sub in sorted(root.iterdir()):
         if sub.is_dir():
             files = list(sub.rglob("*"))

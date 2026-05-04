@@ -17,7 +17,7 @@ import time
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from bt7274_workstation.log_manager import get_telemetry_network_dir, daily_jsonl_path, append_jsonl
 from bt7274_assistant.ui import info, warning, error, status
@@ -40,7 +40,7 @@ class NetworkTelemetry:
 
     def _get_wifi_info(self) -> Optional[dict]:
         """Get current Wi-Fi SSID, BSSID, and signal info on macOS."""
-        info_dict: dict[str, any] = {}
+        info_dict: dict[str, Any] = {}
         try:
             result = subprocess.run(
                 ["networksetup", "-getairportnetwork", "en0"],
