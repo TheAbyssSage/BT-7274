@@ -1620,6 +1620,14 @@ class CommandProcessingMixin(_AssistantBase):
             metadata=enhanced_metadata,
         )
 
+        # ─── Autonomous BT Memory Logging ───────────────────────────────────
+        # Let BT decide if this interaction is worth remembering
+        try:
+            self._perform_autonomous_log(text, clean_response)
+        except Exception as e:
+            # Never let autonomous logging break the main pipeline
+            self._report_error("pipeline", "autonomous_log", e)
+
         self.last_activity = time.time()
 
         # Clear per-interaction errors for the next turn
