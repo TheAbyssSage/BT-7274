@@ -53,37 +53,39 @@ class NetworkTelemetry:
         except Exception:
             pass
 
-        try:
-            result = subprocess.run(
-                ["/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport", "-I"],
-                capture_output=True, text=True, timeout=5
-            )
-            if result.returncode == 0:
-                for line in result.stdout.splitlines():
-                    if " SSID:" in line and "BSSID" not in line:
-                        parts = line.split(":", 1)
-                        if len(parts) == 2:
-                            info_dict["ssid"] = parts[1].strip()
-                    elif "BSSID:" in line:
-                        parts = line.split(":", 1)
-                        if len(parts) == 2:
-                            info_dict["bssid"] = parts[1].strip()
-                    elif "agrCtlRSSI:" in line:
-                        parts = line.split(":", 1)
-                        if len(parts) == 2:
-                            try:
-                                info_dict["rssi_dbm"] = int(parts[1].strip())
-                            except ValueError:
-                                pass
-                    elif "lastTxRate:" in line:
-                        parts = line.split(":", 1)
-                        if len(parts) == 2:
-                            try:
-                                info_dict["tx_rate_mbps"] = int(parts[1].strip())
-                            except ValueError:
-                                pass
-        except Exception:
-            pass
+        # Fallback: system_profiler (works without sudo, slower but reliable)
+        if not info_dict:
+            try:
+                result = subprocess.run(
+                    ["system_profiler", "SPAirPortDataType", "-json"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    import json
+                    data = json.loads(result.stdout)
+                    for item in data.get("SPAirPortDataType", []):
+                        interfaces = item.get("spairport_airport_interfaces", [])
+                        for iface in interfaces:
+                            current = iface.get("spairport_current_network_information", {})
+                            if current:
+                                info_dict["ssid"] = current.get("_name", "")
+                                signal_noise = current.get("spairport_signal_noise", "")
+                                if signal_noise:
+                                    parts = signal_noise.split(" / ")
+                                    if parts:
+                                        try:
+                                            info_dict["rssi_dbm"] = int(parts[0].replace(" dBm", "").strip())
+                                        except ValueError:
+                                            pass
+                                rate = current.get("spairport_network_rate", 0)
+                                if rate:
+                                    try:
+                                        info_dict["tx_rate_mbps"] = int(rate)
+                                    except ValueError:
+                                        pass
+                                break
+            except Exception:
+                pass
 
         return info_dict if info_dict else None
 
