@@ -338,6 +338,107 @@ class CommandProcessingMixin(_AssistantBase):
                                 
             return None
 
+    def _should_log_autonomously(self, pilot_message: str, bt_response: str) -> dict | None:
+        """
+        Ask the LLM whether this interaction is worth logging to BT's memory.
+        Returns {"log": True, "content": str, "reason": str} or None.
+        """
+        if not self.autonomous_log_enabled:
+            return None
+        if time.time() < self.autonomous_log_cooldown_until:
+            return None
+        if self.autonomous_logs_this_session >= self.autonomous_log_max_per_session:
+            return None
+        if not self.llm:
+            return None
+
+        # Deduplication: don't log the same interaction twice
+        import hashlib
+        content_hash = hashlib.md5(f"{pilot_message}|{bt_response}".encode()).hexdigest()[:16]
+        if content_hash == self._last_autonomous_log_hash:
+            return None
+
+        # Build context summary
+        context_summary = f"Session interactions: {self.interaction_count}. Trust level: {self.pilot_trust_level}."
+        if self.errors_this_interaction:
+            context_summary += f" Errors this interaction: {len(self.errors_this_interaction)}."
+        if self.actions_this_session:
+            context_summary += f" Recent actions: {', '.join(self.actions_this_session[-3:])}."
+
+        # Load prompt template from config
+        prompt_template = self.config.get("llm", {}).get("autonomous_logging", {}).get("decision_prompt", "")
+        prompt = prompt_template.format(
+            pilot_message=pilot_message,
+            bt_response=bt_response,
+            context_summary=context_summary,
+        )
+
+        try:
+            decision_raw = self.llm.chat(prompt)
+        except Exception as e:
+            self._report_error("llm", "autonomous_log_decision", e)
+            return None
+
+        # Parse JSON decision
+        import json, re
+        try:
+            # Try code block first
+            json_match = re.search(r'```json\s*(.*?)\s*```', decision_raw, re.DOTALL)
+            if json_match:
+                decision = json.loads(json_match.group(1))
+            else:
+                # Try inline JSON
+                json_match = re.search(r'\{.*"log".*\}', decision_raw, re.DOTALL)
+                if json_match:
+                    decision = json.loads(json_match.group(0))
+                else:
+                    return None
+        except (json.JSONDecodeError, AttributeError):
+            return None
+
+        if not isinstance(decision, dict):
+            return None
+        if decision.get("log") is not True:
+            return None
+
+        content = decision.get("content", "").strip()
+        if not content:
+            return None
+
+        # Update state
+        self._last_autonomous_log_hash = content_hash
+        self.autonomous_log_cooldown_until = time.time() + self.autonomous_log_cooldown_seconds
+        self.autonomous_logs_this_session += 1
+
+        return {
+            "log": True,
+            "content": content,
+            "reason": decision.get("reason", "No reason provided"),
+        }
+
+    def _perform_autonomous_log(self, pilot_message: str, bt_response: str) -> str | None:
+        """
+        Execute autonomous logging if the LLM decides it's warranted.
+        Returns the log result string or None.
+        """
+        decision = self._should_log_autonomously(pilot_message, bt_response)
+        if not decision:
+            return None
+
+        content = decision["content"]
+        reason = decision["reason"]
+
+        # Use the existing action handler
+        if self.actions:
+            try:
+                result = self.actions.execute("make_log", text=content, log_type="bt", name="autonomous")
+                status("AUTO-LOG", f"Logged: {content[:60]}... (reason: {reason})")
+                return result
+            except Exception as e:
+                self._report_error("actions", "autonomous_log", e, {"content": content})
+                return None
+        return None
+
         # 2. Handle compound queries - detect all matching query types
         response_parts = []
         handled_types = set()
