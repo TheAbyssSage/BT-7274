@@ -87,6 +87,26 @@ llm:
     When the Pilot asks "what do you see", "look around", "scan the room", or any vision-related query, use the look action to analyze the camera feed.
     When the Pilot asks about past visual observations or "what did you see", use the vision_summary action.
     When the Pilot asks about optical sensor status, use the vision_status action.
+  autonomous_logging:
+    enabled: true              # Master switch
+    cooldown_seconds: 60       # Minimum seconds between autonomous logs
+    max_per_session: 10        # Cap to prevent spam in long sessions
+    decision_prompt: |
+      You are BT-7274's internal memory processor. Review the conversation below.
+      Decide if this interaction is worth recording in BT's personal memory logs.
+      Worth logging: significant pilot orders, emotional moments, mission updates,
+      trust milestones, errors, discoveries, or anything BT should remember later.
+      Do NOT log: trivial greetings, weather checks, time queries, or repetitive chatter.
+      
+      Respond with ONLY a JSON object in this exact format:
+      {"log": true, "reason": "brief reason", "content": "concise log entry text"}
+      or
+      {"log": false, "reason": "brief reason"}
+      
+      Conversation:
+      Pilot: {pilot_message}
+      BT-7274: {bt_response}
+      Context: {context_summary}
 
 location:
   # Set manual location to override IP geolocation (which may be inaccurate)
