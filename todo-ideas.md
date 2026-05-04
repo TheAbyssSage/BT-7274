@@ -2,23 +2,6 @@
 
 ---
 
-## 1. Protocol Mode
-
-**Command:** “BT, protocol brief.”
-
-- Summarizes current goals, status, and suggestions.
-- Can:
-  - Create / update a **pilot to-do list**.
-  - Append **notes** to a personal log.
-
-Config:
-
-- Toggle at startup or via command: `protocol_mode: on/off`.
-- Ask BT to enable/disable it.
-
-Log it
-
----
 
 ## 2. Combat Effectiveness Rating
 
@@ -66,28 +49,6 @@ Logging:
       `2025-04-29T08:10Z [travel_intel] Genk → Brussels, 5 POIs`
 
 ---
-
-## 4. Environmental Warnings (Weather)
-
-Uses weather + location to warn about:
-
-- Rain / heavy rain
-- Hail
-- Thunderstorms
-- Extreme temperatures
-
-Config:
-
-- Startup toggle: `environmental_warnings: on/off`.
-- Ask BT to enable/disable it.
-
-Logging:
-
-- State changes:
-  - To `logs/system_logs`
-- Weather warnings:
-  - To `logs/pilot_health` (it’s about safety/conditions for the pilot, make it per day)
-**Status:** Implemented in `bt7274_assistant/weather_monitor.py`. Config in `config.yaml` under `environmental_warnings:`.
 
 ---
 
@@ -156,45 +117,6 @@ Logging:
 
 ---
 
-## 8. Pilot Log (“BT, make log” / BT personal logs)
-
-Command: “BT, make log: …”
-
-- Appends free‑form text to pilot logs.
-
-Storage:
-
-- BT’s own internal logs (system‑style):
-  - To `logs/bt_logs/<name>_<date>.log`
-- Your personal pilot logs:
-  - To `logs/pilot_logs/<name>_<date>.log`
-  - Or a single `logs/pilot_logs/pilot_logs.md`
-
-Logging:
-
-- Each entry with timestamp + raw text (and optional tags).
-- No extra meta log needed beyond the file itself.
-**Status:** Implemented
-
----
-
-## 9. Event-Driven BT Lines (Success / Error Hooks)
-
-Examples:
-
-- Success (e.g. web search OK): “Data core reinitialized. Information acquired.”
-- Error (command failure): “That would violate Protocol 3.”
-
-Logging:
-
-- Errors and failed commands:
-  - To `logs/system_logs`
-    - Example:  
-      `2025-04-28T15:10Z [error] command="bt vpn on" reason="proton-cli not found"`
-- Optional: major successes (long tasks, big actions):
-  - Also to `logs/system_logs`
-
----
 
 ## 10. Calendar & Memory
 
@@ -220,24 +142,6 @@ Logging:
     - Example:  
       `2025-04-29T08:30Z [calendar_alert] "Syntra class" starts in 30min`
 
-### 10.2 Memory / Long-Term State
-
-BT can “remember”:
-
-- Preferences (study times, locations).
-- Repeated patterns from logs.
-- Explicit facts (“BT, remember that X”).
-
-Config:
-
-- Toggle: `memory_store: on/off`.
-
-Logging:
-
-- “Remember” actions (what was stored):
-  - To `logs/bt_logs`
-    - Example:  
-      `2025-04-28T16:00Z [memory_store] key="favorite_editor" value="VSCode"`
 
 ### 10.3 Voice Link / Identity Check
 
@@ -295,23 +199,6 @@ Logging:
   - To `logs/bt_vision`
     - Example:  
       `2025-04-28T18:05Z [hud_mode] mode="combat"`
-
----
-
-## 12. System Comments / Battery Warnings
-
-Battery monitoring:
-
-- Warn at 50%, 20%, 10%, 5%.
-
-Logging:
-
-- Only **critical levels** (≤ 10%):
-  - To `logs/system_logs`
-    - Example:  
-      `2025-04-28T19:00Z [battery] level=10%`
-
-**Status:** Implemented in `bt7274_assistant/battery_monitor.py`. Config in `config.yaml` under `battery:`.
 
 ---
 

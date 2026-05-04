@@ -44,6 +44,7 @@ dataset/
 test_output.wav
 *.wav
 !BT-7274.Voicepack/wav/*.wav
+bt7274_workstation/session_cache
 
 # Model caches
 *.pt
@@ -59,3 +60,4 @@ models/
 # Superpowers
 .github
 .superpowers
+docs
