@@ -265,44 +265,51 @@ class HudRenderer:
 
     def _draw_minimap(self, draw: ImageDraw.ImageDraw, state: HudState) -> None:
         """
-        Circular minimap.
-
-        Rotates so the pilot's current heading is always at the top.
-        Ally markers → blue, threat → red, objective → amber.
+        Titanfall 2–style circular minimap with:
+          - Semi-transparent dark background
+          - Thin orange sci-fi outer ring with tick marks
+          - Rotating compass (heading at top)
+          - Ally (blue), threat (red), objective (amber) markers
+          - Subtle horizontal scanlines for holographic effect
+          - "TACMAP" label below
         """
-        size   = min(130, self.width // 10)
-        margin = 18
+        size   = min(140, self.width // 9)
+        margin = 16
         cx     = margin + size // 2
         cy     = margin + size // 2
         r      = size // 2
-        r_inner = r - 3
+        r_inner = r - 4
 
-        # --- filled background ---
+        # --- filled background (semi-transparent dark) ---
         draw.ellipse([(cx - r, cy - r), (cx + r, cy + r)], fill=_PANEL_BG)
 
-        # --- inner grid lines ---
+        # --- subtle inner grid (crosshairs) ---
         for offset in (-r_inner // 2, 0, r_inner // 2):
-            draw.line([(cx + offset, cy - r_inner), (cx + offset, cy + r_inner)], fill=_WHITE_GHOST)
-            draw.line([(cx - r_inner, cy + offset), (cx + r_inner, cy + offset)], fill=_WHITE_GHOST)
+            draw.line(
+                [(cx + offset, cy - r_inner), (cx + offset, cy + r_inner)],
+                fill=_WHITE_GHOST,
+            )
+            draw.line(
+                [(cx - r_inner, cy + offset), (cx + r_inner, cy + offset)],
+                fill=_WHITE_GHOST,
+            )
 
         # --- markers (rotated by heading) ---
-        heading_rad = math.radians(-state.compass_heading)  # negate → rotate map, not player
+        heading_rad = math.radians(-state.compass_heading)
         marker_colors = {
             MarkerKind.ALLY:      _BLUE,
             MarkerKind.THREAT:    _RED,
             MarkerKind.OBJECTIVE: _AMBER,
-            MarkerKind.WAYPOINT:  _CYAN,
+            MarkerKind.WAYPOINT:  _ORANGE,
         }
         for m in state.markers:
             if not m.visible:
                 continue
-            # Convert 0..1 to centred coords, then rotate
             mx_raw = (m.x - 0.5) * size * state.minimap_zoom
             my_raw = (m.y - 0.5) * size * state.minimap_zoom
             cos_h, sin_h = math.cos(heading_rad), math.sin(heading_rad)
             mx = cx + int(mx_raw * cos_h - my_raw * sin_h)
             my = cy + int(mx_raw * sin_h + my_raw * cos_h)
-            # Clamp to circle
             dx, dy = mx - cx, my - cy
             dist = math.hypot(dx, dy)
             if dist > r_inner:
@@ -312,25 +319,62 @@ class HudRenderer:
             mr = 3 if m.kind == MarkerKind.ALLY else 4
             draw.ellipse([(mx - mr, my - mr), (mx + mr, my + mr)], fill=col)
 
-        # --- pilot triangle (always points up) ---
-        tri = [(cx, cy - 7), (cx - 4, cy + 5), (cx + 4, cy + 5)]
+        # --- pilot triangle (always points up / forward) ---
+        tri = [(cx, cy - 8), (cx - 5, cy + 6), (cx + 5, cy + 6)]
         draw.polygon(tri, fill=_WHITE)
 
-        # --- outer ring + tick marks ---
-        draw.ellipse([(cx - r, cy - r), (cx + r, cy + r)],
-                     outline=_PANEL_BDR, width=2)
+        # --- outer ring (orange, thin, sci-fi) ---
+        draw.ellipse(
+            [(cx - r, cy - r), (cx + r, cy + r)],
+            outline=_ORANGE_DIM,
+            width=2,
+        )
+        # Inner secondary ring
+        draw.ellipse(
+            [(cx - r + 3, cy - r + 3), (cx + r - 3, cy + r - 3)],
+            outline=_ORANGE_GHOST,
+            width=1,
+        )
+
+        # --- tick marks around the ring (every 45°) ---
         for deg in range(0, 360, 45):
             angle = math.radians(deg - state.compass_heading)
-            r_tick_in  = r - 6
+            r_tick_in  = r - 7
             r_tick_out = r - 1
-            draw.line([
-                (cx + int(r_tick_in  * math.sin(angle)), cy - int(r_tick_in  * math.cos(angle))),
-                (cx + int(r_tick_out * math.sin(angle)), cy - int(r_tick_out * math.cos(angle))),
-            ], fill=_CYAN_DIM, width=1)
+            draw.line(
+                [
+                    (cx + int(r_tick_in * math.sin(angle)), cy - int(r_tick_in * math.cos(angle))),
+                    (cx + int(r_tick_out * math.sin(angle)), cy - int(r_tick_out * math.cos(angle))),
+                ],
+                fill=_ORANGE_DIM,
+                width=1,
+            )
 
-        # --- label ---
-        draw.text((cx, margin + size + 5), "TACMAP", font=self._f_xs,
-                  fill=_fade(_CYAN, 0.7), anchor="mt")
+        # --- cardinal direction labels (N, E, S, W) ---
+        directions = {0: "N", 90: "E", 180: "S", 270: "W"}
+        for deg, label in directions.items():
+            angle = math.radians(deg - state.compass_heading)
+            lx = cx + int((r + 10) * math.sin(angle))
+            ly = cy - int((r + 10) * math.cos(angle))
+            draw.text((lx, ly), label, font=self._f_xs, fill=_ORANGE_DIM, anchor="mm")
+
+        # --- scanline overlay (horizontal lines across minimap) ---
+        for sy in range(cy - r_inner, cy + r_inner, 3):
+            half_chord = int(math.sqrt(max(0, r_inner ** 2 - (sy - cy) ** 2)))
+            if half_chord > 0:
+                draw.line(
+                    [(cx - half_chord, sy), (cx + half_chord, sy)],
+                    fill=(255, 255, 255, 6),
+                )
+
+        # --- label below ---
+        draw.text(
+            (cx, margin + size + 5),
+            "TACMAP",
+            font=self._f_xs,
+            fill=_fade(_ORANGE, 0.7),
+            anchor="mt",
+        )
 
     # ------------------------------------------------------------------
     # Top-centre mission progress bar

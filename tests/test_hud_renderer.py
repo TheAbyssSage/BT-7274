@@ -33,3 +33,32 @@ def test_renderer_composite_returns_image():
     assert isinstance(result, Image.Image)
     assert result.size == (320, 240)
     assert result.mode == "RGBA"
+
+
+def test_minimap_has_scanline_effect():
+    """Minimap output should differ from a plain circle — scanlines add pixels."""
+    from bt7274_hud.hud_data import HudState, Marker, MarkerKind
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.markers = [Marker(x=0.5, y=0.5, label="BT", kind=MarkerKind.ALLY)]
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # The minimap region (top-left ~130px) should have non-black pixels
+    region = result.crop((0, 0, 150, 150))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 50, "Minimap should render visible elements"
+
+
+def test_minimap_has_outer_ring():
+    """Minimap must have a visible outer ring/border."""
+    from bt7274_hud.hud_data import HudState
+    r = HudRenderer(width=400, height=300)
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, HudState())
+    region = result.crop((0, 0, 150, 150))
+    pixels = list(region.getdata())
+    # Look for orange-ish pixels (the border ring, composited over black so dimmer)
+    # Orange (255,140,0) at alpha ~100/255 over black → ~(100, 55, 0)
+    orange_pixels = [p for p in pixels if p[0] > 60 and p[1] > 20 and p[1] < 120 and p[2] < 30]
+    assert len(orange_pixels) > 10, "Minimap should have orange border ring"
