@@ -40,32 +40,39 @@ from bt7274_hud.hud_data import (
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Colour palette  (Titanfall 2 inspired)
+# Colour palette  (Titanfall 2 inspired — orange / white / blue)
 # ---------------------------------------------------------------------------
 
-# Primary accent — cyan-green
-_CYAN        = (0,   220, 180, 255)
-_CYAN_DIM    = (0,   180, 140, 100)
-_CYAN_GHOST  = (0,   200, 160,  40)
+# Primary accent — orange (Titanfall signature)
+_ORANGE        = (255, 140,   0, 255)
+_ORANGE_DIM    = (255, 140,   0, 100)
+_ORANGE_GHOST  = (255, 140,   0,  40)
+_ORANGE_BRIGHT = (255, 165,   0, 255)
 
 # Secondary accent — electric blue
-_BLUE        = (0,   160, 255, 255)
-_BLUE_DIM    = (0,   120, 220, 100)
+_BLUE          = (0,   128, 255, 255)
+_BLUE_DIM      = (0,   100, 220, 100)
+_BLUE_GHOST    = (0,   128, 255,  40)
 
 # Alert / threat
-_RED         = (255,  60,  60, 255)
-_RED_DIM     = (255,  60,  60, 100)
-_AMBER       = (255, 190,  40, 255)
-_AMBER_DIM   = (255, 190,  40, 100)
+_RED           = (255,  60,  60, 255)
+_RED_DIM       = (255,  60,  60, 100)
+_AMBER         = (255, 190,  40, 255)
+_AMBER_DIM     = (255, 190,  40, 100)
 
 # Neutral
-_WHITE       = (255, 255, 255, 220)
-_WHITE_DIM   = (255, 255, 255,  80)
-_GHOST       = (180, 230, 255,  30)
+_WHITE         = (255, 255, 255, 220)
+_WHITE_DIM     = (255, 255, 255,  80)
+_WHITE_GHOST   = (255, 255, 255,  30)
 
 # Panel backgrounds — very dark, mostly transparent
-_PANEL_BG    = (  5,  15,  30, 140)
-_PANEL_BDR   = (  0, 200, 160, 160)
+_PANEL_BG      = (  5,  15,  30, 140)
+_PANEL_BDR     = (255, 140,   0, 160)
+
+# Keep backward-compat aliases for any code referencing old names
+_CYAN        = _ORANGE
+_CYAN_DIM    = _ORANGE_DIM
+_CYAN_GHOST  = _ORANGE_GHOST
 
 
 # ---------------------------------------------------------------------------
@@ -275,8 +282,8 @@ class HudRenderer:
 
         # --- inner grid lines ---
         for offset in (-r_inner // 2, 0, r_inner // 2):
-            draw.line([(cx + offset, cy - r_inner), (cx + offset, cy + r_inner)], fill=_GHOST)
-            draw.line([(cx - r_inner, cy + offset), (cx + r_inner, cy + offset)], fill=_GHOST)
+            draw.line([(cx + offset, cy - r_inner), (cx + offset, cy + r_inner)], fill=_WHITE_GHOST)
+            draw.line([(cx - r_inner, cy + offset), (cx + r_inner, cy + offset)], fill=_WHITE_GHOST)
 
         # --- markers (rotated by heading) ---
         heading_rad = math.radians(-state.compass_heading)  # negate → rotate map, not player
@@ -336,7 +343,7 @@ class HudRenderer:
 
         # Track
         draw.rectangle([(x0, y0), (x0 + bar_w, y0 + bar_h)],
-                       fill=_GHOST, outline=_CYAN_GHOST, width=1)
+                       fill=_WHITE_GHOST, outline=_CYAN_GHOST, width=1)
         # Fill
         fw = int(bar_w * max(0.0, min(1.0, state.mission_progress)))
         if fw > 0:
@@ -483,7 +490,7 @@ class HudRenderer:
             ry = y0 + row * (bh + gap)
             # Track
             draw.rectangle([(x0, ry), (x0 + bw, ry + bh)],
-                           fill=_GHOST, outline=_fade(col, 0.25), width=1)
+                           fill=_WHITE_GHOST, outline=_fade(col, 0.25), width=1)
             # Fill — segment flicker near empty
             fw = int(bw * max(0.0, min(1.0, frac)))
             if fw > 0:

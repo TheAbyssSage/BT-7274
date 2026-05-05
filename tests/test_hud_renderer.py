@@ -10,7 +10,7 @@ if str(_project_root) not in sys.path:
 import pytest
 from PIL import Image
 
-from bt7274_hud.hud_renderer import HudRenderer, hex_to_rgba
+from bt7274_hud.hud_renderer import HudRenderer, _hex as hex_to_rgba
 
 
 def test_hex_to_rgba():
