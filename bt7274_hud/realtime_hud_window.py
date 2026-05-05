@@ -6,7 +6,9 @@ labels, and Titanfall-style HUD chrome.
 from __future__ import annotations
 
 import logging
+import time
 import tkinter as tk
+from collections import deque
 from typing import Optional
 
 from PIL import Image, ImageTk
@@ -59,6 +61,15 @@ class RealtimeHudWindow:
         self._preview_job: Optional[str] = None
         self._running = False
 
+        # FPS counter
+        self._frame_times: deque[float] = deque(maxlen=30)
+        self._fps_text_id: Optional[int] = None
+
+        # Camera device list for switching
+        from bt7274_hud.camera_stream import CameraStream
+        self._available_devices = CameraStream.list_devices()
+        self._current_camera = camera_device
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -102,11 +113,57 @@ class RealtimeHudWindow:
         self._root.bind("<Escape>", lambda _e: self._on_close())
         self._root.bind("q", lambda _e: self._on_close())
         self._root.bind("<F11>", lambda _e: self._toggle_fullscreen())
+        self._root.bind("<Tab>", lambda _e: self._cycle_camera())
+        self._root.bind("c", lambda _e: self._cycle_camera())
+        self._root.bind("C", lambda _e: self._cycle_camera())
 
         self._canvas = tk.Canvas(
             self._root, bg="black", highlightthickness=0,
         )
         self._canvas.pack(fill=tk.BOTH, expand=True)
+
+        # Camera device label (top-left corner)
+        device_name = "No camera"
+        for d in self._available_devices:
+            if str(d["index"]) == str(self._current_camera):
+                device_name = d["name"]
+                break
+        self._canvas.create_text(
+            10, 10,
+            text=f"CAM: {device_name}",
+            fill="#00dcb4",
+            font=("Courier", 10),
+            anchor=tk.NW,
+            tags=("camera_label",),
+        )
+
+    def _cycle_camera(self) -> None:
+        """Switch to the next available camera device (wraps around)."""
+        if len(self._available_devices) <= 1:
+            return
+        current_idx = next(
+            (i for i, d in enumerate(self._available_devices)
+             if str(d["index"]) == str(self._current_camera)),
+            -1,
+        )
+        next_idx = (current_idx + 1) % len(self._available_devices)
+        new_device = str(self._available_devices[next_idx]["index"])
+        new_name = self._available_devices[next_idx]["name"]
+        log.info("Switching camera: %s → %s (%s)",
+                 self._current_camera, new_device, new_name)
+        self._current_camera = new_device
+        self._vision._camera.switch_device(new_device)
+        # Update the on-screen label
+        if self._canvas:
+            self._canvas.delete("camera_label")
+            self._canvas.create_text(
+                10, 10,
+                text=f"CAM: {new_name}",
+                fill="#00dcb4",
+                font=("Courier", 10),
+                anchor=tk.NW,
+                tags=("camera_label",),
+            )
 
     def _toggle_fullscreen(self) -> None:
         if self._root is None:
@@ -142,9 +199,13 @@ class RealtimeHudWindow:
         if self._canvas is None:
             return
 
-        annotated = self._vision.get_annotated_frame()
+        annotated = self._vision.get_annotated_frame_no_copy()
         if annotated is None:
             return
+
+        # Track frame time for FPS counter
+        now = time.monotonic()
+        self._frame_times.append(now)
 
         # Convert numpy array → PIL → ImageTk
         pil_img = Image.fromarray(annotated)
@@ -154,7 +215,7 @@ class RealtimeHudWindow:
         ch = self._canvas.winfo_height()
         if cw > 1 and ch > 1 and (cw, ch) != pil_img.size:
             pil_img = pil_img.resize(
-                (cw, ch), Image.Resampling.LANCZOS,
+                (cw, ch), Image.Resampling.NEAREST,  # NEAREST = fastest resize
             )
 
         self._photo_image = ImageTk.PhotoImage(pil_img)
@@ -167,3 +228,20 @@ class RealtimeHudWindow:
             self._canvas.itemconfig(
                 self._canvas_img_id, image=self._photo_image,
             )
+
+        # Update FPS counter every frame
+        if self._frame_times and len(self._frame_times) >= 2:
+            elapsed = self._frame_times[-1] - self._frame_times[0]
+            fps = (len(self._frame_times) - 1) / elapsed if elapsed > 0 else 0
+            fps_text = f"{fps:.0f} FPS"
+            if self._fps_text_id is None:
+                self._fps_text_id = self._canvas.create_text(
+                    self._canvas.winfo_width() - 10, 10,
+                    text=fps_text,
+                    fill="#00dcb4",
+                    font=("Courier", 10),
+                    anchor=tk.NE,
+                    tags=("fps_counter",),
+                )
+            else:
+                self._canvas.itemconfig(self._fps_text_id, text=fps_text)
