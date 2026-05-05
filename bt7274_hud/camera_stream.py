@@ -28,11 +28,16 @@ log = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
-_PREFERRED_FOURCC = cv2.VideoWriter_fourcc(*"MJPG")   # lower CPU on most webcams
+try:
+    _PREFERRED_FOURCC = cv2.VideoWriter_fourcc(*"MJPG")   # lower CPU on most webcams
+except AttributeError:
+    _PREFERRED_FOURCC = 0  # headless OpenCV; MJPEG not available
 
 
 def _try_mjpeg(cap: cv2.VideoCapture) -> bool:
     """Attempt to switch capture to MJPEG; return True if accepted."""
+    if _PREFERRED_FOURCC == 0:
+        return False
     old = cap.get(cv2.CAP_PROP_FOURCC)
     cap.set(cv2.CAP_PROP_FOURCC, _PREFERRED_FOURCC)
     return math.isclose(cap.get(cv2.CAP_PROP_FOURCC), _PREFERRED_FOURCC, rel_tol=1e-3)
@@ -268,3 +273,30 @@ class CameraStream:
             f"frames={self._frame_count} drops={self._drop_count} "
             f"alive={self.is_alive}>"
         )
+
+    @staticmethod
+    def list_devices(max_index: int = 8) -> list[dict]:
+        """
+        Probe camera indices 0..max_index-1 and return available devices.
+
+        Returns:
+            List of dicts with ``index`` (int) and ``name`` (str) keys.
+            Returns empty list if no cameras found or OpenCV unavailable.
+        """
+        devices: list[dict] = []
+        for idx in range(max_index):
+            try:
+                cap = cv2.VideoCapture(idx)
+                if cap.isOpened():
+                    # Try to get a backend-specific name; fall back to generic label
+                    backend = cap.getBackendName() if hasattr(cap, 'getBackendName') else ""
+                    name = f"Camera {idx}"
+                    if backend:
+                        name = f"Camera {idx} ({backend})"
+                    devices.append({"index": idx, "name": name})
+                    cap.release()
+                else:
+                    cap.release()
+            except Exception:
+                continue
+        return devices
