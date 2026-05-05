@@ -10,13 +10,13 @@ if str(_project_root) not in sys.path:
 import pytest
 from PIL import Image
 
-from bt7274_hud.hud_renderer import HudRenderer, hex_to_rgba
+from bt7274_hud.hud_renderer import HudRenderer, _hex
 
 
 def test_hex_to_rgba():
-    assert hex_to_rgba("#ff0000", 128) == (255, 0, 0, 128)
-    assert hex_to_rgba("00ff00", 255) == (0, 255, 0, 255)
-    assert hex_to_rgba("#123", 64) == (17, 34, 51, 64)
+    assert _hex("#ff0000", 128) == (255, 0, 0, 128)
+    assert _hex("00ff00", 255) == (0, 255, 0, 255)
+    assert _hex("#123", 64) == (17, 34, 51, 64)
 
 
 def test_renderer_init():
