@@ -1,6 +1,5 @@
 """Tkinter window orchestrator for the BT-7274 Pilot HUD."""
 
-import os
 import sys
 import threading
 import tkinter as tk
@@ -16,18 +15,19 @@ from PIL import Image, ImageTk
 
 from bt7274_hud.hud_data import HudState
 from bt7274_hud.hud_renderer import HudRenderer
-from bt7274_perception.camera import CameraCapture
+from bt7274_hud.camera_stream import CameraStream
 
 
 class PilotHudWindow:
     """
     Dedicated Titanfall 2 pilot HUD window.
     Fullscreen or fixed-size window with live camera feed + HUD overlays.
+    Uses OpenCV for real-time video streaming.
     """
 
     DEFAULT_WIDTH = 1280
     DEFAULT_HEIGHT = 720
-    PREVIEW_INTERVAL_MS = 200  # 5 FPS overlay refresh (camera is still-image based)
+    PREVIEW_INTERVAL_MS = 33  # ~30 FPS for smooth live video
 
     def __init__(
         self,
@@ -46,7 +46,7 @@ class PilotHudWindow:
         self._canvas_image_id: Optional[int] = None
         self._photo_image: Optional[ImageTk.PhotoImage] = None
 
-        self._camera = CameraCapture(device=camera_device, width=width, height=height)
+        self._camera = CameraStream(device=camera_device, width=width, height=height)
         self._renderer = HudRenderer(width=width, height=height)
         self._state = HudState()
 
@@ -99,7 +99,7 @@ class PilotHudWindow:
             self.width = self._root.winfo_screenwidth()
             self.height = self._root.winfo_screenheight()
             self._renderer = HudRenderer(width=self.width, height=self.height)
-            self._camera = CameraCapture(device=self._camera_device, width=self.width, height=self.height)
+            self._camera = CameraStream(device=self._camera_device, width=self.width, height=self.height)
         else:
             self._root.geometry(f"{self.width}x{self.height}")
 
@@ -115,11 +115,16 @@ class PilotHudWindow:
         self._canvas = tk.Canvas(self._root, bg="black", highlightthickness=0)
         self._canvas.pack(fill=tk.BOTH, expand=True)
 
+        # Start the live camera stream
+        self._camera.start()
+
     def _toggle_fullscreen(self):
         if self._root is None:
             return
         self._fullscreen = not self._fullscreen
         self._root.attributes("-fullscreen", self._fullscreen)
+        # Restart camera with new resolution
+        self._camera.stop()
         if self._fullscreen:
             self.width = self._root.winfo_screenwidth()
             self.height = self._root.winfo_screenheight()
@@ -127,7 +132,8 @@ class PilotHudWindow:
             self.width = self.DEFAULT_WIDTH
             self.height = self.DEFAULT_HEIGHT
         self._renderer = HudRenderer(width=self.width, height=self.height)
-        self._camera = CameraCapture(device=self._camera_device, width=self.width, height=self.height)
+        self._camera = CameraStream(device=self._camera_device, width=self.width, height=self.height)
+        self._camera.start()
 
     # ------------------------------------------------------------------
     # Frame loop
@@ -140,15 +146,12 @@ class PilotHudWindow:
         self._preview_job = self._root.after(self.PREVIEW_INTERVAL_MS, self._schedule_frame)
 
     def _update_frame(self):
-        """Capture one camera frame, render HUD, and update canvas."""
+        """Get latest frame from live stream, render HUD, and update canvas."""
         try:
-            path = self._camera.capture()
-            if path is None:
+            bg = self._camera.get_frame()
+            if bg is None:
                 return
-            self._last_frame_path = path
 
-            # Load frame
-            bg = Image.open(path).convert("RGBA")
             # Resize to match renderer if needed
             if bg.size != (self.width, self.height):
                 bg = bg.resize((self.width, self.height), Image.Resampling.LANCZOS)
@@ -168,22 +171,13 @@ class PilotHudWindow:
                 else:
                     self._canvas.itemconfig(self._canvas_image_id, image=self._photo_image)
 
-            # Clean up temp capture file
-            def _cleanup():
-                try:
-                    os.remove(path)
-                except Exception:
-                    pass
-
-            if self._root:
-                self._root.after(50, _cleanup)
-
         except Exception:
             # Swallow frame errors to keep loop alive
             pass
 
     def _on_close(self):
         self._running = False
+        self._camera.stop()
         if self._preview_job and self._root:
             self._root.after_cancel(self._preview_job)
             self._preview_job = None
