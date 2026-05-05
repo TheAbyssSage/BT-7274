@@ -36,10 +36,13 @@ from bt7274_perception.vision_engine import VisionEngine
 from bt7274_perception.vision_logger import VisionLogger
 
 CameraWindow = None  # type: ignore[assignment]
+CameraStream = None  # type: ignore[assignment]
 _HAS_HUD = False
 try:
     from bt7274_hud import CameraWindow as _ImportedCameraWindow
+    from bt7274_hud.camera_stream import CameraStream as _ImportedCameraStream
     CameraWindow = _ImportedCameraWindow  # type: ignore[assignment]
+    CameraStream = _ImportedCameraStream  # type: ignore[assignment]
     _HAS_HUD = True
 except Exception:
     pass
@@ -53,7 +56,7 @@ class VisionViewerWindow:
     PREVIEW_HEIGHT = 120
     CAPTURE_WIDTH = 640
     CAPTURE_HEIGHT = 480
-    PREVIEW_INTERVAL_MS = 1000  # Start slow, adapt based on visibility
+    PREVIEW_INTERVAL_MS = 33  # ~30 FPS for real-time video
 
     def __init__(
         self,
@@ -67,16 +70,16 @@ class VisionViewerWindow:
         self._vision_model = vision_model
         self._log_dir = log_dir
 
-        # Power management
-        self._power_saving_mode = False
-        self._window_visible = True
-        self._last_window_check = 0
-        self._adaptive_interval = self.PREVIEW_INTERVAL_MS
+        # Live preview: fast OpenCV CameraStream (real-time, low latency)
+        self._preview_stream: Optional[CameraStream] = None
+        self._build_preview_stream()
 
-        # Single shared camera with lock — prevents preview and LOOK from fighting
-        self._camera_lock = threading.Lock()
-        self._shared_camera: Optional[CameraCapture] = None
-        self._rebuild_camera()
+        # High-res LOOK capture: ffmpeg CameraCapture (saves files for vision model)
+        self._look_camera = CameraCapture(
+            device=self._camera_device,
+            width=self.CAPTURE_WIDTH,
+            height=self.CAPTURE_HEIGHT,
+        )
 
         self.engine = VisionEngine(ollama_url=ollama_url, vision_model=vision_model)
         self.logger = VisionLogger(log_dir=log_dir)
@@ -91,11 +94,9 @@ class VisionViewerWindow:
         self._camera_combo: Optional[ttk.Combobox] = None
         self._progress_var: Optional[tk.DoubleVar] = None
         self._progress_bar: Optional[ttk.Progressbar] = None
-        self._power_btn: Optional[tk.Button] = None
 
         self._preview_job: Optional[str] = None
         self._preview_running = False
-        self._last_preview_path: Optional[str] = None
         self._last_capture_path: Optional[str] = None
 
         self._has_pil = False
@@ -105,30 +106,22 @@ class VisionViewerWindow:
         except Exception:
             pass
 
-    def _rebuild_camera(self):
-        """Rebuild the single shared camera instance."""
-        with self._camera_lock:
-            # Use lower resolution for shared camera to reduce bandwidth
-            self._shared_camera = CameraCapture(
-                device=self._camera_device,
-                width=self.CAPTURE_WIDTH if not self._power_saving_mode else self.PREVIEW_WIDTH,
-                height=self.CAPTURE_HEIGHT if not self._power_saving_mode else self.PREVIEW_HEIGHT,
-            )
-
-    def _capture_locked(self, for_preview: bool = False) -> Optional[str]:
-        """Capture a frame using the shared camera (thread-safe)."""
-        with self._camera_lock:
-            if self._shared_camera is None:
-                return None
-            # For preview captures, use lower resolution
-            if for_preview:
-                temp_camera = CameraCapture(
-                    device=self._camera_device,
-                    width=self.PREVIEW_WIDTH,
-                    height=self.PREVIEW_HEIGHT,
-                )
-                return temp_camera.capture()
-            return self._shared_camera.capture()
+    def _build_preview_stream(self):
+        """Create or recreate the CameraStream for live preview."""
+        if CameraStream is None:
+            self._preview_stream = None
+            return
+        was_running = self._preview_stream is not None and self._preview_stream.is_alive
+        if self._preview_stream is not None:
+            self._preview_stream.stop()
+        self._preview_stream = CameraStream(
+            device=self._camera_device,
+            width=self.PREVIEW_WIDTH,
+            height=self.PREVIEW_HEIGHT,
+            fps=30,
+        )
+        if was_running:
+            self._preview_stream.start()
 
     def _build_ui(self):
         """Construct the tkinter UI."""
@@ -258,17 +251,6 @@ class VisionViewerWindow:
             command=self._on_look,
         )
         self._look_btn.pack(fill=tk.X, pady=(0, 5))
-
-        # Power saving toggle
-        self._power_btn = tk.Button(
-            ctrl_frame,
-            text="POWER SAVING: OFF",
-            font=("Courier", 10),
-            bg="#333333",
-            fg="#ffffff",
-            command=self._toggle_power_saving,
-        )
-        self._power_btn.pack(fill=tk.X, pady=(0, 5))
 
         # Progress bar
         self._progress_var = tk.DoubleVar(value=0.0)
@@ -402,65 +384,38 @@ class VisionViewerWindow:
             label.config(text=f"[Image error: {e}]", image="")
 
     def _schedule_preview(self):
-        """Schedule the next preview frame using tkinter's after."""
+        """Schedule the next preview frame at full camera FPS."""
         if not self._preview_running or self._root is None:
             return
-        
-        # Adaptive preview rate based on window visibility and power mode
-        self._update_adaptive_interval()
         self._capture_preview_frame()
-        self._preview_job = self._root.after(self._adaptive_interval, self._schedule_preview)
-
-    def _update_adaptive_interval(self):
-        """Adjust preview interval based on window visibility and power mode."""
-        import time
-        current_time = time.time()
-        
-        # Check window visibility every 5 seconds
-        if current_time - self._last_window_check > 5.0:
-            self._last_window_check = current_time
-            try:
-                # Simple heuristic: if window is minimized, it's not visible
-                assert self._root is not None
-                self._window_visible = self._root.winfo_viewable()
-            except Exception:
-                self._window_visible = True  # Assume visible if check fails
-        
-        # Base interval
-        interval = self.PREVIEW_INTERVAL_MS
-        
-        # Slow down if window not visible
-        if not self._window_visible:
-            interval *= 4  # 4x slower when hidden
-        
-        # Power saving mode
-        if self._power_saving_mode:
-            interval *= 2  # 2x slower in power saving mode
-        
-        self._adaptive_interval = min(interval, 10000)  # Cap at 10 seconds
-
-    def _toggle_power_saving(self):
-        """Toggle power saving mode."""
-        self._power_saving_mode = not self._power_saving_mode
-        mode_text = "ON" if self._power_saving_mode else "OFF"
-        if self._power_btn:
-            self._power_btn.config(text=f"POWER SAVING: {mode_text}")
-        self._set_status(f"Power saving mode {'enabled' if self._power_saving_mode else 'disabled'}")
+        self._preview_job = self._root.after(self.PREVIEW_INTERVAL_MS, self._schedule_preview)
 
     def _capture_preview_frame(self):
-        """Capture one preview frame and update the label."""
+        """Grab latest frame from CameraStream and update the preview label."""
+        if self._preview_stream is None:
+            return
         try:
-            path = self._capture_locked(for_preview=True)
-            if path:
-                self._last_preview_path = path
-                self._update_image(self._preview_label, path)
-                def cleanup():
-                    try:
-                        os.remove(path)
-                    except Exception:
-                        pass
-                if self._root:
-                    self._root.after(100, cleanup)
+            frame_array = self._preview_stream.get_frame_array()
+            if frame_array is None:
+                return
+
+            if self._has_pil:
+                from PIL import Image, ImageTk
+                img = Image.fromarray(frame_array)
+                photo = ImageTk.PhotoImage(img)
+            else:
+                # Fallback: encode to temp file for tkinter PhotoImage
+                import tempfile
+                import cv2
+                fd, tmp_path = tempfile.mkstemp(suffix=".png", prefix="bt_preview_")
+                os.close(fd)
+                cv2.imwrite(tmp_path, cv2.cvtColor(frame_array, cv2.COLOR_RGB2BGR))
+                photo = tk.PhotoImage(file=tmp_path)
+                os.remove(tmp_path)
+
+            if self._preview_label is not None:
+                self._preview_label.config(image=photo, text="", bg="#0a0a0a")
+                self._preview_label.image = photo  # type: ignore[attr-defined]
         except Exception:
             pass
 
@@ -478,7 +433,14 @@ class VisionViewerWindow:
         if new_device == self._camera_device:
             return
         self._camera_device = new_device
-        self._rebuild_camera()
+        self._build_preview_stream()
+        if self._preview_running and self._preview_stream is not None:
+            self._preview_stream.start()
+        self._look_camera = CameraCapture(
+            device=self._camera_device,
+            width=self.CAPTURE_WIDTH,
+            height=self.CAPTURE_HEIGHT,
+        )
         self._set_status(f"Switched to camera {new_device}")
         if self._capture_label:
             self._capture_label.config(text="[No capture]", image="")
@@ -494,7 +456,7 @@ class VisionViewerWindow:
             try:
                 self._set_progress(20)
 
-                image_path = self._capture_locked(for_preview=False)
+                image_path = self._look_camera.capture()
                 if image_path is None:
                     self._set_progress(0)
                     self._set_status("Camera capture failed")
@@ -570,6 +532,8 @@ class VisionViewerWindow:
         if self._preview_job and self._root:
             self._root.after_cancel(self._preview_job)
             self._preview_job = None
+        if self._preview_stream is not None:
+            self._preview_stream.stop()
         if self._root:
             self._root.destroy()
             self._root = None
@@ -579,10 +543,14 @@ class VisionViewerWindow:
         self._build_ui()
         self._refresh_history()
 
+        # Start the CameraStream for live preview
+        if self._preview_stream is not None:
+            self._preview_stream.start()
+
         self._preview_running = True
         self._schedule_preview()
 
-        self._set_status("Optical sensors active. POWER SAVING: OFF")
+        self._set_status("Optical sensors active. Live preview at 30 FPS.")
         assert self._root is not None
         self._root.mainloop()
 
@@ -590,9 +558,14 @@ class VisionViewerWindow:
         """Launch the viewer without blocking the caller."""
         self._build_ui()
         self._refresh_history()
+
+        # Start the CameraStream for live preview
+        if self._preview_stream is not None:
+            self._preview_stream.start()
+
         self._preview_running = True
         self._schedule_preview()
-        self._set_status("Optical sensors active. POWER SAVING: OFF")
+        self._set_status("Optical sensors active. Live preview at 30 FPS.")
         assert self._root is not None
         threading.Thread(target=self._root.mainloop, daemon=True).start()
 
