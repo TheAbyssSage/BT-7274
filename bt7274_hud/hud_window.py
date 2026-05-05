@@ -4,7 +4,10 @@ import sys
 import threading
 import tkinter as tk
 from pathlib import Path
+from tkinter import ttk
 from typing import Optional
+
+import cv2
 
 # Ensure project root on path
 _project_root = Path(__file__).parent.parent
@@ -45,6 +48,7 @@ class PilotHudWindow:
         self._canvas: Optional[tk.Canvas] = None
         self._canvas_image_id: Optional[int] = None
         self._photo_image: Optional[ImageTk.PhotoImage] = None
+        self._camera_combo: Optional[ttk.Combobox] = None
 
         self._camera = CameraStream(device=camera_device, width=width, height=height)
         self._renderer = HudRenderer(width=width, height=height)
@@ -88,6 +92,21 @@ class PilotHudWindow:
             self._root.after(0, self._on_close)
 
     # ------------------------------------------------------------------
+    # Camera discovery
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _list_cameras(max_index: int = 10) -> list[dict]:
+        """Probe camera indices and return available devices."""
+        devices = []
+        for i in range(max_index):
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                devices.append({"index": str(i), "name": f"Camera {i}"})
+                cap.release()
+        return devices
+
+    # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
 
@@ -111,11 +130,67 @@ class PilotHudWindow:
         self._root.bind("<F11>", lambda e: self._toggle_fullscreen())
         self._root.bind("q", lambda e: self._on_close())
 
+        # Camera selector (top bar, only in windowed mode)
+        if not self._fullscreen:
+            top_bar = tk.Frame(self._root, bg="black")
+            top_bar.pack(fill=tk.X, side=tk.TOP)
+
+            cam_label = tk.Label(
+                top_bar,
+                text="CAM:",
+                font=("Courier", 10),
+                fg="#00ff88",
+                bg="black",
+            )
+            cam_label.pack(side=tk.LEFT, padx=(10, 5))
+
+            devices = self._list_cameras()
+            device_names = [f"[{d['index']}] {d['name']}" for d in devices]
+            self._camera_combo = ttk.Combobox(
+                top_bar,
+                values=device_names,
+                state="readonly",
+                width=25,
+                font=("Courier", 10),
+            )
+            if device_names:
+                current_idx = 0
+                for i, name in enumerate(device_names):
+                    if name.startswith(f"[{self._camera_device}]"):
+                        current_idx = i
+                        break
+                self._camera_combo.current(current_idx)
+            self._camera_combo.pack(side=tk.LEFT, padx=(0, 10))
+            self._camera_combo.bind("<<ComboboxSelected>>", self._on_camera_change)
+
         # Canvas fills the window
         self._canvas = tk.Canvas(self._root, bg="black", highlightthickness=0)
         self._canvas.pack(fill=tk.BOTH, expand=True)
 
         # Start the live camera stream
+        self._camera.start()
+
+    def _on_camera_change(self, event=None):
+        """Handle camera selection change."""
+        if self._camera_combo is None:
+            return
+        selection = self._camera_combo.get()
+        if not selection:
+            return
+        idx_end = selection.find("]")
+        if idx_end == -1:
+            return
+        new_device = selection[1:idx_end]
+        if new_device == self._camera_device:
+            return
+        self._camera_device = new_device
+        # Restart camera stream
+        self._camera.stop()
+        self._camera = CameraStream(
+            device=self._camera_device,
+            width=self.width,
+            height=self.height,
+        )
         self._camera.start()
 
     def _toggle_fullscreen(self):
