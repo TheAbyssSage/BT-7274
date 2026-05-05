@@ -96,6 +96,9 @@ class CameraStream:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
+        # Thread-safe device switching
+        self._switch_requested: Optional[int | str] = None
+
         # Telemetry
         self._frame_count = 0
         self._drop_count = 0
@@ -113,15 +116,15 @@ class CameraStream:
     def switch_device(self, new_device: str) -> None:
         """Switch to a different camera device.
 
-        The change takes effect on the next capture loop iteration.
-        The current device is released and the new one is opened.
+        Thread-safe: sets a flag that the capture loop picks up on its
+        next iteration.  The capture thread handles the actual release
+        and reopen to avoid race conditions.
         """
         try:
             self._device = int(new_device)
         except ValueError:
             self._device = new_device
-        # Force release so the capture loop reopens with the new device
-        self._release_cap()
+        self._switch_requested = self._device
         log.info("CameraStream: switching to device %s", self._device)
 
     # ------------------------------------------------------------------
@@ -252,9 +255,16 @@ class CameraStream:
 
         On read failure → attempts reconnect if enabled, otherwise exits.
         Only the most recent frame is kept; old frames are silently dropped.
+        Device switching is handled cooperatively via _switch_requested flag.
         """
         delay = self._reconnect_delay_s
         while self._running:
+            # ---- handle device switch request ----
+            if self._switch_requested is not None:
+                self._release_cap()
+                self._switch_requested = None
+                delay = self._reconnect_delay_s
+
             # ---- open / reopen ----
             if self._cap is None:
                 cap = self._open_cap()
