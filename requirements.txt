@@ -2,7 +2,7 @@
 # Compatible with macOS Apple Silicon (M1)
 
 # Core
-numpy>=1.24.0
+numpy>=1.24.0,<2
 pyyaml>=6.0
 requests>=2.31.0
 
@@ -39,7 +39,7 @@ pyobjc>=10.0; sys_platform == 'darwin'
 
 # Vision / Image display
 Pillow>=10.0
-opencv-python-headless>=4.8.0,<4.10.0
+opencv-python>=4.8.0,<4.10.0
 ultralytics>=8.0.0
 face-recognition>=1.3.0
 dlib>=19.24.0
