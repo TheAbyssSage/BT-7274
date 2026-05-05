@@ -56,3 +56,25 @@ class TestCameraStreamFrameAccess:
         """get_frame() should return a PIL Image or None."""
         stream = CameraStream(device="0", width=320, height=240)
         assert stream.get_frame() is None
+
+
+class TestCameraStreamZeroCopy:
+    """Tests for the double-buffer zero-copy frame access."""
+
+    def test_get_frame_array_no_copy_returns_view(self):
+        """get_frame_array_no_copy() should return the buffer without copying."""
+        stream = CameraStream(device="0", width=320, height=240)
+        # Without starting, should return None
+        assert stream.get_frame_array_no_copy() is None
+
+    def test_switch_device_updates_device(self):
+        """switch_device() should update the internal device reference."""
+        stream = CameraStream(device="0", width=320, height=240)
+        stream.switch_device("1")
+        assert stream.device == 1
+
+    def test_switch_device_string_to_int(self):
+        """switch_device() should handle string-to-int conversion."""
+        stream = CameraStream(device="0", width=320, height=240)
+        stream.switch_device("2")
+        assert stream.device == 2  # converted to int

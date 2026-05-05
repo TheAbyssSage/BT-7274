@@ -102,6 +102,29 @@ class CameraStream:
         self._ts_ring: deque[float] = deque(maxlen=30)   # timestamps of last 30 frames
 
     # ------------------------------------------------------------------
+    # Device management
+    # ------------------------------------------------------------------
+
+    @property
+    def device(self) -> int | str:
+        """Current camera device index or URL."""
+        return self._device
+
+    def switch_device(self, new_device: str) -> None:
+        """Switch to a different camera device.
+
+        The change takes effect on the next capture loop iteration.
+        The current device is released and the new one is opened.
+        """
+        try:
+            self._device = int(new_device)
+        except ValueError:
+            self._device = new_device
+        # Force release so the capture loop reopens with the new device
+        self._release_cap()
+        log.info("CameraStream: switching to device %s", self._device)
+
+    # ------------------------------------------------------------------
     # Public control
     # ------------------------------------------------------------------
 
@@ -148,6 +171,19 @@ class CameraStream:
             if self._latest_frame is None:
                 return None
             return self._latest_frame.copy()
+
+    def get_frame_array_no_copy(self) -> Optional[np.ndarray]:
+        """Return the most recent frame WITHOUT copying.
+
+        WARNING: The returned array is owned by the capture thread.
+        Do NOT mutate it.  The next capture will overwrite this buffer.
+        Only use this when you will finish with the frame before the
+        next camera read (~33 ms at 30 FPS).
+
+        Returns None until the first frame is captured.
+        """
+        with self._lock:
+            return self._latest_frame
 
     # ------------------------------------------------------------------
     # Telemetry
