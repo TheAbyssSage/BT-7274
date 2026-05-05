@@ -35,11 +35,11 @@ from bt7274_perception.camera import CameraCapture
 from bt7274_perception.vision_engine import VisionEngine
 from bt7274_perception.vision_logger import VisionLogger
 
-PilotHudWindow = None  # type: ignore[assignment]
+CameraWindow = None  # type: ignore[assignment]
 _HAS_HUD = False
 try:
-    from bt7274_hud import PilotHudWindow as _ImportedHudWindow
-    PilotHudWindow = _ImportedHudWindow  # type: ignore[assignment]
+    from bt7274_hud import CameraWindow as _ImportedCameraWindow
+    CameraWindow = _ImportedCameraWindow  # type: ignore[assignment]
     _HAS_HUD = True
 except Exception:
     pass
@@ -606,21 +606,18 @@ class VisionViewerWindow:
             self._root.after(0, self._on_look)
 
     def open_pilot_hud(self):
-        """Launch the dedicated Pilot HUD window if available."""
-        if not _HAS_HUD or PilotHudWindow is None:
-            self._set_status("Pilot HUD not available.")
+        """Launch the dedicated camera stream window if available."""
+        if not _HAS_HUD or CameraWindow is None:
+            self._set_status("Camera stream not available.")
             return
-        hud = PilotHudWindow(
+        hud = CameraWindow(
             camera_device=self._camera_device,
             width=1280,
             height=720,
             fullscreen=False,
         )
-        # Mirror current state into HUD
-        hud.state.pilot_callsign = "PILOT"
-        hud.state.system_status = "ONLINE"
-        hud.start_nonblocking()
-        self._set_status("Pilot HUD opened.")
+        hud.start()
+        self._set_status("Camera stream opened.")
 
 
 def main():

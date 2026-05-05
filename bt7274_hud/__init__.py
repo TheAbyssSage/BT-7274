@@ -1,13 +1,7 @@
-"""BT-7274 Pilot HUD package."""
+"""BT-7274 Camera Stream package."""
 
-from bt7274_hud.hud_data import HudState, Marker, Notification, AbilityIcon, WeaponReadout
-from bt7274_hud.hud_window import PilotHudWindow
+from bt7274_hud.hud_window import CameraWindow
 
 __all__ = [
-    "HudState",
-    "Marker",
-    "Notification",
-    "AbilityIcon",
-    "WeaponReadout",
-    "PilotHudWindow",
+    "CameraWindow",
 ]
