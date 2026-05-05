@@ -86,18 +86,26 @@ def _make_placeholder(width: int, height: int) -> Image.Image:
 
 def _build_demo_state(state: HudState) -> None:
     """
-    Populate *state* with realistic demo data so the HUD looks complete
-    out-of-the-box, without requiring an external data source.
+    Populate *state* with Titanfall 2–style demo data.
     """
-    from bt7274_hud.hud_data import AbilityIcon, AbilitySize, Notification
+    from bt7274_hud.hud_data import (
+        AbilityIcon,
+        AbilitySize,
+        CallBox,
+        CallContext,
+        InfoFeedMessage,
+        Notification,
+        StatusIcon,
+        StatusIconKind,
+        TitanMeter,
+    )
 
     state.pilot_callsign   = "SPECTRE-7"
     state.faction          = "MILITIA"
-    state.mission_progress = 0.42
-    state.objective_label  = "Secure the IMC Beacon"
     state.compass_heading  = 45.0
     state.system_status    = SystemStatus.ONLINE
 
+    # Vitals
     state.vitals = VitalState(
         health=0.78, shield=0.55, titan_link=0.91,
         health_max=1.0, shield_max=1.0,
@@ -111,19 +119,47 @@ def _build_demo_state(state: HudState) -> None:
         Marker(x=0.25, y=0.65, label="BCNB",  kind=MarkerKind.OBJECTIVE),
     ]
 
-    # Comms panel
-    state.comms = CommsState(
+    # --- Titanmeter (bottom-left) ---
+    state.titanmeter = TitanMeter(progress=0.62, label="TITANFALL")
+
+    # --- Status icons (right of titanmeter) ---
+    state.status_icons = [
+        StatusIcon(
+            name="STIM", kind=StatusIconKind.ABILITY, key="Q",
+            icon_glyph="⚡", cooldown_total=8.0, cooldown_remaining=0.0,
+        ),
+        StatusIcon(
+            name="GRAPPLE", kind=StatusIconKind.ABILITY, key="LB",
+            icon_glyph="⬡", cooldown_total=12.0, cooldown_remaining=4.5,
+        ),
+        StatusIcon(
+            name="CLOAK", kind=StatusIconKind.ABILITY, key="RB",
+            icon_glyph="◈", cooldown_total=15.0, cooldown_remaining=0.0,
+        ),
+        StatusIcon(
+            name="FRAG", kind=StatusIconKind.ORDNANCE, key="G",
+            icon_glyph="💣", cooldown_total=10.0, cooldown_remaining=7.2,
+        ),
+    ]
+
+    # --- Call box (top-right, active) ---
+    state.call_box = CallBox(
         active=True,
-        header="INTERCEPTING TRANSMISSION",
-        speaker_name="BT-7274",
-        speaker_role="VANGUARD-CLASS TITAN",
-        message="Uplink acquired. Proceeding to rally point.",
+        pilot_name="BT-7274",
+        voice_line="Transferring control to Pilot.",
+        context=CallContext.COMBAT,
         signal_strength=0.85,
-        channel="CH-07",
-        timestamp="T+00:04:12",
     )
 
-    # Abilities (MAIN → red offensive, TACTICAL → blue utility, PASSIVE → green)
+    # --- Info feed (bottom-right) ---
+    state.info_feed = [
+        InfoFeedMessage(text="Enemy pilot detected NE sector", color="#ff4444", ttl=3600),
+        InfoFeedMessage(text="Uplink channel secured", color="#00aaff", ttl=3600),
+        InfoFeedMessage(text="Titanfall 62% charged", color="#ff8c00", ttl=3600),
+        InfoFeedMessage(text="Ally BT-7274 linked", color="#00aaff", ttl=3600),
+    ]
+
+    # Legacy abilities (kept for backward compat)
     state.abilities = [
         AbilityIcon(name="STIM",    key="Q", color="#ff4444",
                     size=AbilitySize.MAIN,     cooldown_total=8.0,  cooldown_remaining=0.0,
@@ -139,7 +175,7 @@ def _build_demo_state(state: HudState) -> None:
                     icon_glyph="◉"),
     ]
 
-    # Weapon
+    # Legacy weapon
     state.weapon = WeaponReadout(
         name="XO-16 CHAINGUN",
         ammo_current=28,
@@ -148,14 +184,14 @@ def _build_demo_state(state: HudState) -> None:
         fire_mode="AUTO",
     )
 
-    # Event cards
+    # Legacy event cards
     state.event_cards = [
         EventCard(label="CALLSIGN",  value="SPECTRE-7",        category=CardCategory.INFO,    ttl=0),
         EventCard(label="STATUS",    value="Target Marked",     category=CardCategory.SUCCESS, ttl=0),
         EventCard(label="INTEL",     value="IMC Patrol Nearby", category=CardCategory.WARNING, ttl=0),
     ]
 
-    # Notification feed
+    # Legacy notification feed
     state.notifications = [
         Notification(text="⬡ Ally BT-7274 linked",        color="#00aaff", ttl=3600),
         Notification(text="▲ Threat detected NE sector",   color="#ff6644", ttl=3600),
