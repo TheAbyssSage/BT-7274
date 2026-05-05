@@ -142,7 +142,7 @@ class CameraWindow:
         self._canvas.create_text(
             10, 10,
             text=f"CAM: {device_name}",
-            fill="#00ff8866",
+            fill="#00ff88",
             font=("Courier", 10),
             anchor=tk.NW,
             tags=("camera_label",),
