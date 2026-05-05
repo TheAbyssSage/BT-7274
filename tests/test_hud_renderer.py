@@ -110,3 +110,48 @@ def test_status_icons_render_notched_rectangles():
     pixels = list(region.getdata())
     non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
     assert len(non_black) > 20, "Status icons should render visible elements"
+
+
+def test_call_box_hidden_when_inactive():
+    """Call box should not render anything when inactive."""
+    from bt7274_hud.hud_data import HudState, CallBox
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.call_box = CallBox(active=False)
+    bg = Image.new("RGB", (400, 300), "black")
+    result_inactive = r.composite(bg, state)
+
+    # Now activate and compare — active should have more pixels in call box area
+    state.call_box = CallBox(
+        active=True, pilot_name="BT", voice_line="Test",
+    )
+    result_active = r.composite(bg, state)
+
+    # Call box area (avoiding corner brackets)
+    region_inactive = result_inactive.crop((200, 20, 370, 90))
+    region_active = result_active.crop((200, 20, 370, 90))
+
+    inactive_count = len([p for p in region_inactive.getdata() if p[:3] != (0, 0, 0)])
+    active_count = len([p for p in region_active.getdata() if p[:3] != (0, 0, 0)])
+
+    # Active call box should add significant pixels
+    assert active_count > inactive_count + 50, "Active call box should add rendered pixels"
+
+
+def test_call_box_visible_when_active():
+    """Call box should render when active with pilot name and voice line."""
+    from bt7274_hud.hud_data import HudState, CallBox, CallContext
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.call_box = CallBox(
+        active=True,
+        pilot_name="BT-7274",
+        voice_line="Transferring control to Pilot.",
+        context=CallContext.COMBAT,
+    )
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    region = result.crop((250, 0, 400, 120))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 80, "Active call box should render visible elements"

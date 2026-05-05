@@ -205,7 +205,7 @@ class HudRenderer:
         self._draw_reticle(draw)
         self._draw_minimap(draw, state)
         self._draw_mission_bar(draw, state)
-        self._draw_comms_panel(draw, state)
+        self._draw_call_box(draw, state)
         self._draw_event_cards(draw, state)
         self._draw_notification_feed(draw, state)
         self._draw_vitals(draw, state)
@@ -458,6 +458,114 @@ class HudRenderer:
                 snippet = comms.message[:chars_per_line]
                 draw.text((x0 + 8, ty), snippet, font=self._f_xs,
                           fill=_fade(_WHITE, 0.7))
+
+    # ------------------------------------------------------------------
+    # Top-right call box (only visible during active calls)
+    # ------------------------------------------------------------------
+
+    def _draw_call_box(self, draw: ImageDraw.ImageDraw, state: HudState) -> None:
+        """
+        Titanfall 2–style call box:
+          - Only visible when ``state.call_box.active`` is True
+          - Semi-transparent dark panel with thin orange border
+          - Pilot icon/portrait area on the left
+          - Voice line text on the right
+          - Subtle scanline/glitch effects
+          - Signal strength indicator
+        """
+        cb = state.call_box
+        if not cb.active:
+            return
+
+        pw, ph = min(220, self.width // 6), 90
+        x0 = self.width - pw - 16
+        y0 = 16
+
+        # --- background panel ---
+        _draw_rounded_rect(
+            draw, (x0, y0, x0 + pw, y0 + ph),
+            radius=3, fill=_PANEL_BG, outline=_ORANGE_DIM, width=1,
+        )
+
+        # --- left accent stripe ---
+        draw.rectangle(
+            [(x0, y0 + 3), (x0 + 2, y0 + ph - 3)],
+            fill=_ORANGE,
+        )
+
+        # --- pilot icon area (left side) ---
+        icon_cx = x0 + 22
+        icon_cy = y0 + ph // 2
+        icon_r = 14
+        # Different icon for call mode: a diamond/hex shape instead of circle
+        diamond = [
+            (icon_cx, icon_cy - icon_r),       # top
+            (icon_cx + icon_r, icon_cy),       # right
+            (icon_cx, icon_cy + icon_r),       # bottom
+            (icon_cx - icon_r, icon_cy),       # left
+        ]
+        draw.polygon(diamond, fill=_ORANGE_GHOST, outline=_ORANGE, width=1)
+        # Small "CALL" indicator dot
+        draw.ellipse(
+            [(icon_cx - 3, icon_cy - 3), (icon_cx + 3, icon_cy + 3)],
+            fill=_ORANGE_BRIGHT,
+        )
+
+        # --- pilot name ---
+        draw.text(
+            (x0 + 42, y0 + 10),
+            cb.pilot_name.upper(),
+            font=self._f_sm,
+            fill=_WHITE,
+        )
+
+        # --- context label ---
+        context_colors = {
+            CallContext.COMBAT: _RED,
+            CallContext.MOVEMENT: _BLUE,
+            CallContext.ENVIRONMENT: _ORANGE,
+            CallContext.OBJECTIVE: _AMBER,
+            CallContext.ALERT: _RED,
+            CallContext.NEUTRAL: _WHITE_DIM,
+        }
+        ctx_color = context_colors.get(cb.context, _WHITE_DIM)
+        draw.text(
+            (x0 + 42, y0 + 26),
+            cb.context.value.upper(),
+            font=self._f_xs,
+            fill=ctx_color,
+        )
+
+        # --- voice line text ---
+        chars_per_line = (pw - 52) // 6
+        snippet = cb.voice_line[:chars_per_line]
+        draw.text(
+            (x0 + 42, y0 + 42),
+            snippet,
+            font=self._f_xs,
+            fill=_fade(_WHITE, 0.8),
+        )
+
+        # --- signal strength bars (bottom of panel) ---
+        sig = max(0.0, min(1.0, cb.signal_strength))
+        bar_count = 8
+        bar_max_h = 10
+        bx = x0 + 42
+        by = y0 + ph - 14
+        for i in range(bar_count):
+            bh = int(bar_max_h * sig * (i + 1) / bar_count)
+            bcolor = _ORANGE if bh > 0 else _ORANGE_GHOST
+            draw.rectangle(
+                [(bx + i * 5, by - bh), (bx + i * 5 + 3, by)],
+                fill=bcolor,
+            )
+
+        # --- scanline glitch effect (subtle horizontal lines) ---
+        for sy in range(y0 + 2, y0 + ph - 2, 4):
+            draw.line(
+                [(x0 + 4, sy), (x0 + pw - 4, sy)],
+                fill=(255, 255, 255, 5),
+            )
 
     # ------------------------------------------------------------------
     # Middle-left event cards
