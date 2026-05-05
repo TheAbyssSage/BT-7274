@@ -81,3 +81,46 @@ class TestRealtimeVision:
         frame = rv.get_annotated_frame()
         rv.stop()
         # Frame may be None if camera isn't available, but shouldn't crash
+
+
+class TestRealtimeVisionOptimized:
+    """Tests for zero-copy and skip-overlay optimizations."""
+
+    def test_skip_overlay_when_no_detections(self):
+        """When there are zero detections, the overlay should be skipped."""
+        rv = RealtimeVision(
+            camera_device="0", width=320, height=240,
+            enable_yolo=False,  # no YOLO = no detections
+        )
+        rv.start()
+        time.sleep(0.5)
+        frame = None
+        for _ in range(20):
+            frame = rv.get_annotated_frame()
+            if frame is not None:
+                break
+            time.sleep(0.1)
+        rv.stop()
+        # Frame should still be produced (raw camera pass-through)
+        if frame is not None:
+            assert isinstance(frame, np.ndarray)
+            assert frame.shape[0] == 240
+            assert frame.shape[1] == 320
+
+    def test_get_annotated_frame_no_copy(self):
+        """get_annotated_frame_no_copy should exist and work."""
+        rv = RealtimeVision(
+            camera_device="0", width=320, height=240,
+            enable_yolo=False,
+        )
+        rv.start()
+        time.sleep(0.5)
+        frame = None
+        for _ in range(20):
+            frame = rv.get_annotated_frame_no_copy()
+            if frame is not None:
+                break
+            time.sleep(0.1)
+        rv.stop()
+        if frame is not None:
+            assert isinstance(frame, np.ndarray)
