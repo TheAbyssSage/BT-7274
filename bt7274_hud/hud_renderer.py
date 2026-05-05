@@ -208,6 +208,7 @@ class HudRenderer:
         self._draw_call_box(draw, state)
         self._draw_event_cards(draw, state)
         self._draw_notification_feed(draw, state)
+        self._draw_info_feed(draw, state)
         self._draw_vitals(draw, state)
         self._draw_titanmeter(draw, state)
         self._draw_status_icons(draw, state)
@@ -620,6 +621,46 @@ class HudRenderer:
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 draw.text((x1 + dx, y + dy), text, font=self._f_xs,
                           fill=_fade((0, 0, 0, 180), alpha), anchor="ra")
+            draw.text((x1, y), text, font=self._f_xs, fill=col, anchor="ra")
+
+    # ------------------------------------------------------------------
+    # Bottom-right info feed (text-only, scrolling upward)
+    # ------------------------------------------------------------------
+
+    def _draw_info_feed(self, draw: ImageDraw.ImageDraw, state: HudState) -> None:
+        """
+        Titanfall 2–style info feed:
+          - Text-only messages in the bottom-right corner
+          - New messages appear at the bottom, push older ones upward
+          - After ~5-6 messages, oldest fade out and disappear
+          - Colors: orange, white, blue per Titanfall 2 palette
+        """
+        if not state.info_feed:
+            return
+
+        max_visible = 6
+        visible = state.info_feed[-max_visible:]   # newest at end of list
+
+        x1 = self.width - 16
+        lh = 15                                    # line height
+        # Start from bottom and stack upward
+        base_y = self.height - 20
+
+        for i, msg in enumerate(reversed(visible)):
+            y = base_y - i * lh
+            alpha = msg.alpha_fraction
+            col = _fade(_hex(msg.color), int(200 * alpha))
+            text = msg.text[:40]
+
+            # Shadow for legibility
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                draw.text(
+                    (x1 + dx, y + dy),
+                    text,
+                    font=self._f_xs,
+                    fill=_fade((0, 0, 0, 180), alpha),
+                    anchor="ra",
+                )
             draw.text((x1, y), text, font=self._f_xs, fill=col, anchor="ra")
 
     # ------------------------------------------------------------------

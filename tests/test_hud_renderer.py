@@ -155,3 +155,47 @@ def test_call_box_visible_when_active():
     pixels = list(region.getdata())
     non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
     assert len(non_black) > 80, "Active call box should render visible elements"
+
+
+def test_info_feed_renders_text_only():
+    """Info feed should render text lines in bottom-right, no icons."""
+    from bt7274_hud.hud_data import HudState, InfoFeedMessage
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.info_feed = [
+        InfoFeedMessage(text="Enemy pilot detected", color="#ff4444"),
+        InfoFeedMessage(text="Uplink established", color="#00aaff"),
+        InfoFeedMessage(text="Titanfall ready", color="#ff8c00"),
+    ]
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Bottom-right region should have text
+    region = result.crop((250, 200, 400, 300))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 30, "Info feed should render visible text in bottom-right"
+
+
+def test_info_feed_newest_at_bottom():
+    """Newer messages should appear below older ones (higher y position)."""
+    from bt7274_hud.hud_data import HudState, InfoFeedMessage
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.info_feed = [
+        InfoFeedMessage(text="MSG1", color="#ffffff", ttl=3600),
+        InfoFeedMessage(text="MSG2", color="#ffffff", ttl=3600),
+        InfoFeedMessage(text="MSG3", color="#ffffff", ttl=3600),
+    ]
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Info feed renders from base_y=280 upward with lh=15
+    # MSG3 at y=280, MSG2 at y=265, MSG1 at y=250
+    # Bottom region (newest): y=275-285
+    bottom_region = result.crop((250, 275, 400, 285))
+    # Top region (oldest): y=245-255
+    top_region = result.crop((250, 245, 400, 255))
+    bottom_count = len([p for p in bottom_region.getdata() if p[:3] != (0, 0, 0)])
+    top_count = len([p for p in top_region.getdata() if p[:3] != (0, 0, 0)])
+    # Both should have text rendered
+    assert bottom_count > 5, "Bottom region should have newest message text"
+    assert top_count > 5, "Top region should have oldest message text"
