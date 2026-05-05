@@ -108,8 +108,7 @@ class DetectionOverlay:
 
         draw = ImageDraw.Draw(pil_img)
 
-        # HUD chrome (scanlines, corner brackets)
-        self._draw_scanlines(draw)
+        # HUD chrome (corner brackets)
         self._draw_corner_brackets(draw)
 
         # YOLO detection boxes
@@ -124,12 +123,6 @@ class DetectionOverlay:
     # ------------------------------------------------------------------
     # HUD chrome
     # ------------------------------------------------------------------
-
-    def _draw_scanlines(self, draw: ImageDraw.ImageDraw) -> None:
-        """Subtle horizontal scanlines across the entire frame."""
-        step = 4
-        for y in range(0, self.height, step):
-            draw.line([(0, y), (self.width, y)], fill=(0, 180, 255, 8))
 
     def _draw_corner_brackets(self, draw: ImageDraw.ImageDraw) -> None:
         """Four corner bracket decorations — helmet-frame aesthetic."""
