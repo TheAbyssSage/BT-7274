@@ -34,8 +34,8 @@ class HudRenderer:
     def __init__(self, width: int = 1280, height: int = 720):
         self.width = width
         self.height = height
-        self._font: Optional[ImageFont.FreeTypeFont] = None
-        self._font_small: Optional[ImageFont.FreeTypeFont] = None
+        self._font: Optional[ImageFont.ImageFont] = None
+        self._font_small: Optional[ImageFont.ImageFont] = None
         self._load_fonts()
 
     def _load_fonts(self):

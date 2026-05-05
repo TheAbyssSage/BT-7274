@@ -604,7 +604,7 @@ class VisionViewerWindow:
 
     def open_pilot_hud(self):
         """Launch the dedicated Pilot HUD window if available."""
-        if not _HAS_HUD:
+        if not _HAS_HUD or PilotHudWindow is None:
             self._set_status("Pilot HUD not available.")
             return
         hud = PilotHudWindow(

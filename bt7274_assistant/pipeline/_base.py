@@ -62,6 +62,15 @@ class _AssistantBase:
     _protocol_cooldown_until: float = 0.0
     _protocol_cooldown_seconds: float = 30.0
 
+    # Autonomous logging
+    autonomous_log_enabled: bool = False
+    autonomous_log_cooldown_until: float = 0.0
+    autonomous_logs_this_session: int = 0
+    autonomous_log_max_per_session: int = 10
+    autonomous_log_cooldown_seconds: float = 60.0
+    _last_autonomous_log_hash: str = ""
+    actions_this_session: list[str] = []
+
     # Match tracking
     _last_match_type: Any = None
     _last_match_score: Any = None
