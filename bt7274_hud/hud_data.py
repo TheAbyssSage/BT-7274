@@ -55,6 +55,21 @@ class SystemStatus(str, Enum):
     OFFLINE  = "OFFLINE"
 
 
+class StatusIconKind(str, Enum):
+    ABILITY   = "ability"
+    ORDNANCE  = "ordnance"
+    PASSIVE   = "passive"
+
+
+class CallContext(str, Enum):
+    NEUTRAL      = "neutral"
+    COMBAT       = "combat"
+    MOVEMENT     = "movement"
+    ENVIRONMENT  = "environment"
+    OBJECTIVE    = "objective"
+    ALERT        = "alert"
+
+
 # ---------------------------------------------------------------------------
 # Primitive data objects
 # ---------------------------------------------------------------------------
@@ -172,6 +187,68 @@ class EventCard:
         return max(0.0, min(1.0, remaining))
 
 
+@dataclass(slots=True)
+class TitanMeter:
+    """Circular titan-build gauge in bottom-left corner."""
+    progress: float = 0.0       # 0..1; fill fraction of the circular gauge
+    label: str = "TITANFALL"
+    is_ready: bool = False      # when True, gauge pulses/flashes
+
+    def __post_init__(self):
+        self.progress = max(0.0, min(1.0, self.progress))
+
+
+@dataclass(slots=True)
+class CallBox:
+    """Top-right call panel — only visible when active."""
+    active: bool = False
+    pilot_name: str = ""
+    voice_line: str = ""
+    context: CallContext = CallContext.NEUTRAL
+    signal_strength: float = 1.0   # 0..1
+
+
+@dataclass(slots=True)
+class InfoFeedMessage:
+    """A single line in the bottom-right scrolling info feed."""
+    text: str = ""
+    color: str = "#ffffff"
+    created_at: float = field(default_factory=time.monotonic)
+    ttl: float = 5.0
+
+    @property
+    def expired(self) -> bool:
+        return (time.monotonic() - self.created_at) >= self.ttl
+
+    @property
+    def alpha_fraction(self) -> float:
+        age = time.monotonic() - self.created_at
+        remaining = self.ttl - age
+        return max(0.0, min(1.0, remaining))
+
+
+@dataclass(slots=True)
+class StatusIcon:
+    """A notched-rectangle icon to the right of the titanmeter."""
+    name: str = ""
+    kind: StatusIconKind = StatusIconKind.ABILITY
+    key: str = ""                              # keyboard label
+    active: bool = True
+    icon_glyph: str = ""                       # unicode glyph
+    cooldown_total: float = 0.0
+    cooldown_remaining: float = 0.0
+
+    @property
+    def ready(self) -> bool:
+        return self.cooldown_remaining <= 0.0
+
+    @property
+    def cooldown_fraction(self) -> float:
+        if self.cooldown_total <= 0:
+            return 0.0
+        return max(0.0, min(1.0, self.cooldown_remaining / self.cooldown_total))
+
+
 # ---------------------------------------------------------------------------
 # Root HUD state
 # ---------------------------------------------------------------------------
@@ -222,6 +299,12 @@ class HudState:
     system_status: SystemStatus = SystemStatus.ONLINE
     camera_fps: float = 0.0         # populated by the window from stream telemetry
 
+    # New Titanfall 2 HUD elements
+    titanmeter: TitanMeter = field(default_factory=TitanMeter)
+    call_box: CallBox = field(default_factory=CallBox)
+    info_feed: List[InfoFeedMessage] = field(default_factory=list)
+    status_icons: List[StatusIcon] = field(default_factory=list)
+
     # ------------------------------------------------------------------
     # Convenience helpers
     # ------------------------------------------------------------------
@@ -256,6 +339,19 @@ class HudState:
         if len(self.event_cards) > max_visible:
             self.event_cards = self.event_cards[-max_visible:]
 
+    def add_info_message(
+        self,
+        text: str,
+        color: str = "#ffffff",
+        ttl: float = 5.0,
+        *,
+        max_visible: int = 6,
+    ) -> None:
+        """Push an info feed message; trim to *max_visible*."""
+        self.info_feed.append(InfoFeedMessage(text=text, color=color, ttl=ttl))
+        if len(self.info_feed) > max_visible:
+            self.info_feed = self.info_feed[-max_visible:]
+
     def tick(self, dt: float) -> None:
         """
         Advance all time-limited state by *dt* seconds.
@@ -272,9 +368,15 @@ class HudState:
             if ab.cooldown_remaining > 0:
                 ab.cooldown_remaining = max(0.0, ab.cooldown_remaining - dt)
 
+        # Status icon cooldowns
+        for si in self.status_icons:
+            if si.cooldown_remaining > 0:
+                si.cooldown_remaining = max(0.0, si.cooldown_remaining - dt)
+
         # Prune expired items
         self.notifications = [n for n in self.notifications if not n.expired]
         self.event_cards = [c for c in self.event_cards if not c.expired]
+        self.info_feed = [m for m in self.info_feed if not m.expired]
 
     # ------------------------------------------------------------------
     # Backwards-compatible shims for code written against v1
