@@ -235,3 +235,65 @@ def test_weapon_readout_removed():
     # Weapon box would add bright white text and panel background
     bright_pixels = [p for p in pixels if p[0] > 80 or p[1] > 80 or p[2] > 80]
     assert len(bright_pixels) < 20, "Weapon readout box should be removed"
+
+
+def test_full_composite_with_all_new_elements():
+    """Full composite with all Titanfall 2 elements should render without errors."""
+    from bt7274_hud.hud_data import (
+        HudState, TitanMeter, CallBox, CallContext,
+        InfoFeedMessage, StatusIcon, StatusIconKind,
+        Marker, MarkerKind, VitalState,
+    )
+    r = HudRenderer(width=640, height=360)
+    state = HudState()
+
+    # Populate all new elements
+    state.titanmeter = TitanMeter(progress=0.75, label="TITANFALL", is_ready=False)
+    state.call_box = CallBox(
+        active=True, pilot_name="BT-7274",
+        voice_line="Engaging multiple hostiles.",
+        context=CallContext.COMBAT, signal_strength=0.9,
+    )
+    state.info_feed = [
+        InfoFeedMessage(text="Enemy Titan detected", color="#ff4444"),
+        InfoFeedMessage(text="Titanfall 75% charged", color="#ff8c00"),
+        InfoFeedMessage(text="Uplink stable", color="#00aaff"),
+    ]
+    state.status_icons = [
+        StatusIcon(name="STIM", kind=StatusIconKind.ABILITY, key="Q",
+                   icon_glyph="⚡", cooldown_total=8.0, cooldown_remaining=2.0),
+        StatusIcon(name="FRAG", kind=StatusIconKind.ORDNANCE, key="G",
+                   icon_glyph="💣", cooldown_total=10.0, cooldown_remaining=0.0),
+    ]
+    state.markers = [
+        Marker(x=0.4, y=0.5, label="BT", kind=MarkerKind.ALLY),
+        Marker(x=0.7, y=0.3, label="TONE", kind=MarkerKind.THREAT),
+    ]
+    state.vitals = VitalState(health=0.8, shield=0.6, titan_link=0.9)
+
+    bg = Image.new("RGB", (640, 360), (10, 20, 40))
+    result = r.composite(bg, state)
+
+    assert result.size == (640, 360)
+    assert result.mode == "RGBA"
+
+    # Verify each quadrant has rendered content
+    # Top-left: minimap
+    tl = result.crop((0, 0, 160, 160))
+    tl_pixels = [p for p in tl.getdata() if p[:3] != (10, 20, 40)]
+    assert len(tl_pixels) > 50, "Top-left should have minimap content"
+
+    # Top-right: call box
+    tr = result.crop((480, 0, 640, 120))
+    tr_pixels = [p for p in tr.getdata() if p[:3] != (10, 20, 40)]
+    assert len(tr_pixels) > 50, "Top-right should have call box content"
+
+    # Bottom-left: titanmeter + status icons
+    bl = result.crop((0, 260, 200, 360))
+    bl_pixels = [p for p in bl.getdata() if p[:3] != (10, 20, 40)]
+    assert len(bl_pixels) > 50, "Bottom-left should have titanmeter + icons"
+
+    # Bottom-right: info feed
+    br = result.crop((480, 260, 640, 360))
+    br_pixels = [p for p in br.getdata() if p[:3] != (10, 20, 40)]
+    assert len(br_pixels) > 20, "Bottom-right should have info feed text"
