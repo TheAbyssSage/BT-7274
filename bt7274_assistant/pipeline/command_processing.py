@@ -554,6 +554,24 @@ class CommandProcessingMixin(_AssistantBase):
                 response_parts.append("Pilot, unable to retrieve vision logs.")
                 handled_types.add("vision")
 
+        # Check for HUD open request
+        if self._is_hud_query(text) and "hud" not in handled_types:
+            status("HUD", "Activating Pilot HUD...")
+            try:
+                from bt7274_perception.vision_viewer import VisionViewerWindow
+                if hasattr(self, "vision_viewer") and self.vision_viewer and hasattr(self.vision_viewer, "open_pilot_hud"):
+                    self.vision_viewer.open_pilot_hud()
+                    response_parts.append("Pilot HUD activated, Pilot.")
+                    handled_types.add("hud")
+                    skip_normal_tts = True
+                else:
+                    response_parts.append("Pilot, the HUD module is not initialized.")
+                    handled_types.add("hud")
+            except Exception as e:
+                self._report_error("hud", "open", e)
+                response_parts.append("Pilot, unable to activate HUD.")
+                handled_types.add("hud")
+
         # Check for location query (but not if part of longer question)
         if self._is_location_query(text):
             status("LOC", "Locating Pilot...")

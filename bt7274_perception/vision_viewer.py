@@ -35,6 +35,12 @@ from bt7274_perception.camera import CameraCapture
 from bt7274_perception.vision_engine import VisionEngine
 from bt7274_perception.vision_logger import VisionLogger
 
+try:
+    from bt7274_hud import PilotHudWindow
+    _HAS_HUD = True
+except Exception:
+    _HAS_HUD = False
+
 
 class VisionViewerWindow:
     """Tkinter window for BT-7274's camera vision."""
@@ -595,6 +601,23 @@ class VisionViewerWindow:
         """Programmatically trigger a look (e.g. from voice command)."""
         if self._root:
             self._root.after(0, self._on_look)
+
+    def open_pilot_hud(self):
+        """Launch the dedicated Pilot HUD window if available."""
+        if not _HAS_HUD:
+            self._set_status("Pilot HUD not available.")
+            return
+        hud = PilotHudWindow(
+            camera_device=self._camera_device,
+            width=1280,
+            height=720,
+            fullscreen=False,
+        )
+        # Mirror current state into HUD
+        hud.state.pilot_callsign = "PILOT"
+        hud.state.system_status = "ONLINE"
+        hud.start_nonblocking()
+        self._set_status("Pilot HUD opened.")
 
 
 def main():
