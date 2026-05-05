@@ -150,6 +150,15 @@ class RealtimeVision:
                 return None
             return self._annotated_frame.copy()
 
+    def get_annotated_frame_no_copy(self) -> Optional[np.ndarray]:
+        """Return the most recent annotated frame WITHOUT copying.
+
+        WARNING: Do NOT mutate the returned array. The vision thread
+        will overwrite it on the next loop iteration.
+        """
+        with self._lock:
+            return self._annotated_frame
+
     def get_snapshot(self) -> Optional[VisionSnapshot]:
         """Return the most recent vision snapshot for assistant queries."""
         with self._lock:
@@ -173,10 +182,10 @@ class RealtimeVision:
     def _vision_loop(self) -> None:
         """Main loop: grab frame → detect → overlay → publish."""
         while self._running:
-            # Grab raw frame
-            raw = self._camera.get_frame_array()
+            # Grab raw frame (zero-copy — we finish before next capture)
+            raw = self._camera.get_frame_array_no_copy()
             if raw is None:
-                time.sleep(0.005)
+                time.sleep(0.001)
                 continue
 
             self._frame_count += 1
@@ -192,12 +201,25 @@ class RealtimeVision:
                 except Exception as exc:
                     logger.warning("YOLO detection error: %s", exc)
 
-            # Draw overlay
-            try:
-                annotated = self._overlay.draw(raw, detections)
-            except Exception as exc:
-                logger.warning("Overlay drawing error: %s", exc)
-                annotated = raw
+            # Draw overlay — skip PIL roundtrip when there's nothing to draw
+            if detections:
+                try:
+                    annotated = self._overlay.draw(raw, detections)
+                except Exception as exc:
+                    logger.warning("Overlay drawing error: %s", exc)
+                    annotated = raw
+            else:
+                # No detections — pass raw frame through with zero overhead.
+                # Only draw the static HUD chrome (corner brackets, status bar)
+                # once every 30 frames to avoid the PIL roundtrip on every frame.
+                if self._frame_count % 30 == 0:
+                    try:
+                        annotated = self._overlay.draw(raw, [])
+                    except Exception as exc:
+                        logger.warning("Overlay drawing error: %s", exc)
+                        annotated = raw
+                else:
+                    annotated = raw
 
             # Build snapshot
             snapshot = self._build_snapshot(detections)

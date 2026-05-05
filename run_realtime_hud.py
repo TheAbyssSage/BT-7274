@@ -8,6 +8,8 @@ Usage:
     python run_realtime_hud.py --model yolov8s.pt --conf 0.3
     python run_realtime_hud.py --no-yolo          # camera-only, no detection
     python run_realtime_hud.py --detection-interval 3  # run YOLO every 3 frames
+    python run_realtime_hud.py --low-latency       # 640x480 for minimum delay
+    python run_realtime_hud.py --list-cameras      # show available cameras
 """
 
 import argparse
@@ -64,14 +66,40 @@ def main():
         help="Run YOLO every N frames — higher = better FPS, less CPU "
              "(default: 1)",
     )
+    parser.add_argument(
+        "--low-latency", action="store_true",
+        help="Use 640x480 resolution for minimum latency",
+    )
+    parser.add_argument(
+        "--list-cameras", action="store_true",
+        help="List available cameras and exit",
+    )
 
     args = parser.parse_args()
+
+    if args.list_cameras:
+        from bt7274_hud.camera_stream import CameraStream
+        devices = CameraStream.list_devices()
+        if not devices:
+            print("No cameras detected.")
+        else:
+            print(f"{'Index':<8}{'Name'}")
+            print("-" * 40)
+            for d in devices:
+                print(f"{d['index']:<8}{d['name']}")
+        return
+
+    # Low-latency mode: force 640x480
+    if args.low_latency:
+        args.width = 640
+        args.height = 480
 
     print("=" * 55)
     print("  BT-7274 REAL-TIME YOLO DETECTION HUD")
     print("=" * 55)
     print(f"  Camera:            device {args.camera}")
-    print(f"  Resolution:        {args.width}x{args.height}")
+    latency_label = " (LOW LATENCY)" if args.low_latency else ""
+    print(f"  Resolution:        {args.width}x{args.height}{latency_label}")
     print(f"  YOLO:              {'OFF' if args.no_yolo else args.model}")
     if not args.no_yolo:
         print(f"  Confidence:        {args.conf}")
@@ -83,6 +111,7 @@ def main():
     print("  CONTROLS:")
     print("    Esc / Q  — Close window")
     print("    F11      — Toggle fullscreen")
+    print("    Tab / C  — Switch camera")
     print()
 
     window = RealtimeHudWindow(

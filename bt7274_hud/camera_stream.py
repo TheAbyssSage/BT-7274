@@ -96,10 +96,36 @@ class CameraStream:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
+        # Thread-safe device switching
+        self._switch_requested: Optional[int | str] = None
+
         # Telemetry
         self._frame_count = 0
         self._drop_count = 0
         self._ts_ring: deque[float] = deque(maxlen=30)   # timestamps of last 30 frames
+
+    # ------------------------------------------------------------------
+    # Device management
+    # ------------------------------------------------------------------
+
+    @property
+    def device(self) -> int | str:
+        """Current camera device index or URL."""
+        return self._device
+
+    def switch_device(self, new_device: str) -> None:
+        """Switch to a different camera device.
+
+        Thread-safe: sets a flag that the capture loop picks up on its
+        next iteration.  The capture thread handles the actual release
+        and reopen to avoid race conditions.
+        """
+        try:
+            self._device = int(new_device)
+        except ValueError:
+            self._device = new_device
+        self._switch_requested = self._device
+        log.info("CameraStream: switching to device %s", self._device)
 
     # ------------------------------------------------------------------
     # Public control
@@ -148,6 +174,19 @@ class CameraStream:
             if self._latest_frame is None:
                 return None
             return self._latest_frame.copy()
+
+    def get_frame_array_no_copy(self) -> Optional[np.ndarray]:
+        """Return the most recent frame WITHOUT copying.
+
+        WARNING: The returned array is owned by the capture thread.
+        Do NOT mutate it.  The next capture will overwrite this buffer.
+        Only use this when you will finish with the frame before the
+        next camera read (~33 ms at 30 FPS).
+
+        Returns None until the first frame is captured.
+        """
+        with self._lock:
+            return self._latest_frame
 
     # ------------------------------------------------------------------
     # Telemetry
@@ -216,9 +255,16 @@ class CameraStream:
 
         On read failure → attempts reconnect if enabled, otherwise exits.
         Only the most recent frame is kept; old frames are silently dropped.
+        Device switching is handled cooperatively via _switch_requested flag.
         """
         delay = self._reconnect_delay_s
         while self._running:
+            # ---- handle device switch request ----
+            if self._switch_requested is not None:
+                self._release_cap()
+                self._switch_requested = None
+                delay = self._reconnect_delay_s
+
             # ---- open / reopen ----
             if self._cap is None:
                 cap = self._open_cap()
