@@ -13,14 +13,14 @@ from unittest.mock import MagicMock, patch
 # Guard against tkinter missing in CI
 pytest.importorskip("tkinter")
 
-from bt7274_hud.hud_window import PilotHudWindow
+from bt7274_hud.hud_window import CameraWindow
 
 
 def test_window_init():
     with patch("bt7274_hud.hud_window.tk.Tk") as mock_tk:
         mock_root = MagicMock()
         mock_tk.return_value = mock_root
-        win = PilotHudWindow(camera_device="0", width=640, height=480)
+        win = CameraWindow(camera_device="0", width=640, height=480)
         assert win.width == 640
         assert win.height == 480
         assert win._camera_device == "0"
@@ -30,7 +30,7 @@ def test_window_build_ui():
     with patch("bt7274_hud.hud_window.tk.Tk") as mock_tk:
         mock_root = MagicMock()
         mock_tk.return_value = mock_root
-        win = PilotHudWindow(camera_device="0", width=640, height=480)
+        win = CameraWindow(camera_device="0", width=640, height=480)
         win._build_ui()
         assert mock_root.title.called
         assert mock_root.geometry.called

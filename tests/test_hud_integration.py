@@ -16,8 +16,9 @@ from bt7274_hud.hud_data import HudState, Notification
 def test_hud_can_be_imported_from_vision_viewer():
     """Ensure the HUD module is importable from the vision viewer context."""
     with patch.dict(sys.modules, {"tkinter": MagicMock()}):
-        from bt7274_hud import PilotHudWindow, HudState as HS
-        assert PilotHudWindow is not None
+        import bt7274_hud.hud_window
+        from bt7274_hud.hud_data import HudState as HS
+        assert bt7274_hud.hud_window.CameraWindow is not None
         assert HS is not None
 
 
