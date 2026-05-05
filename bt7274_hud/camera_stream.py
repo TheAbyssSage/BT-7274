@@ -283,12 +283,21 @@ class CameraStream:
             List of dicts with ``index`` (int) and ``name`` (str) keys.
             Returns empty list if no cameras found or OpenCV unavailable.
         """
+        import os as _os
         devices: list[dict] = []
         for idx in range(max_index):
             try:
-                cap = cv2.VideoCapture(idx)
+                # Suppress OpenCV stderr noise for out-of-bound indices
+                _stderr_fd = _os.dup(2)
+                _null_fd = _os.open(_os.devnull, _os.O_WRONLY)
+                _os.dup2(_null_fd, 2)
+                _os.close(_null_fd)
+                try:
+                    cap = cv2.VideoCapture(idx)
+                finally:
+                    _os.dup2(_stderr_fd, 2)
+                    _os.close(_stderr_fd)
                 if cap.isOpened():
-                    # Try to get a backend-specific name; fall back to generic label
                     backend = cap.getBackendName() if hasattr(cap, 'getBackendName') else ""
                     name = f"Camera {idx}"
                     if backend:

@@ -29,7 +29,20 @@ def main():
     parser.add_argument("--device", default="0", help="AVFoundation camera device index (default: 0)")
     parser.add_argument("--width", type=int, default=1280, help="Window width (windowed mode)")
     parser.add_argument("--height", type=int, default=720, help="Window height (windowed mode)")
+    parser.add_argument("--list-cameras", action="store_true", help="List available cameras and exit")
     args = parser.parse_args()
+
+    if args.list_cameras:
+        from bt7274_hud.camera_stream import CameraStream
+        devices = CameraStream.list_devices()
+        if not devices:
+            print("No cameras detected.")
+        else:
+            print(f"{'Index':<8}{'Name'}")
+            print("-" * 40)
+            for d in devices:
+                print(f"{d['index']:<8}{d['name']}")
+        return
 
     print("  [SYS] Initializing camera stream...")
     print(f"  [SYS] Camera device: {args.device}")
