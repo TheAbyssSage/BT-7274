@@ -42,26 +42,6 @@ def main():
         fullscreen=not args.windowed,
     )
 
-    # Populate demo state so the HUD isn't empty on first frame
-    from bt7274_hud.hud_data import HudState, Marker, AbilityIcon, Notification, WeaponReadout
-    hud.state.pilot_callsign = "PILOT-7274"
-    hud.state.mission_progress = 0.65
-    hud.state.comms_text = "BT-7274: Link established."
-    hud.state.event_cards = ["Objective: Secure Zone", "Threat detected"]
-    hud.state.ally_markers = [Marker(x=0.3, y=0.4, label="A1", color="blue")]
-    hud.state.threat_markers = [Marker(x=0.7, y=0.6, label="T1", color="red")]
-    hud.state.abilities = [
-        AbilityIcon(name="Smoke", key="Q", color="#ff4444", cooldown=0.0),
-        AbilityIcon(name="Wall", key="E", color="#00aaff", cooldown=2.5),
-        AbilityIcon(name="Sonar", key="F", color="#00ff88", cooldown=0.0),
-    ]
-    hud.state.weapon = WeaponReadout(name="XO-16", ammo_current=42, ammo_reserve=240)
-    hud.state.notifications = [
-        Notification(text="[12:04] Reaper eliminated", color="#ffcc00"),
-        Notification(text="[12:02] Shield restored", color="#00ff88"),
-    ]
-    hud.state.system_status = "ONLINE"
-
     print("  [SYS] HUD starting. Press ESC or Q to exit.")
     hud.start()
     print("  [SYS] HUD closed.")
