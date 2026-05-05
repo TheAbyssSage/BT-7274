@@ -204,17 +204,17 @@ class HudRenderer:
         self._draw_corner_brackets(draw)
         self._draw_reticle(draw)
         self._draw_minimap(draw, state)
-        self._draw_mission_bar(draw, state)
-        self._draw_call_box(draw, state)
+        self._draw_call_box(draw, state)          # replaces _draw_comms_panel
         self._draw_event_cards(draw, state)
         self._draw_notification_feed(draw, state)
-        self._draw_info_feed(draw, state)
-        self._draw_vitals(draw, state)
-        self._draw_titanmeter(draw, state)
-        self._draw_status_icons(draw, state)
-        self._draw_ability_cluster(draw, state)
-        self._draw_weapon_readout(draw, state)
-        self._draw_system_status(draw, state)
+        self._draw_info_feed(draw, state)         # new: bottom-right text feed
+        self._draw_titanmeter(draw, state)        # new: bottom-left gauge
+        self._draw_status_icons(draw, state)      # new: notched icons
+        self._draw_vitals(draw, state)            # kept: health/shield bars
+        self._draw_ability_cluster(draw, state)   # kept: legacy ability icons
+        # REMOVED: _draw_mission_bar (top bar)
+        # REMOVED: _draw_weapon_readout (bottom-right box)
+        # REMOVED: _draw_system_status (bottom bar)
 
         bg.paste(overlay, (0, 0), overlay)
         return bg

@@ -199,3 +199,39 @@ def test_info_feed_newest_at_bottom():
     # Both should have text rendered
     assert bottom_count > 5, "Bottom region should have newest message text"
     assert top_count > 5, "Top region should have oldest message text"
+
+
+def test_mission_bar_removed():
+    """Top-centre mission bar should not render (removed element)."""
+    from bt7274_hud.hud_data import HudState
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.mission_progress = 0.8
+    state.objective_label = "SECURE BEACON"
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Top-centre region — scanlines are still present, but no mission bar fill
+    region = result.crop((150, 10, 250, 40))
+    pixels = list(region.getdata())
+    # Scanlines produce dim pixels; mission bar would add bright blue/orange ones
+    bright_pixels = [p for p in pixels if p[0] > 50 or p[1] > 50 or p[2] > 50]
+    assert len(bright_pixels) < 20, "Mission bar should be removed (no bright fill)"
+
+
+def test_weapon_readout_removed():
+    """Bottom-right weapon box should not render (removed element)."""
+    from bt7274_hud.hud_data import HudState, WeaponReadout
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.weapon = WeaponReadout(
+        name="XO-16 CHAINGUN", ammo_current=28, ammo_reserve=96, mag_size=40
+    )
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Bottom-right region avoiding corner bracket (which is at edges)
+    # Weapon box was at x0=400-170-16=214, spanning 214..384, y0=300-80-16=204
+    region = result.crop((250, 220, 370, 280))
+    pixels = list(region.getdata())
+    # Weapon box would add bright white text and panel background
+    bright_pixels = [p for p in pixels if p[0] > 80 or p[1] > 80 or p[2] > 80]
+    assert len(bright_pixels) < 20, "Weapon readout box should be removed"
