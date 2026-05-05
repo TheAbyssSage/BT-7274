@@ -5,9 +5,12 @@ BT-7274 Camera Stream — clean, fast, no HUD.
 from __future__ import annotations
 
 import logging
+import time
 import tkinter as tk
+from collections import deque
 from typing import Optional
 
+import numpy as np
 from PIL import Image, ImageTk
 
 from bt7274_hud.camera_stream import CameraStream
@@ -36,9 +39,18 @@ class CameraWindow:
         self._canvas_img_id: Optional[int] = None
         self._photo_image: Optional[ImageTk.PhotoImage] = None
 
+        # Enumerate available cameras
+        self._available_devices = CameraStream.list_devices()
+        if not self._available_devices:
+            log.warning("No cameras detected; stream will fail to start")
+
         self._camera = CameraStream(device=camera_device, width=width, height=height)
         self._preview_job: Optional[str] = None
         self._running = False
+
+        # FPS counter state
+        self._frame_times: deque[float] = deque(maxlen=30)
+        self._fps_text_id: Optional[int] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -63,6 +75,36 @@ class CameraWindow:
         return self._root is not None
 
     # ------------------------------------------------------------------
+    # Camera selection
+    # ------------------------------------------------------------------
+
+    def _cycle_camera(self) -> None:
+        """Switch to the next available camera device (wraps around)."""
+        if len(self._available_devices) <= 1:
+            return
+        current_idx = next(
+            (i for i, d in enumerate(self._available_devices)
+             if str(d["index"]) == self._camera_device),
+            -1,
+        )
+        next_idx = (current_idx + 1) % len(self._available_devices)
+        new_device = str(self._available_devices[next_idx]["index"])
+        self._switch_camera(new_device)
+
+    def _switch_camera(self, new_device: str) -> None:
+        """Stop current stream, start new one on *new_device*."""
+        if new_device == self._camera_device:
+            return
+        log.info("Switching camera: %s → %s", self._camera_device, new_device)
+        self._camera_device = new_device
+        self._camera.stop()
+        self._camera = CameraStream(
+            device=new_device, width=self.width, height=self.height
+        )
+        if self._running:
+            self._camera.start()
+
+    # ------------------------------------------------------------------
     # UI
     # ------------------------------------------------------------------
 
@@ -83,8 +125,28 @@ class CameraWindow:
         self._root.bind("q", lambda _e: self._on_close())
         self._root.bind("<F11>", lambda _e: self._toggle_fullscreen())
 
+        # Camera cycling — Tab or C key
+        self._root.bind("<Tab>", lambda _e: self._cycle_camera())
+        self._root.bind("c", lambda _e: self._cycle_camera())
+        self._root.bind("C", lambda _e: self._cycle_camera())
+
         self._canvas = tk.Canvas(self._root, bg="black", highlightthickness=0)
         self._canvas.pack(fill=tk.BOTH, expand=True)
+
+        # Camera device label (top-left corner)
+        device_name = "No camera"
+        for d in self._available_devices:
+            if str(d["index"]) == self._camera_device:
+                device_name = d["name"]
+                break
+        self._canvas.create_text(
+            10, 10,
+            text=f"CAM: {device_name}",
+            fill="#00ff8866",
+            font=("Courier", 10),
+            anchor=tk.NW,
+            tags=("camera_label",),
+        )
 
     # ------------------------------------------------------------------
     # Fullscreen toggle
@@ -121,25 +183,34 @@ class CameraWindow:
             self._root = None
 
     # ------------------------------------------------------------------
-    # Render loop — as fast as possible
+    # Render loop — zero-copy, minimal latency
     # ------------------------------------------------------------------
 
     def _schedule_frame(self) -> None:
+        """Schedule next frame for minimal queuing delay."""
         if not self._running or self._root is None:
             return
         self._update_frame()
         self._preview_job = self._root.after(1, self._schedule_frame)
 
     def _update_frame(self) -> None:
+        """Grab latest frame and push to canvas with zero unnecessary copies."""
         try:
-            frame = self._camera.get_frame()
-            if frame is None:
+            arr = self._camera.get_frame_array()
+            if arr is None:
                 return
 
-            if frame.size != (self.width, self.height):
-                frame = frame.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            h, w = arr.shape[:2]
 
-            self._photo_image = ImageTk.PhotoImage(frame)
+            # Only convert to PIL if dimensions differ (avoid resize cost when matched)
+            if (w, h) != (self.width, self.height):
+                img = Image.fromarray(arr).resize(
+                    (self.width, self.height), Image.Resampling.NEAREST
+                )
+            else:
+                img = Image.fromarray(arr, mode="RGB")
+
+            self._photo_image = ImageTk.PhotoImage(img)
 
             if self._canvas is not None:
                 if self._canvas_img_id is None:
@@ -150,6 +221,27 @@ class CameraWindow:
                     )
                 else:
                     self._canvas.itemconfig(self._canvas_img_id, image=self._photo_image)
+
+            # FPS tracking
+            now = time.monotonic()
+            self._frame_times.append(now)
+
+            # FPS counter overlay (bottom-right corner, small green text)
+            if len(self._frame_times) >= 2 and self._canvas is not None:
+                elapsed = self._frame_times[-1] - self._frame_times[0]
+                fps = (len(self._frame_times) - 1) / elapsed if elapsed > 0 else 0
+                fps_text = f"{fps:.0f} FPS"
+
+                if self._fps_text_id is None:
+                    self._fps_text_id = self._canvas.create_text(
+                        self.width - 60, self.height - 20,
+                        text=fps_text,
+                        fill="#00ff88",
+                        font=("Courier", 12, "bold"),
+                        anchor=tk.SE,
+                    )
+                else:
+                    self._canvas.itemconfig(self._fps_text_id, text=fps_text)
 
         except Exception:
             pass  # suppress transient frame errors
