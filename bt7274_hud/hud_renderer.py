@@ -1,7 +1,8 @@
 """PIL-based HUD drawing engine for BT-7274 Pilot HUD."""
 
+from typing import Any, Optional
+
 from PIL import Image, ImageDraw, ImageFont
-from typing import Optional
 
 from bt7274_hud.hud_data import HudState
 
@@ -34,8 +35,8 @@ class HudRenderer:
     def __init__(self, width: int = 1280, height: int = 720):
         self.width = width
         self.height = height
-        self._font: Optional[ImageFont.ImageFont] = None
-        self._font_small: Optional[ImageFont.ImageFont] = None
+        self._font: Any = None
+        self._font_small: Any = None
         self._load_fonts()
 
     def _load_fonts(self):

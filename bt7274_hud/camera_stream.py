@@ -34,14 +34,15 @@ class CameraStream:
 
     def start(self):
         """Open the camera and start the capture thread."""
-        self._cap = cv2.VideoCapture(self.device)
-        if not self._cap.isOpened():
+        cap = cv2.VideoCapture(self.device)
+        if not cap.isOpened():
             raise RuntimeError(f"Cannot open camera device {self.device}")
 
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self._cap.set(cv2.CAP_PROP_FPS, self.fps)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        cap.set(cv2.CAP_PROP_FPS, self.fps)
 
+        self._cap = cap
         self._running = True
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()

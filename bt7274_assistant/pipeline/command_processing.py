@@ -125,7 +125,7 @@ class CommandProcessingMixin(_AssistantBase):
         footer(f"Done! Generated: {generated_count}, Skipped: {skipped_count}")
         return generated_count
 
-    def process_command(self, audio_path: Optional[str] = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: Optional[str] = None) -> bool:
+    def process_command(self, audio_path: Optional[str] = None, skip_wake_word: bool = False, follow_up_depth: int = 0, pre_transcribed_text: Optional[str] = None) -> bool:  # type: ignore[return-type]
         """Process a single voice command."""
         if audio_path is None and pre_transcribed_text is None:
             raise ValueError("Either audio_path or pre_transcribed_text must be provided")

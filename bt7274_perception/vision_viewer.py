@@ -35,11 +35,14 @@ from bt7274_perception.camera import CameraCapture
 from bt7274_perception.vision_engine import VisionEngine
 from bt7274_perception.vision_logger import VisionLogger
 
+PilotHudWindow = None  # type: ignore[assignment]
+_HAS_HUD = False
 try:
-    from bt7274_hud import PilotHudWindow
+    from bt7274_hud import PilotHudWindow as _ImportedHudWindow
+    PilotHudWindow = _ImportedHudWindow  # type: ignore[assignment]
     _HAS_HUD = True
 except Exception:
-    _HAS_HUD = False
+    pass
 
 
 class VisionViewerWindow:
