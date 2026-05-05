@@ -50,6 +50,15 @@ BT-7274 can now read and summarize interaction logs from all dates using the `re
 - Configurable number of entries to retrieve
 - Sorted by recency for most relevant information
 
+### Pilot HUD
+A dedicated Titanfall 2-style HUD window with live camera feed and semi-transparent overlays:
+- Circular minimap with ally/threat markers
+- Mission progress bar, comms panel, event cards
+- Ability icons, weapon readout, notification feed
+- Center reticle for aiming/focus
+- Voice-activated via "Open HUD" or "Show HUD"
+- Launch with `python hud_launcher.py` or `python hud_launcher.py --windowed`
+
 ## Folder Structure
 
 ```
