@@ -27,6 +27,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from bt7274_hud.hud_data import (
     AbilitySize,
+    CallContext,
     CardCategory,
     CommsState,
     EventCard,
@@ -209,6 +210,7 @@ class HudRenderer:
         self._draw_notification_feed(draw, state)
         self._draw_vitals(draw, state)
         self._draw_titanmeter(draw, state)
+        self._draw_status_icons(draw, state)
         self._draw_ability_cluster(draw, state)
         self._draw_weapon_readout(draw, state)
         self._draw_system_status(draw, state)
@@ -715,6 +717,98 @@ class HudRenderer:
             fill=_ORANGE_DIM,
             anchor="mt",
         )
+
+    # ------------------------------------------------------------------
+    # Status icons (notched rectangles right of titanmeter)
+    # ------------------------------------------------------------------
+
+    def _draw_status_icons(self, draw: ImageDraw.ImageDraw, state: HudState) -> None:
+        """
+        Titanfall 2–style status icons:
+          - Rectangular boxes with top-left and bottom-right corners notched out
+          - Positioned to the right of the titanmeter
+          - Each shows a glyph, key label, and cooldown overlay if not ready
+        """
+        if not state.status_icons:
+            return
+
+        icon_w, icon_h = 36, 36
+        notch = 6                    # size of the triangular corner notch
+        gap = 6                      # gap between icons
+        start_x = 82                 # right of titanmeter (cx + r + padding)
+        start_y = self.height - 72   # aligned with titanmeter centre
+
+        x = start_x
+        for si in state.status_icons:
+            y = start_y
+
+            # --- draw notched rectangle ---
+            # The notch removes triangles from top-left and bottom-right corners
+            points = [
+                (x + notch, y),                      # top edge after TL notch
+                (x + icon_w, y),                     # top-right corner
+                (x + icon_w, y + icon_h - notch),    # right edge before BR notch
+                (x + icon_w - notch, y + icon_h),    # bottom edge after BR notch
+                (x, y + icon_h),                     # bottom-left corner
+                (x, y + notch),                      # left edge after TL notch
+            ]
+
+            # Fill
+            fill_color = _PANEL_BG
+            draw.polygon(points, fill=fill_color)
+
+            # Outline
+            outline_color = _ORANGE_DIM if si.active else _ORANGE_GHOST
+            draw.polygon(points, outline=outline_color)
+
+            # --- draw the notch triangles as cut-out indicators ---
+            # Top-left notch: small triangle
+            draw.polygon(
+                [(x, y), (x + notch, y), (x, y + notch)],
+                fill=(0, 0, 0, 0),
+                outline=outline_color,
+            )
+            # Bottom-right notch: small triangle
+            draw.polygon(
+                [
+                    (x + icon_w, y + icon_h),
+                    (x + icon_w - notch, y + icon_h),
+                    (x + icon_w, y + icon_h - notch),
+                ],
+                fill=(0, 0, 0, 0),
+                outline=outline_color,
+            )
+
+            # --- icon glyph (centred) ---
+            glyph = si.icon_glyph or si.name[:2].upper()
+            glyph_color = _WHITE if si.active else _WHITE_DIM
+            draw.text(
+                (x + icon_w // 2, y + icon_h // 2 - 2),
+                glyph,
+                font=self._f_sm,
+                fill=glyph_color,
+                anchor="mm",
+            )
+
+            # --- cooldown overlay (if not ready) ---
+            if not si.ready and si.cooldown_fraction > 0:
+                # Dim overlay proportional to cooldown
+                overlay_h = int(icon_h * si.cooldown_fraction)
+                draw.rectangle(
+                    [(x, y + icon_h - overlay_h), (x + icon_w, y + icon_h)],
+                    fill=(0, 0, 0, 100),
+                )
+
+            # --- key label below ---
+            draw.text(
+                (x + icon_w // 2, y + icon_h + 4),
+                si.key,
+                font=self._f_xs,
+                fill=_ORANGE_DIM,
+                anchor="mt",
+            )
+
+            x += icon_w + gap
 
     # ------------------------------------------------------------------
     # Bottom-left system status

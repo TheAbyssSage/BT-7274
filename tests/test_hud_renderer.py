@@ -92,3 +92,21 @@ def test_titanmeter_shows_label():
     pixels = list(region.getdata())
     non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
     assert len(non_black) > 5, "Titanmeter label should be visible"
+
+
+def test_status_icons_render_notched_rectangles():
+    """Status icons should render as notched rectangles to the right of titanmeter."""
+    from bt7274_hud.hud_data import HudState, StatusIcon, StatusIconKind
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.status_icons = [
+        StatusIcon(name="STIM", kind=StatusIconKind.ABILITY, key="Q", icon_glyph="⚡"),
+        StatusIcon(name="GRAPPLE", kind=StatusIconKind.ABILITY, key="LB", icon_glyph="⬡"),
+    ]
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Bottom-left area (right of titanmeter) should have rendered content
+    region = result.crop((80, 220, 200, 300))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 20, "Status icons should render visible elements"
