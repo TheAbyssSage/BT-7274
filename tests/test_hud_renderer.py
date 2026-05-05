@@ -62,3 +62,33 @@ def test_minimap_has_outer_ring():
     # Orange (255,140,0) at alpha ~100/255 over black → ~(100, 55, 0)
     orange_pixels = [p for p in pixels if p[0] > 60 and p[1] > 20 and p[1] < 120 and p[2] < 30]
     assert len(orange_pixels) > 10, "Minimap should have orange border ring"
+
+
+def test_titanmeter_renders_circular_gauge():
+    """Titanmeter should render a circular arc with a gap at 6 o'clock."""
+    from bt7274_hud.hud_data import HudState, TitanMeter
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.titanmeter = TitanMeter(progress=0.6, label="TITANFALL")
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # Bottom-left region should have rendered content
+    region = result.crop((0, 200, 120, 300))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 30, "Titanmeter should render visible elements in bottom-left"
+
+
+def test_titanmeter_shows_label():
+    """Titanmeter must display its label text."""
+    from bt7274_hud.hud_data import HudState, TitanMeter
+    r = HudRenderer(width=400, height=300)
+    state = HudState()
+    state.titanmeter = TitanMeter(progress=0.3, label="TITANFALL")
+    bg = Image.new("RGB", (400, 300), "black")
+    result = r.composite(bg, state)
+    # The label should produce non-black pixels in the bottom-left area
+    region = result.crop((0, 240, 120, 300))
+    pixels = list(region.getdata())
+    non_black = [p for p in pixels if p[:3] != (0, 0, 0)]
+    assert len(non_black) > 5, "Titanmeter label should be visible"

@@ -208,6 +208,7 @@ class HudRenderer:
         self._draw_event_cards(draw, state)
         self._draw_notification_feed(draw, state)
         self._draw_vitals(draw, state)
+        self._draw_titanmeter(draw, state)
         self._draw_ability_cluster(draw, state)
         self._draw_weapon_readout(draw, state)
         self._draw_system_status(draw, state)
@@ -642,6 +643,78 @@ class HudRenderer:
             row    = i // pips_per_row
             py_top = y0 + ph - 14 - row * (pip_h + 2)
             draw.rectangle([(px, py_top), (px + pip_w, py_top + pip_h)], fill=col)
+
+    # ------------------------------------------------------------------
+    # Bottom-left titanmeter (circular gauge)
+    # ------------------------------------------------------------------
+
+    def _draw_titanmeter(self, draw: ImageDraw.ImageDraw, state: HudState) -> None:
+        """
+        Titanfall 2–style titanmeter:
+          - Circle with a progress arc wrapping clockwise
+          - Intentional gap at 6 o'clock (bottom)
+          - Arc starts from ~7 o'clock (left of gap) and fills clockwise to ~5 o'clock
+          - Label text centred inside the circle
+          - Thin orange ring with subtle glow
+        """
+        tm = state.titanmeter
+        r = 28                          # radius of the gauge circle
+        margin_x = 22
+        margin_y = self.height - 70
+        cx = margin_x + r
+        cy = margin_y + r
+
+        # --- background circle (dark fill) ---
+        draw.ellipse(
+            [(cx - r, cy - r), (cx + r, cy + r)],
+            fill=_PANEL_BG,
+            outline=_ORANGE_DIM,
+            width=2,
+        )
+
+        # --- progress arc ---
+        # Gap at bottom: arc spans from 225° (7:30) clockwise to 315° (4:30) — a 270° sweep
+        # 0% = nothing drawn, 100% = full 270° sweep
+        if tm.progress > 0:
+            gap_degrees = 90                      # 90° gap at bottom
+            start_deg = 135 + gap_degrees / 2     # 180° = left of gap
+            sweep = (360 - gap_degrees) * tm.progress
+            end_deg = start_deg + sweep
+
+            # Draw the arc in segments for a smooth look
+            arc_bbox = [(cx - r + 3, cy - r + 3), (cx + r - 3, cy + r - 3)]
+            arc_color = _ORANGE_BRIGHT if tm.is_ready else _ORANGE
+            draw.arc(arc_bbox, start=start_deg, end=end_deg, fill=arc_color, width=3)
+
+            # Glow effect: wider, more transparent arc behind
+            draw.arc(arc_bbox, start=start_deg, end=end_deg, fill=_ORANGE_GHOST, width=6)
+
+        # --- inner tick marks (small dashes around the inner edge) ---
+        for deg in range(0, 360, 30):
+            angle = math.radians(deg - 90)   # -90 so 0° is at top
+            r_tick_in = r - 6
+            r_tick_out = r - 3
+            draw.line(
+                [
+                    (cx + int(r_tick_in * math.cos(angle)), cy + int(r_tick_in * math.sin(angle))),
+                    (cx + int(r_tick_out * math.cos(angle)), cy + int(r_tick_out * math.sin(angle))),
+                ],
+                fill=_ORANGE_DIM,
+                width=1,
+            )
+
+        # --- percentage text inside the circle ---
+        pct_text = f"{int(tm.progress * 100)}%"
+        draw.text((cx, cy - 2), pct_text, font=self._f_sm, fill=_WHITE, anchor="mm")
+
+        # --- label below the circle ---
+        draw.text(
+            (cx, cy + r + 6),
+            tm.label,
+            font=self._f_xs,
+            fill=_ORANGE_DIM,
+            anchor="mt",
+        )
 
     # ------------------------------------------------------------------
     # Bottom-left system status
