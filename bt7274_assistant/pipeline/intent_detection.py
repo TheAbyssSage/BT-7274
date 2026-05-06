@@ -394,6 +394,18 @@ class IntentDetectionMixin(_AssistantBase):
         ]
         return any(phrase in lower for phrase in hud_phrases)
 
+    def _is_hud_close_query(self, text: str) -> bool:
+        """Detect if the user wants to close the Pilot HUD."""
+        lower = text.lower().strip()
+        close_phrases = [
+            "close hud", "hide hud", "hud off", "shut hud",
+            "dismiss hud", "turn off hud", "disable hud",
+            "stop hud", "exit hud", "kill hud",
+            "close the hud", "close camera", "close window",
+            "close video", "close the window", "close the camera",
+        ]
+        return any(phrase in lower for phrase in close_phrases)
+
     # ─── Translator Intent Detection ─────────────────────────────────────
 
     def _is_translate_command(self, text: str) -> bool:
