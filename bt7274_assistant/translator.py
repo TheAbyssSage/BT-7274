@@ -11,7 +11,7 @@ import time
 from typing import Optional, Dict, Tuple
 from dataclasses import dataclass, field
 
-from ui import info, status, warning, error, quote
+from bt7274_assistant.ui import info, status, warning, error, quote
 
 
 @dataclass

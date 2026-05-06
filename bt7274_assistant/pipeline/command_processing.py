@@ -12,11 +12,11 @@ import numpy as np
 
 from bt7274_assistant.pipeline._base import _AssistantBase
 
-from ui import (
+from bt7274_assistant.ui import (
     quote, status, info, error, warning, log_stt, log_llm, log_tts, log_action,
     cache_hit, clip_play, listening, goodbye, loading_bar, section, footer
 )
-from utils import play_audio, record_until_silence
+from bt7274_assistant.utils import play_audio, record_until_silence
 from bt7274_workstation.voice_telemetry import VoiceTelemetry
 
 try:

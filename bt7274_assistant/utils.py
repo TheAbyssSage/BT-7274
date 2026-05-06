@@ -14,7 +14,7 @@ from contextlib import contextmanager
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from ui import info, success, warning, error
+from bt7274_assistant.ui import info, success, warning, error
 
 
 @contextmanager

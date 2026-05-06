@@ -3,21 +3,16 @@ Speech-to-Text module using OpenAI Whisper.
 """
 
 import os
-import sys
 import math
 import tempfile
 from pathlib import Path
-from typing import Optional
-
-# Allow imports from project root
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from typing import Optional, Tuple
 
 import whisper
 import numpy as np
 import soundfile as sf
 from scipy import signal
-from typing import Tuple
-from ui import info, success, warning, error, loading_bar
+from bt7274_assistant.ui import info, success, warning, error, loading_bar
 
 from bt7274_workstation.session_cache_manager import get_stt_temp_dir
 

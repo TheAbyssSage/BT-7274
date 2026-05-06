@@ -29,12 +29,12 @@ from bt7274_workstation.session_cache_manager import (
     archive_and_clear_session,
 )
 from bt7274_perception import PerceptionManager
-from utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
-from stt import WhisperSTT
-from llm import OllamaClient, CloudLLMClient
-from tts import XTTSClient
-from tts_fast import StreamingXTTSClient
-from ui import (
+from bt7274_assistant.utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
+from bt7274_assistant.stt import WhisperSTT
+from bt7274_assistant.llm import OllamaClient, CloudLLMClient
+from bt7274_assistant.tts import XTTSClient
+from bt7274_assistant.tts_fast import StreamingXTTSClient
+from bt7274_assistant.ui import (
     header, section, sub_section, info, success, warning, error, status,
     bullet, spacer, divider, footer, prompt, choice_menu, box, progress, loading_bar,
     quote, log_system, log_stt, log_llm, log_tts, log_action, cache_hit,
