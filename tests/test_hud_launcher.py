@@ -13,4 +13,5 @@ def test_launcher_imports():
     # Ensure the launcher module can be imported without running tkinter
     with patch.dict(sys.modules, {"tkinter": MagicMock()}):
         import hud_launcher
-        assert hasattr(hud_launcher, "main")
+        # After simplification, the launcher delegates to bt7274.cli
+        assert hasattr(hud_launcher, "cli_main")
