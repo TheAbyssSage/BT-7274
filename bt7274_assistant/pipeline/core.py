@@ -89,6 +89,8 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.network_telemetry: Optional[NetworkTelemetry] = None
         self.voice_telemetry: Optional[VoiceTelemetry] = None
         self.perception: Optional[PerceptionManager] = None
+        self.vision_viewer = None  # VisionViewerWindow instance (lazy-init)
+        self._hud_window = None    # CameraWindow instance for Pilot HUD
         
         # Protocol reference cooldown to prevent spam
         self._last_protocol_reference: Optional[str] = None

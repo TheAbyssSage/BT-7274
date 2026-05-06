@@ -28,3 +28,14 @@ def test_hud_state_populated_from_vision_result():
     state.notifications.append(Notification(text="Vision scan complete", color="#00ff88"))
     assert state.comms_text == "Enemy pilot detected."
     assert len(state.notifications) == 1
+
+
+def test_new_modules_exported():
+    """TerminalLogBuffer, NotificationStack, and TelemetryPanel are importable."""
+    from bt7274_hud.terminal_log import TerminalLogBuffer
+    from bt7274_hud.notification_stack import NotificationStack
+    from bt7274_hud.telemetry_panel import TelemetryPanel
+
+    assert TerminalLogBuffer is not None
+    assert NotificationStack is not None
+    assert TelemetryPanel is not None

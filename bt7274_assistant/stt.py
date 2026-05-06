@@ -4,6 +4,7 @@ Speech-to-Text module using OpenAI Whisper.
 
 import os
 import sys
+import math
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -78,7 +79,9 @@ class WhisperSTT:
             if segments and isinstance(segments, list):
                 avg_logprob = sum(s.get("avg_logprob", 0) if isinstance(s, dict) else 0 for s in segments) / len(segments)
                 # Convert logprob to approximate confidence (0-1 scale)
-                confidence = min(1.0, max(0.0, 1.0 + avg_logprob)) if isinstance(avg_logprob, (int, float)) else 0.0
+                # avg_logprob is typically around -1.0 (good) to -3.0 (poor)
+                # Use exp() for proper conversion: exp(-1.0) ≈ 0.37, exp(-0.5) ≈ 0.61
+                confidence = math.exp(avg_logprob) if isinstance(avg_logprob, (int, float)) else 0.0
             else:
                 confidence = 0.0
             

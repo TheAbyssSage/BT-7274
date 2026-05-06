@@ -338,106 +338,106 @@ class CommandProcessingMixin(_AssistantBase):
                                 
             return None
 
-    def _should_log_autonomously(self, pilot_message: str, bt_response: str) -> dict | None:
-        """
-        Ask the LLM whether this interaction is worth logging to BT's memory.
-        Returns {"log": True, "content": str, "reason": str} or None.
-        """
-        if not self.autonomous_log_enabled:
-            return None
-        if time.time() < self.autonomous_log_cooldown_until:
-            return None
-        if self.autonomous_logs_this_session >= self.autonomous_log_max_per_session:
-            return None
-        if not self.llm:
-            return None
-
-        # Deduplication: don't log the same interaction twice
-        import hashlib
-        content_hash = hashlib.md5(f"{pilot_message}|{bt_response}".encode()).hexdigest()[:16]
-        if content_hash == self._last_autonomous_log_hash:
-            return None
-
-        # Build context summary
-        context_summary = f"Session interactions: {self.interaction_count}. Trust level: {self.pilot_trust_level}."
-        if self.errors_this_interaction:
-            context_summary += f" Errors this interaction: {len(self.errors_this_interaction)}."
-        if self.actions_this_session:
-            context_summary += f" Recent actions: {', '.join(self.actions_this_session[-3:])}."
-
-        # Load prompt template from config
-        prompt_template = self.config.get("llm", {}).get("autonomous_logging", {}).get("decision_prompt", "")
-        prompt = prompt_template.format(
-            pilot_message=pilot_message,
-            bt_response=bt_response,
-            context_summary=context_summary,
-        )
-
-        try:
-            decision_raw = self.llm.chat(prompt)
-        except Exception as e:
-            self._report_error("llm", "autonomous_log_decision", e)
-            return None
-
-        # Parse JSON decision
-        import json, re
-        try:
-            # Try code block first
-            json_match = re.search(r'```json\s*(.*?)\s*```', decision_raw, re.DOTALL)
-            if json_match:
-                decision = json.loads(json_match.group(1))
-            else:
-                # Try inline JSON
-                json_match = re.search(r'\{.*"log".*\}', decision_raw, re.DOTALL)
-                if json_match:
-                    decision = json.loads(json_match.group(0))
-                else:
-                    return None
-        except (json.JSONDecodeError, AttributeError):
-            return None
-
-        if not isinstance(decision, dict):
-            return None
-        if decision.get("log") is not True:
-            return None
-
-        content = decision.get("content", "").strip()
-        if not content:
-            return None
-
-        # Update state
-        self._last_autonomous_log_hash = content_hash
-        self.autonomous_log_cooldown_until = time.time() + self.autonomous_log_cooldown_seconds
-        self.autonomous_logs_this_session += 1
-
-        return {
-            "log": True,
-            "content": content,
-            "reason": decision.get("reason", "No reason provided"),
-        }
-
-    def _perform_autonomous_log(self, pilot_message: str, bt_response: str) -> str | None:
-        """
-        Execute autonomous logging if the LLM decides it's warranted.
-        Returns the log result string or None.
-        """
-        decision = self._should_log_autonomously(pilot_message, bt_response)
-        if not decision:
-            return None
-
-        content = decision["content"]
-        reason = decision["reason"]
-
-        # Use the existing action handler
-        if self.actions:
-            try:
-                result = self.actions.execute("make_log", text=content, log_type="bt", name="autonomous")
-                status("AUTO-LOG", f"Logged: {content[:60]}... (reason: {reason})")
-                return result
-            except Exception as e:
-                self._report_error("actions", "autonomous_log", e, {"content": content})
+        def _should_log_autonomously(pilot_message: str, bt_response: str) -> dict | None:
+            """
+            Ask the LLM whether this interaction is worth logging to BT's memory.
+            Returns {"log": True, "content": str, "reason": str} or None.
+            """
+            if not self.autonomous_log_enabled:
                 return None
-        return None
+            if time.time() < self.autonomous_log_cooldown_until:
+                return None
+            if self.autonomous_logs_this_session >= self.autonomous_log_max_per_session:
+                return None
+            if not self.llm:
+                return None
+
+            # Deduplication: don't log the same interaction twice
+            import hashlib
+            content_hash = hashlib.md5(f"{pilot_message}|{bt_response}".encode()).hexdigest()[:16]
+            if content_hash == self._last_autonomous_log_hash:
+                return None
+
+            # Build context summary
+            context_summary = f"Session interactions: {self.interaction_count}. Trust level: {self.pilot_trust_level}."
+            if self.errors_this_interaction:
+                context_summary += f" Errors this interaction: {len(self.errors_this_interaction)}."
+            if self.actions_this_session:
+                context_summary += f" Recent actions: {', '.join(self.actions_this_session[-3:])}."
+
+            # Load prompt template from config
+            prompt_template = self.config.get("llm", {}).get("autonomous_logging", {}).get("decision_prompt", "")
+            prompt = prompt_template.format(
+                pilot_message=pilot_message,
+                bt_response=bt_response,
+                context_summary=context_summary,
+            )
+
+            try:
+                decision_raw = self.llm.chat(prompt)
+            except Exception as e:
+                self._report_error("llm", "autonomous_log_decision", e)
+                return None
+
+            # Parse JSON decision
+            import json, re
+            try:
+                # Try code block first
+                json_match = re.search(r'```json\s*(.*?)\s*```', decision_raw, re.DOTALL)
+                if json_match:
+                    decision = json.loads(json_match.group(1))
+                else:
+                    # Try inline JSON
+                    json_match = re.search(r'\{.*"log".*\}', decision_raw, re.DOTALL)
+                    if json_match:
+                        decision = json.loads(json_match.group(0))
+                    else:
+                        return None
+            except (json.JSONDecodeError, AttributeError):
+                return None
+
+            if not isinstance(decision, dict):
+                return None
+            if decision.get("log") is not True:
+                return None
+
+            content = decision.get("content", "").strip()
+            if not content:
+                return None
+
+            # Update state
+            self._last_autonomous_log_hash = content_hash
+            self.autonomous_log_cooldown_until = time.time() + self.autonomous_log_cooldown_seconds
+            self.autonomous_logs_this_session += 1
+
+            return {
+                "log": True,
+                "content": content,
+                "reason": decision.get("reason", "No reason provided"),
+            }
+
+        def _perform_autonomous_log(pilot_message: str, bt_response: str) -> str | None:
+            """
+            Execute autonomous logging if the LLM decides it's warranted.
+            Returns the log result string or None.
+            """
+            decision = _should_log_autonomously(pilot_message, bt_response)
+            if not decision:
+                return None
+
+            content = decision["content"]
+            reason = decision["reason"]
+
+            # Use the existing action handler
+            if self.actions:
+                try:
+                    result = self.actions.execute("make_log", text=content, log_type="bt", name="autonomous")
+                    status("AUTO-LOG", f"Logged: {content[:60]}... (reason: {reason})")
+                    return result
+                except Exception as e:
+                    self._report_error("actions", "autonomous_log", e, {"content": content})
+                    return None
+                return None
 
         # 2. Handle compound queries - detect all matching query types
         response_parts = []
@@ -559,17 +559,37 @@ class CommandProcessingMixin(_AssistantBase):
             status("HUD", "Activating Pilot HUD...")
             try:
                 from bt7274_perception.vision_viewer import VisionViewerWindow
-                if hasattr(self, "vision_viewer") and self.vision_viewer and hasattr(self.vision_viewer, "open_pilot_hud"):
-                    self.vision_viewer.open_pilot_hud()
-                    response_parts.append("Pilot HUD activated, Pilot.")
-                    handled_types.add("hud")
-                    skip_normal_tts = True
-                else:
-                    response_parts.append("Pilot, the HUD module is not initialized.")
-                    handled_types.add("hud")
+                # Lazy-init the vision viewer if needed
+                if not self.vision_viewer:
+                    vision_cfg = self.config.get("vision", {})
+                    self.vision_viewer = VisionViewerWindow(
+                        camera_device=vision_cfg.get("camera_device", "0"),
+                        ollama_url=vision_cfg.get("ollama_url", "http://localhost:11434"),
+                        vision_model=vision_cfg.get("vision_model", "llava"),
+                    )
+                self.vision_viewer.open_pilot_hud()
+                response_parts.append("Pilot HUD activated, Pilot.")
+                handled_types.add("hud")
+                skip_normal_tts = True
             except Exception as e:
                 self._report_error("hud", "open", e)
                 response_parts.append("Pilot, unable to activate HUD.")
+                handled_types.add("hud")
+
+        # Check for HUD close request
+        if self._is_hud_close_query(text) and "hud" not in handled_types:
+            status("HUD", "Closing Pilot HUD...")
+            try:
+                if self.vision_viewer:
+                    self.vision_viewer.close_pilot_hud()
+                    response_parts.append("Pilot HUD closed, Pilot.")
+                else:
+                    response_parts.append("Pilot, no HUD is currently active.")
+                handled_types.add("hud")
+                skip_normal_tts = True
+            except Exception as e:
+                self._report_error("hud", "close", e)
+                response_parts.append("Pilot, unable to close HUD.")
                 handled_types.add("hud")
 
         # Check for location query (but not if part of longer question)
@@ -1641,7 +1661,7 @@ class CommandProcessingMixin(_AssistantBase):
         # ─── Autonomous BT Memory Logging ───────────────────────────────────
         # Let BT decide if this interaction is worth remembering
         try:
-            self._perform_autonomous_log(text, clean_response)
+            _perform_autonomous_log(text, clean_response)
         except Exception as e:
             # Never let autonomous logging break the main pipeline
             self._report_error("pipeline", "autonomous_log", e)

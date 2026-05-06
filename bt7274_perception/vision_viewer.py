@@ -590,7 +590,20 @@ class VisionViewerWindow:
             fullscreen=False,
         )
         hud.start()
+        self._hud_window = hud
         self._set_status("Camera stream opened.")
+
+    def close_pilot_hud(self):
+        """Close the Pilot HUD camera stream window if open."""
+        if hasattr(self, '_hud_window') and self._hud_window:
+            try:
+                self._hud_window.stop()
+            except Exception:
+                pass
+            self._hud_window = None
+            self._set_status("Camera stream closed.")
+        else:
+            self._set_status("No camera stream to close.")
 
 
 def main():
