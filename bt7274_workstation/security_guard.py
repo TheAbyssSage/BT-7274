@@ -196,6 +196,31 @@ class SecurityGuard:
 
     # ─── Pre-flight Check ────────────────────────────────────────
 
+    # Dangerous shell command patterns
+    DANGEROUS_COMMANDS = [
+        re.compile(r'\brm\s+-rf\s+/'),
+        re.compile(r'\bsudo\b'),
+        re.compile(r'\bcurl\b.*\|.*\b(?:sh|bash|zsh)\b'),
+        re.compile(r'\bwget\b.*\|.*\b(?:sh|bash|zsh)\b'),
+        re.compile(r'>\s*/dev/sd[a-z]'),
+        re.compile(r'\bmkfs\b'),
+        re.compile(r'\bdd\s+if='),
+        re.compile(r':\(\)\s*\{.*:\|:&\s*\};:'),
+        re.compile(r'\bchmod\s+777\s+/'),
+        re.compile(r'\bchown\s+-R\b'),
+    ]
+
+    def validate_shell_command(self, command: str) -> tuple[bool, str]:
+        """Validate a shell command for safety.
+
+        Returns:
+            Tuple of (is_safe, reason).
+        """
+        for pattern in self.DANGEROUS_COMMANDS:
+            if pattern.search(command):
+                return False, f"Command blocked: matches dangerous pattern"
+        return True, "ok"
+
     def preflight_outbound(
         self,
         url: str,

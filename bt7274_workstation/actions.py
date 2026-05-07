@@ -147,9 +147,17 @@ def action_open(app: str):
 @register_action("run_script")
 def action_run_script(script: str):
     """Run a shell script or command."""
+    from bt7274_workstation.security_guard import SecurityGuard
+    guard = SecurityGuard()
+    is_safe, reason = guard.validate_shell_command(script)
+    if not is_safe:
+        guard.audit("blocked_command", {"command": script[:200], "reason": reason})
+        return f"Command blocked for security: {reason}"
     try:
-        result = subprocess.run(script, shell=True, capture_output=True, text=True)
+        result = subprocess.run(script, shell=True, capture_output=True, text=True, timeout=30)
         return f"Script executed. Output: {result.stdout[:200]}"
+    except subprocess.TimeoutExpired:
+        return "Script timed out after 30 seconds."
     except Exception as e:
         return f"Script failed: {str(e)}"
 
