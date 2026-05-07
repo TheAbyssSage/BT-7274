@@ -243,6 +243,7 @@ pipeline:
     - "B2"
     - "E.T"
     - "PT"
+    - "ET"
     # Noise-resistant variants for noisy environments
     - "hey b*t"
     - "b*t"
