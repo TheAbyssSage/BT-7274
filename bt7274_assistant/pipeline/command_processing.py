@@ -311,50 +311,6 @@ class CommandProcessingMixin(_AssistantBase):
                 except Exception as e:
                     warning(f"Semantic matching failed: {e}")
             
-            # 6. Try context-aware phrase selection
-            context_phrases = self._get_context_aware_phrases()
-            if context_phrases:
-                for phrase in context_phrases:
-                    if normalized in phrase or phrase in normalized:
-                        path = self.bt_clips.get(phrase)
-                        if path and Path(path).exists():
-                            status("MATCH", f"Context-aware: \"{phrase}\"")
-                            return path
-            
-            # 7. Try emotional tone matching
-            emotion_phrases = self._get_emotion_matching_phrases(response_text)
-            if emotion_phrases:
-                for phrase in emotion_phrases:
-                    if normalized in phrase or phrase in normalized:
-                        path = self.bt_clips.get(phrase)
-                        if path and Path(path).exists():
-                            status("MATCH", f"Emotion match: \"{phrase}\"")
-                            return path
-            
-            # 8. Try dialogue tree navigation
-            dialogue_clip = self._get_dialogue_response(response_text, self.dialogue_state)
-            if dialogue_clip and Path(dialogue_clip).exists():
-                return dialogue_clip
-            
-            # 9. Partial matches for common patterns
-            common_patterns = {
-                "you're welcome": ["thank you", "thanks", "thx"],
-                "copy that": ["acknowledged", "understood", "roger"],
-                "stand by": ["standby", "waiting", "processing"],
-                "retrieving": ["fetching", "accessing", "pulling"],
-                "pilot": ["user", "human", "person"]
-            }
-            
-            for standby_key, patterns in common_patterns.items():
-                for pattern in patterns:
-                    if pattern in normalized:
-                        for key, path in self.bt_clips.items():
-                            if standby_key in key and Path(path).exists():
-                                return path
-                        for key, path in self.standby_clips.items():
-                            if standby_key in key and Path(path).exists():
-                                return path
-                                
             return None
 
         def _maybe_log_autonomously_async(pilot_message: str, bt_response: str):
