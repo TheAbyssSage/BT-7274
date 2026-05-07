@@ -20,6 +20,8 @@ if __name__ == "__main__":
                         help="AI mode (local or cloud)")
     parser.add_argument("--performance-mode", choices=["standard", "performance"],
                         help="TTS mode (standard or performance)")
+    parser.add_argument("--tts-engine", choices=["piper", "xtts", "vits"],
+                        help="TTS engine (piper=fast, xtts=authentic, vits=balanced)")
     parser.add_argument("--console-chat-mode", action="store_true",
                         help="Run in console chat mode (text input, no microphone)")
     args = parser.parse_args()
@@ -28,6 +30,7 @@ if __name__ == "__main__":
         ai_mode=args.ai_mode,
         performance_mode=args.performance_mode,
         console_chat_mode=args.console_chat_mode,
+        tts_engine=args.tts_engine,
     )
 
     if args.generate_responses or args.force_regenerate:

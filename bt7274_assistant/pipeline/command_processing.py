@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -27,6 +28,35 @@ try:
 except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
     cosine_similarity = None
+
+# Pre-compiled intent patterns for single-pass classification
+_INTENT_PATTERNS = [
+    ("gratitude", re.compile(r'\b(thank|thanks|thx|appreciate|grateful)\b', re.IGNORECASE)),
+    ("weather", re.compile(r'\b(weather|temperature|forecast|rain|snow|sunny|cloudy|humid)\b', re.IGNORECASE)),
+    ("time", re.compile(r'\bwhat\s+(time|date|day)|current\s+time|today\'?s?\s+date\b', re.IGNORECASE)),
+    ("location", re.compile(r'\b(my\s+location|where\s+(am\s+i|are\s+we)|find\s+my\s+location)\b', re.IGNORECASE)),
+    ("status", re.compile(r'\b(your\s+status|status\s+report|systems?\s+(check|status)|how\s+are\s+you)\b', re.IGNORECASE)),
+    ("vpn_status", re.compile(r'\b(vpn\s+status|cloak\s+status|is\s+(the\s+)?(vpn|cloak))\b', re.IGNORECASE)),
+    ("vpn_toggle", re.compile(r'\b(turn\s+(on|off)\s+(the\s+)?(vpn|cloak)|enable\s+(vpn|cloak)|disable\s+(vpn|cloak)|engage\s+(cloak|vpn))\b', re.IGNORECASE)),
+    ("search", re.compile(r'\b(who\s+(won|was)|news|latest|search|look\s+up|tell\s+me\s+about|find|when\s+is|how\s+much)\b', re.IGNORECASE)),
+    ("vision", re.compile(r'\b(what\s+do\s+you\s+see|look\s+around|scan\s+the\s+room|optical\s+sensors?)\b', re.IGNORECASE)),
+    ("todo", re.compile(r'\b(add\s+(a\s+)?(task|todo|to-do)|complete\s+(task|todo)|list\s+(tasks?|todos?|to-dos?)|remove\s+(task|todo)|clear\s+(tasks?|todos?))\b', re.IGNORECASE)),
+    ("note", re.compile(r'\b(make\s+(a\s+)?note|add\s+(a\s+)?note|list\s+notes?|read\s+notes?)\b', re.IGNORECASE)),
+    ("log", re.compile(r'\b(make\s+log|read\s+logs?|view\s+logs?|protocol\s+brief)\b', re.IGNORECASE)),
+    ("translate", re.compile(r'\b(translate|translation|in\s+\w+\s+please)\b', re.IGNORECASE)),
+    ("hud", re.compile(r'\b(open\s+hud|show\s+hud|activate\s+hud|pilot\s+hud)\b', re.IGNORECASE)),
+    ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
+    ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
+]
+
+
+def classify_intents(text: str) -> set[str]:
+    """Single-pass intent classification. Returns set of detected intent names."""
+    detected = set()
+    for name, pattern in _INTENT_PATTERNS:
+        if pattern.search(text):
+            detected.add(name)
+    return detected
 
 logger = logging.getLogger("BT7274")
 
@@ -64,6 +94,7 @@ class CommandProcessingMixin(_AssistantBase):
 
         # Add common response patterns to generic
         common_responses = [
+            # Acknowledgments
             "Processing complete, Pilot.",
             "Operation complete, Pilot.",
             "Task completed, Pilot.",
@@ -71,7 +102,41 @@ class CommandProcessingMixin(_AssistantBase):
             "Sequence complete, Pilot.",
             "Protocol fulfilled, Pilot.",
             "Mission accomplished, Pilot.",
-            "Objective achieved, Pilot."
+            "Objective achieved, Pilot.",
+            "Copy that, Pilot.",
+            "Acknowledged, Pilot.",
+            "Understood, Pilot.",
+            "Affirmative, Pilot.",
+            "Confirmed, Pilot.",
+            # Standby / processing
+            "Stand by, Pilot.",
+            "Processing your request, Pilot.",
+            "One moment, Pilot.",
+            "Calculating, Pilot.",
+            "Analyzing, Pilot.",
+            # Status
+            "All systems operational, Pilot.",
+            "Systems nominal, Pilot.",
+            "Ready for deployment, Pilot.",
+            "Standing by for orders, Pilot.",
+            # Time/location responses
+            "Checking chronometer, Pilot.",
+            "Accessing navigation systems, Pilot.",
+            "Triangulating position, Pilot.",
+            # Weather
+            "Accessing atmospheric sensors, Pilot.",
+            "Fetching environmental data, Pilot.",
+            # Search
+            "Searching data networks, Pilot.",
+            "Querying external databases, Pilot.",
+            # Errors
+            "Unable to comply, Pilot.",
+            "Systems experiencing interference, Pilot.",
+            "Neural network connection lost, Pilot.",
+            # Gratitude
+            "You're welcome, Pilot.",
+            "Glad to assist, Pilot.",
+            "Always ready to serve, Pilot.",
         ]
         phrases_by_category.setdefault("generic", []).extend(common_responses)
 
@@ -225,56 +290,15 @@ class CommandProcessingMixin(_AssistantBase):
 
         # Helper: speak a standby phrase immediately (pre-recorded if available)
         def speak_standby(task: str = "generic"):
-            task_key = f"standby_phrases_{task}"
-            phrases = self.config["pipeline"].get(task_key) or self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
+            """Play a pre-computed standby clip instantly."""
             import random
-            
-            # Update personality weights based on current context
-            current_topic = self.current_context.get("topic", "neutral")
-            self._update_personality_weights(current_topic)
-            
-            # Apply personality-based weighting to phrases
-            weighted_phrases = self._apply_personality_weights(phrases, " ".join(phrases))
-            
-            # Try context-aware phrase selection first
-            context_phrases = self._get_context_aware_phrases()
-            if context_phrases:
-                # Filter to only phrases that are in our standby phrases and context-aware
-                matching_phrases = [p for p in phrases if self._normalize_phrase(p) in context_phrases]
-                if matching_phrases:
-                    # Apply personality weighting to context matches
-                    weighted_context = self._apply_personality_weights(matching_phrases, " ".join(matching_phrases))
-                    if weighted_context:
-                        phrase = weighted_context[0][0]  # Take highest weighted
-                        status("STBY", f"[Context+Personality] {phrase}")
-                    else:
-                        phrase = random.choice(matching_phrases)
-                        status("STBY", f"[Context-aware] {phrase}")
-                else:
-                    if weighted_phrases:
-                        phrase = weighted_phrases[0][0]  # Take highest weighted
-                        status("STBY", f"[Personality] {phrase}")
-                    else:
-                        phrase = random.choice(phrases)
-                        status("STBY", phrase)
-            else:
-                if weighted_phrases:
-                    phrase = weighted_phrases[0][0]  # Take highest weighted
-                    status("STBY", f"[Personality] {phrase}")
-                else:
-                    phrase = random.choice(phrases)
-                    status("STBY", phrase)
-
-            # Try pre-recorded clip first (BT's original clips take priority)
-            key = self._normalize_phrase(phrase)
-            wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
-            if wav_path and Path(wav_path).exists():
-                play_audio(wav_path)
+            if self._standby_shortlist:
+                path = random.choice(self._standby_shortlist)
+                play_audio(path)
                 return
-
-            # Fallback: generate on the fly
+            # Fallback: TTS
             if self.tts:
-                wav = self.tts.speak(phrase)
+                wav = self.tts.speak("Copy that, Pilot. Stand by.")
                 if wav:
                     play_audio(wav)
                 
@@ -306,6 +330,7 @@ class CommandProcessingMixin(_AssistantBase):
                         return path
             
             # 5. Try semantic similarity matching if available
+            self._ensure_semantic_index()
             if self.semantic_vectorizer and self.semantic_clip_matrix is not None and cosine_similarity is not None:
                 try:
                     response_vector = self.semantic_vectorizer.transform([normalized])
@@ -322,51 +347,31 @@ class CommandProcessingMixin(_AssistantBase):
                 except Exception as e:
                     warning(f"Semantic matching failed: {e}")
             
-            # 6. Try context-aware phrase selection
-            context_phrases = self._get_context_aware_phrases()
-            if context_phrases:
-                for phrase in context_phrases:
-                    if normalized in phrase or phrase in normalized:
-                        path = self.bt_clips.get(phrase)
-                        if path and Path(path).exists():
-                            status("MATCH", f"Context-aware: \"{phrase}\"")
-                            return path
-            
-            # 7. Try emotional tone matching
-            emotion_phrases = self._get_emotion_matching_phrases(response_text)
-            if emotion_phrases:
-                for phrase in emotion_phrases:
-                    if normalized in phrase or phrase in normalized:
-                        path = self.bt_clips.get(phrase)
-                        if path and Path(path).exists():
-                            status("MATCH", f"Emotion match: \"{phrase}\"")
-                            return path
-            
-            # 8. Try dialogue tree navigation
-            dialogue_clip = self._get_dialogue_response(response_text, self.dialogue_state)
-            if dialogue_clip and Path(dialogue_clip).exists():
-                return dialogue_clip
-            
-            # 9. Partial matches for common patterns
-            common_patterns = {
-                "you're welcome": ["thank you", "thanks", "thx"],
-                "copy that": ["acknowledged", "understood", "roger"],
-                "stand by": ["standby", "waiting", "processing"],
-                "retrieving": ["fetching", "accessing", "pulling"],
-                "pilot": ["user", "human", "person"]
-            }
-            
-            for standby_key, patterns in common_patterns.items():
-                for pattern in patterns:
-                    if pattern in normalized:
-                        for key, path in self.bt_clips.items():
-                            if standby_key in key and Path(path).exists():
-                                return path
-                        for key, path in self.standby_clips.items():
-                            if standby_key in key and Path(path).exists():
-                                return path
-                                
             return None
+
+        def _maybe_log_autonomously_async(pilot_message: str, bt_response: str):
+            """Fire-and-forget autonomous logging in a background thread."""
+            if not self.autonomous_log_enabled:
+                return
+            if time.time() < self.autonomous_log_cooldown_until:
+                return
+            if self.autonomous_logs_this_session >= self.autonomous_log_max_per_session:
+                return
+            if not self.llm:
+                return
+            
+            import hashlib
+            content_hash = hashlib.md5(f"{pilot_message}|{bt_response}".encode()).hexdigest()[:16]
+            if content_hash == self._last_autonomous_log_hash:
+                return
+            
+            def _do_log():
+                decision = _should_log_autonomously(pilot_message, bt_response)
+                if decision:
+                    _perform_autonomous_log(pilot_message, bt_response)
+            
+            t = threading.Thread(target=_do_log, daemon=True)
+            t.start()
 
         def _should_log_autonomously(pilot_message: str, bt_response: str) -> dict | None:
             """
@@ -476,26 +481,16 @@ class CommandProcessingMixin(_AssistantBase):
         followup_tts_text = None
         lower_text = text.lower()
 
+        # Single-pass intent classification
+        intents = classify_intents(text)
+
         # Special handling for gratitude expressions
         # Check if gratitude is the ONLY intent (no other actionable commands)
-        gratitude_only = self._is_expression_of_gratitude(text)
+        gratitude_only = "gratitude" in intents
         if gratitude_only:
             # Check if the same utterance also contains other actionable commands
-            has_other_commands = (
-                self._is_vpn_toggle_command(text) or
-                self._is_todo_command(text) or
-                self._is_note_command(text) or
-                self._is_weather_query(text) or
-                self._is_time_query(text) or
-                self._is_location_query(text) or
-                self._is_status_query(text) or
-                self._is_vpn_status_query(text) or
-                self._is_search_query(text) or
-                self._is_travel_query(text) or
-                self._is_protocol_command(text) or
-                self._is_maintenance_command(text)
-            )
-            if not has_other_commands:
+            other_intents = intents - {"gratitude"}
+            if not other_intents:
                 quote("BT-7274", "You're welcome, Pilot.")
                 # Try to play pre-recorded "you're welcome" clip
                 key = self._normalize_phrase("you're welcome pilot")
@@ -540,7 +535,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("gratitude")
 
         # Check for vision / "what do you see" queries
-        if self._is_vision_query(text) and "vision" not in handled_types:
+        if "vision" in intents and "vision" not in handled_types:
             status("VISION", "Activating optical sensors...")
             try:
                 if self.perception:
@@ -585,7 +580,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("vision")
 
         # Check for HUD open request
-        if self._is_hud_query(text) and "hud" not in handled_types:
+        if "hud" in intents and "hud" not in handled_types:
             status("HUD", "Activating Pilot HUD...")
             try:
                 from bt7274_perception.vision_viewer import VisionViewerWindow
@@ -607,7 +602,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("hud")
 
         # Check for HUD close request
-        if self._is_hud_close_query(text) and "hud" not in handled_types:
+        if "hud_close" in intents and "hud" not in handled_types:
             status("HUD", "Closing Pilot HUD...")
             try:
                 if self.vision_viewer:
@@ -623,7 +618,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("hud")
 
         # Check for location query (but not if part of longer question)
-        if self._is_location_query(text):
+        if "location" in intents:
             status("LOC", "Locating Pilot...")
             try:
                 location_result = self.actions.execute("get_location") if self.actions else "Location unavailable"
@@ -644,7 +639,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("location")
 
         # Check for time query
-        if self._is_time_query(text):
+        if "time" in intents:
             status("TIME", "Checking chronometer...")
             try:
                 time_result = self.actions.execute("tell_time") if self.actions else "Time unavailable"
@@ -666,7 +661,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("time")
 
         # Check for status query - respond with BT-7274 original voice clips + TTS system status
-        if self._is_status_query(text):
+        if "status" in intents:
             status("DIAG", "Running systems diagnostic...")
             status_clip = self._get_status_response_clip()
             if status_clip:
@@ -689,7 +684,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("status")
 
         # Check for VPN status query
-        if self._is_vpn_status_query(text):
+        if "vpn_status" in intents:
             status("VPN", "Checking cloak status...")
             if self.vpn:
                 vpn_status = self.vpn.get_status()
@@ -721,7 +716,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("vpn")
 
         # Check for weather query
-        if self._is_weather_query(text):
+        if "weather" in intents:
             status("WEATHER", "Fetching local data...")
             try:
                 # Check if user specified a location in the query
@@ -776,7 +771,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("weather")
 
         # Check for search intent - always let LLM handle these with search results
-        if self._is_search_query(text) and "search" not in handled_types:
+        if "search" in intents and "search" not in handled_types:
             status("SEARCH", "Looking up...")
             try:
                 # Enrich query with location context
@@ -822,7 +817,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("search")
 
         # Check for TTS cache clearing request
-        if "clear tts cache" in text.lower() or "clear cache" in text.lower():
+        if "cache_clear" in intents:
             cache_hit("Clearing TTS cache...")
             self.clear_tts_cache()
             response_parts.append("TTS cache cleared, Pilot.")
@@ -880,7 +875,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("maintenance")
 
         # Check for direct VPN/cloak on/off commands
-        if self._is_vpn_toggle_command(text) and "maintenance" not in handled_types:
+        if "vpn_toggle" in intents and "maintenance" not in handled_types:
             lower = text.lower()
             # Determine if turning on or off
             on_phrases = [
@@ -1022,7 +1017,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("protocol")
 
         # Check for to-do commands (using improved detection)
-        if self._is_todo_command(text):
+        if "todo" in intents:
             status("PROTOCOL", "Adding to-do...")
             try:
                 # Extract task text after the command phrase
@@ -1123,7 +1118,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("protocol")
 
         # Check for log commands (read logs, make log, delete log)
-        if self._is_log_command(text) and "log" not in handled_types:
+        if "log" in intents and "log" not in handled_types:
             import re
             lower = text.lower()
             # Determine log type
@@ -1220,7 +1215,7 @@ class CommandProcessingMixin(_AssistantBase):
         # ─── Translator Commands ───────────────────────────────────────────────
 
         # Check for translation session start
-        if self._is_translate_command(text) and "translate" not in handled_types:
+        if "translate" in intents and "translate" not in handled_types:
             status("TRANSLATE", "Initializing translation protocol...")
             try:
                 if self.translator:
@@ -1359,13 +1354,19 @@ class CommandProcessingMixin(_AssistantBase):
             # Combine all collected responses
             response = " ".join(response_parts)
         elif not handled_types:
-            # No specific handlers matched, use normal LLM processing
+            # No specific handlers matched, use streaming LLM for faster first-token time
             log_llm("Thinking...")
             llm_start = time.time()
             try:
-                response = self.llm.chat(text) if self.llm else "Response unavailable"
+                if self.llm:
+                    tokens = []
+                    for token in self.llm.chat_stream(text):
+                        tokens.append(token)
+                    response = "".join(tokens)
+                else:
+                    response = "Response unavailable"
             except Exception as e:
-                self._report_error("llm", "chat", e, {"pilot_message": text})
+                self._report_error("llm", "chat_stream", e, {"pilot_message": text})
                 response = "Pilot, my neural network is experiencing interference. Please try again."
             llm_response_time = time.time() - llm_start
         else:
@@ -1691,7 +1692,7 @@ class CommandProcessingMixin(_AssistantBase):
         # ─── Autonomous BT Memory Logging ───────────────────────────────────
         # Let BT decide if this interaction is worth remembering
         try:
-            _perform_autonomous_log(text, clean_response)
+            _maybe_log_autonomously_async(text, clean_response)
         except Exception as e:
             # Never let autonomous logging break the main pipeline
             self._report_error("pipeline", "autonomous_log", e)
@@ -1740,7 +1741,7 @@ class CommandProcessingMixin(_AssistantBase):
         quote("Pilot", text)
 
         # Check for gratitude expressions FIRST (before stop phrases)
-        if self._is_expression_of_gratitude(text):
+        if "gratitude" in classify_intents(text):
             quote("BT-7274", "You're welcome, Pilot.")
             # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")

@@ -35,6 +35,7 @@ from bt7274_assistant.stt import WhisperSTT
 from bt7274_assistant.llm import OllamaClient, CloudLLMClient
 from bt7274_assistant.tts import XTTSClient
 from bt7274_assistant.tts_fast import StreamingXTTSClient
+from bt7274_assistant.tts_piper import FastPiperTTS
 from bt7274_assistant.ui import (
     header, section, sub_section, info, success, warning, error, status,
     bullet, spacer, divider, footer, prompt, choice_menu, box, progress, loading_bar,
@@ -52,7 +53,7 @@ from bt7274_assistant.translator import TranslatorTool
 class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMixin, CommandProcessingMixin):
     """BT-7274 Voice Assistant - Main Pipeline."""
 
-    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None, console_chat_mode: bool = False):
+    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None, console_chat_mode: bool = False, tts_engine: Optional[str] = None):
         if config_path is None:
             # core.py is in bt7274_assistant/pipeline/, config.yaml is in bt7274_assistant/
             config_path = str(Path(__file__).parent.parent / "config.yaml")
@@ -60,13 +61,15 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.ai_mode = ai_mode  # "local" or "cloud"
         self.performance_mode = performance_mode  # "standard" or "performance"
         self.console_chat_mode = console_chat_mode  # True = text input, no mic
+        self.tts_engine = tts_engine  # Override for config's tts.engine (piper/xtts/vits)
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
-        self.tts: Optional[XTTSClient | StreamingXTTSClient] = None  # Can be XTTSClient or StreamingXTTSClient
+        self.tts: Optional[XTTSClient | StreamingXTTSClient | FastPiperTTS] = None
         self.actions: Optional[ActionHandler] = None
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
         self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
+        self._standby_shortlist: list[str] = []  # Pre-computed standby clip paths
         self.bt_clips: dict[str, str] = {}  # phrase -> wav_path for BT's original lines
         self.bt_clip_texts: dict[str, str] = {}  # filename -> original text for BT's lines
         self.running = False
@@ -344,6 +347,35 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             mode_display = "Standard" if self.performance_mode == "standard" else "Streaming"
             status("USING", f"{mode_display} (preselected)")
 
+        # Pre-init: TTS engine selection
+        if self.tts_engine is None:
+            info("[1] Piper — Sub-second synthesis (default)")
+            info("[2] XTTS v2 — Authentic BT-7274 voice (~16s)")
+            info("[3] VITS — Balanced (~2s)")
+            while True:
+                try:
+                    choice = prompt("Select TTS engine [1-3]:")
+                    if choice == "1" or choice == "":
+                        self.tts_engine = "piper"
+                        status("SELECT", "Piper (sub-second)")
+                        break
+                    elif choice == "2":
+                        self.tts_engine = "xtts"
+                        status("SELECT", "XTTS v2 (authentic BT voice)")
+                        break
+                    elif choice == "3":
+                        self.tts_engine = "vits"
+                        status("SELECT", "VITS (balanced)")
+                        break
+                    else:
+                        warning("Invalid choice. Please enter 1, 2, or 3.")
+                except (EOFError, KeyboardInterrupt):
+                    info("Exiting...")
+                    sys.exit(0)
+        else:
+            engine_labels = {"piper": "Piper (sub-second)", "xtts": "XTTS v2 (authentic)", "vits": "VITS (balanced)"}
+            status("USING", f"{engine_labels.get(self.tts_engine, self.tts_engine)} (preselected)")
+
         spacer()
         section("Initializing Systems")
 
@@ -381,12 +413,29 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
         # [3] Text-to-Speech
         try:
-            if self.performance_mode == "performance":
-                self.tts = StreamingXTTSClient(self.config["tts"])
-                status("STREAM", "Streaming TTS initialized")
-            else:
+            tts_engine = self.tts_engine or self.config.get("tts", {}).get("engine", "xtts")
+            
+            if tts_engine == "piper":
+                piper_tts = FastPiperTTS(self.config["tts"])
+                if piper_tts._is_ready():
+                    self.tts = piper_tts
+                    status("TTS", "Piper engine (sub-second)")
+                else:
+                    warning("Piper not available, falling back to VITS")
+                    tts_engine = "vits"
+            
+            if tts_engine == "vits":
                 self.tts = XTTSClient(self.config["tts"])
-                success("Standard TTS initialized")
+                self.tts.model_name = "tts_models/en/ljspeech/vits"
+                status("TTS", "VITS engine (fast)")
+            elif tts_engine == "xtts":
+                if self.performance_mode == "performance":
+                    self.tts = StreamingXTTSClient(self.config["tts"])
+                    status("STREAM", "Streaming XTTS initialized")
+                else:
+                    self.tts = XTTSClient(self.config["tts"])
+                    status("TTS", "XTTS v2 engine (authentic BT voice)")
+            
             self.tts.ensure_ready()
             success("TTS ready")
         except Exception as e:
@@ -398,7 +447,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
         # [5] BT original clips + semantic matching
         self._load_bt_original_clips()
-        self._initialize_semantic_matching()
+        # Semantic matching index is lazy-loaded on first use
 
         # [6] Action Handler
         try:
@@ -634,6 +683,18 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         loading_bar("Generating standby clips", total_missing, total_missing)
 
         success(f"Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
+
+        # Pre-compute a shortlist of available standby clips for instant playback
+        standby_phrases = self.config.get("pipeline", {}).get("standby_phrases", [])
+        self._standby_shortlist = []
+        for phrase in standby_phrases:
+            key = self._normalize_phrase(phrase)
+            path = self.standby_clips.get(key)
+            if path and Path(path).exists():
+                self._standby_shortlist.append(path)
+        if not self._standby_shortlist:
+            # Fallback: grab any available standby clip
+            self._standby_shortlist = [p for p in self.standby_clips.values() if Path(p).exists()]
 
     def run(self):
         """Main interaction loop."""
