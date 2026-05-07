@@ -25,6 +25,18 @@ class WhisperSTT:
         self.language = config.get("language", "en")
         self._model = None
 
+    def _is_clean_audio(self, audio: np.ndarray) -> bool:
+        """Quick check: is the audio already clean enough to skip noise reduction?"""
+        if len(audio) < 100:
+            return True
+        rms = np.sqrt(np.mean(audio ** 2))
+        peak = np.max(np.abs(audio))
+        if peak < 1e-6:
+            return True
+        # High crest factor = clean speech, low = noisy
+        crest_factor = peak / (rms + 1e-10)
+        return crest_factor > 8.0
+
     @property
     def model(self):
         """Lazy-load the Whisper model."""
@@ -45,19 +57,15 @@ class WhisperSTT:
             processed_audio_path = audio_path
             if audio_path.endswith('.wav'):
                 try:
-                    # Load audio and apply noise reduction
                     audio_data, sample_rate = sf.read(audio_path)
                     if len(audio_data.shape) > 1:
-                        audio_data = audio_data[:, 0]  # Use only first channel if stereo
-                    if len(audio_data) > 0:
+                        audio_data = audio_data[:, 0]
+                    if len(audio_data) > 0 and not self._is_clean_audio(audio_data):
                         cleaned_audio = self._reduce_noise(audio_data, sample_rate)
-                        
-                        # Save processed audio to temporary file in session cache
                         stt_temp = get_stt_temp_dir()
                         processed_audio_path = tempfile.mktemp(suffix=".wav", dir=str(stt_temp))
                         sf.write(processed_audio_path, cleaned_audio, sample_rate)
                 except Exception as preprocess_error:
-                    # If preprocessing fails, use original audio
                     warning(f"Audio preprocessing failed: {preprocess_error}")
                     processed_audio_path = audio_path
             
@@ -182,22 +190,35 @@ class WhisperSTT:
     def transcribe_buffer(self, audio_buffer: np.ndarray, sample_rate: int = 16000) -> dict:
         """Transcribe from an in-memory audio buffer."""
         try:
-            # Apply noise reduction for better performance in noisy environments
-            if len(audio_buffer) > 0:
-                cleaned_audio = self._reduce_noise(audio_buffer, sample_rate)
-            else:
-                cleaned_audio = audio_buffer
+            if len(audio_buffer) > 0 and not self._is_clean_audio(audio_buffer):
+                audio_buffer = self._reduce_noise(audio_buffer, sample_rate)
             
-            stt_temp = get_stt_temp_dir()
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, dir=str(stt_temp)) as f:
-                sf.write(f.name, cleaned_audio, sample_rate)
-                result = self.transcribe(f.name)
-                try:
-                    os.remove(f.name)
-                except Exception as cleanup_error:
-                    warning(f"Failed to clean up temporary file: {cleanup_error}")
-            return result
+            result = self.model.transcribe(
+                audio_buffer.astype(np.float32),
+                language=self.language,
+                fp16=False,
+            ) if self.model else {}
+            
+            text_raw = result.get("text", "") if isinstance(result, dict) else ""
+            text = text_raw.strip() if isinstance(text_raw, str) else ""
+            
+            segments = result.get("segments", []) if result and isinstance(result, dict) else []
+            if segments and isinstance(segments, list):
+                avg_logprob = sum(s.get("avg_logprob", 0) if isinstance(s, dict) else 0 for s in segments) / len(segments)
+                confidence = math.exp(avg_logprob) if isinstance(avg_logprob, (int, float)) else 0.0
+            else:
+                confidence = 0.0
+            
+            return {
+                "text": text,
+                "confidence": confidence,
+                "language": result.get("language", self.language),
+            }
         except Exception as e:
+            error(f"STT error: {e}")
+            import logging
+            logging.error(f"STT Transcription Error: {e}", exc_info=True)
+            return {"text": "", "confidence": 0.0, "language": self.language}
             return {
                 "text": "",
                 "confidence": 0.0,

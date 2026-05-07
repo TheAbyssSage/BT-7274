@@ -11,7 +11,7 @@ startup:
   # and BT runs like a local ollama in-terminal chat system.
 
 stt:
-  model: base.en                  # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
+  model: tiny.en                  # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
   language: en
   device: mps                     # 'mps' = Metal GPU (M1), 'cpu' = fallback
   sample_rate: 16000
