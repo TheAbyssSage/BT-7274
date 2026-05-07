@@ -28,6 +28,35 @@ except ImportError:
     SEMANTIC_SIMILARITY_AVAILABLE = False
     cosine_similarity = None
 
+# Pre-compiled intent patterns for single-pass classification
+_INTENT_PATTERNS = [
+    ("gratitude", re.compile(r'\b(thank|thanks|thx|appreciate|grateful)\b', re.IGNORECASE)),
+    ("weather", re.compile(r'\b(weather|temperature|forecast|rain|snow|sunny|cloudy|humid)\b', re.IGNORECASE)),
+    ("time", re.compile(r'\bwhat\s+(time|date|day)|current\s+time|today\'?s?\s+date\b', re.IGNORECASE)),
+    ("location", re.compile(r'\b(my\s+location|where\s+(am\s+i|are\s+we)|find\s+my\s+location)\b', re.IGNORECASE)),
+    ("status", re.compile(r'\b(your\s+status|status\s+report|systems?\s+(check|status)|how\s+are\s+you)\b', re.IGNORECASE)),
+    ("vpn_status", re.compile(r'\b(vpn\s+status|cloak\s+status|is\s+(the\s+)?(vpn|cloak))\b', re.IGNORECASE)),
+    ("vpn_toggle", re.compile(r'\b(turn\s+(on|off)\s+(the\s+)?(vpn|cloak)|enable\s+(vpn|cloak)|disable\s+(vpn|cloak)|engage\s+(cloak|vpn))\b', re.IGNORECASE)),
+    ("search", re.compile(r'\b(who\s+(won|was)|news|latest|search|look\s+up|tell\s+me\s+about|find|when\s+is|how\s+much)\b', re.IGNORECASE)),
+    ("vision", re.compile(r'\b(what\s+do\s+you\s+see|look\s+around|scan\s+the\s+room|optical\s+sensors?)\b', re.IGNORECASE)),
+    ("todo", re.compile(r'\b(add\s+(a\s+)?(task|todo|to-do)|complete\s+(task|todo)|list\s+(tasks?|todos?|to-dos?)|remove\s+(task|todo)|clear\s+(tasks?|todos?))\b', re.IGNORECASE)),
+    ("note", re.compile(r'\b(make\s+(a\s+)?note|add\s+(a\s+)?note|list\s+notes?|read\s+notes?)\b', re.IGNORECASE)),
+    ("log", re.compile(r'\b(make\s+log|read\s+logs?|view\s+logs?|protocol\s+brief)\b', re.IGNORECASE)),
+    ("translate", re.compile(r'\b(translate|translation|in\s+\w+\s+please)\b', re.IGNORECASE)),
+    ("hud", re.compile(r'\b(open\s+hud|show\s+hud|activate\s+hud|pilot\s+hud)\b', re.IGNORECASE)),
+    ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
+    ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
+]
+
+
+def classify_intents(text: str) -> set[str]:
+    """Single-pass intent classification. Returns set of detected intent names."""
+    detected = set()
+    for name, pattern in _INTENT_PATTERNS:
+        if pattern.search(text):
+            detected.add(name)
+    return detected
+
 logger = logging.getLogger("BT7274")
 
 
@@ -459,26 +488,16 @@ class CommandProcessingMixin(_AssistantBase):
         followup_tts_text = None
         lower_text = text.lower()
 
+        # Single-pass intent classification
+        intents = classify_intents(text)
+
         # Special handling for gratitude expressions
         # Check if gratitude is the ONLY intent (no other actionable commands)
-        gratitude_only = self._is_expression_of_gratitude(text)
+        gratitude_only = "gratitude" in intents
         if gratitude_only:
             # Check if the same utterance also contains other actionable commands
-            has_other_commands = (
-                self._is_vpn_toggle_command(text) or
-                self._is_todo_command(text) or
-                self._is_note_command(text) or
-                self._is_weather_query(text) or
-                self._is_time_query(text) or
-                self._is_location_query(text) or
-                self._is_status_query(text) or
-                self._is_vpn_status_query(text) or
-                self._is_search_query(text) or
-                self._is_travel_query(text) or
-                self._is_protocol_command(text) or
-                self._is_maintenance_command(text)
-            )
-            if not has_other_commands:
+            other_intents = intents - {"gratitude"}
+            if not other_intents:
                 quote("BT-7274", "You're welcome, Pilot.")
                 # Try to play pre-recorded "you're welcome" clip
                 key = self._normalize_phrase("you're welcome pilot")
@@ -523,7 +542,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("gratitude")
 
         # Check for vision / "what do you see" queries
-        if self._is_vision_query(text) and "vision" not in handled_types:
+        if "vision" in intents and "vision" not in handled_types:
             status("VISION", "Activating optical sensors...")
             try:
                 if self.perception:
@@ -568,7 +587,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("vision")
 
         # Check for HUD open request
-        if self._is_hud_query(text) and "hud" not in handled_types:
+        if "hud" in intents and "hud" not in handled_types:
             status("HUD", "Activating Pilot HUD...")
             try:
                 from bt7274_perception.vision_viewer import VisionViewerWindow
@@ -590,7 +609,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("hud")
 
         # Check for HUD close request
-        if self._is_hud_close_query(text) and "hud" not in handled_types:
+        if "hud_close" in intents and "hud" not in handled_types:
             status("HUD", "Closing Pilot HUD...")
             try:
                 if self.vision_viewer:
@@ -606,7 +625,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("hud")
 
         # Check for location query (but not if part of longer question)
-        if self._is_location_query(text):
+        if "location" in intents:
             status("LOC", "Locating Pilot...")
             try:
                 location_result = self.actions.execute("get_location") if self.actions else "Location unavailable"
@@ -627,7 +646,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("location")
 
         # Check for time query
-        if self._is_time_query(text):
+        if "time" in intents:
             status("TIME", "Checking chronometer...")
             try:
                 time_result = self.actions.execute("tell_time") if self.actions else "Time unavailable"
@@ -649,7 +668,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("time")
 
         # Check for status query - respond with BT-7274 original voice clips + TTS system status
-        if self._is_status_query(text):
+        if "status" in intents:
             status("DIAG", "Running systems diagnostic...")
             status_clip = self._get_status_response_clip()
             if status_clip:
@@ -672,7 +691,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("status")
 
         # Check for VPN status query
-        if self._is_vpn_status_query(text):
+        if "vpn_status" in intents:
             status("VPN", "Checking cloak status...")
             if self.vpn:
                 vpn_status = self.vpn.get_status()
@@ -704,7 +723,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("vpn")
 
         # Check for weather query
-        if self._is_weather_query(text):
+        if "weather" in intents:
             status("WEATHER", "Fetching local data...")
             try:
                 # Check if user specified a location in the query
@@ -759,7 +778,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("weather")
 
         # Check for search intent - always let LLM handle these with search results
-        if self._is_search_query(text) and "search" not in handled_types:
+        if "search" in intents and "search" not in handled_types:
             status("SEARCH", "Looking up...")
             try:
                 # Enrich query with location context
@@ -805,7 +824,7 @@ class CommandProcessingMixin(_AssistantBase):
                 handled_types.add("search")
 
         # Check for TTS cache clearing request
-        if "clear tts cache" in text.lower() or "clear cache" in text.lower():
+        if "cache_clear" in intents:
             cache_hit("Clearing TTS cache...")
             self.clear_tts_cache()
             response_parts.append("TTS cache cleared, Pilot.")
@@ -863,7 +882,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("maintenance")
 
         # Check for direct VPN/cloak on/off commands
-        if self._is_vpn_toggle_command(text) and "maintenance" not in handled_types:
+        if "vpn_toggle" in intents and "maintenance" not in handled_types:
             lower = text.lower()
             # Determine if turning on or off
             on_phrases = [
@@ -1005,7 +1024,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("protocol")
 
         # Check for to-do commands (using improved detection)
-        if self._is_todo_command(text):
+        if "todo" in intents:
             status("PROTOCOL", "Adding to-do...")
             try:
                 # Extract task text after the command phrase
@@ -1106,7 +1125,7 @@ class CommandProcessingMixin(_AssistantBase):
             handled_types.add("protocol")
 
         # Check for log commands (read logs, make log, delete log)
-        if self._is_log_command(text) and "log" not in handled_types:
+        if "log" in intents and "log" not in handled_types:
             import re
             lower = text.lower()
             # Determine log type
@@ -1203,7 +1222,7 @@ class CommandProcessingMixin(_AssistantBase):
         # ─── Translator Commands ───────────────────────────────────────────────
 
         # Check for translation session start
-        if self._is_translate_command(text) and "translate" not in handled_types:
+        if "translate" in intents and "translate" not in handled_types:
             status("TRANSLATE", "Initializing translation protocol...")
             try:
                 if self.translator:
@@ -1723,7 +1742,7 @@ class CommandProcessingMixin(_AssistantBase):
         quote("Pilot", text)
 
         # Check for gratitude expressions FIRST (before stop phrases)
-        if self._is_expression_of_gratitude(text):
+        if "gratitude" in classify_intents(text):
             quote("BT-7274", "You're welcome, Pilot.")
             # Try to play pre-recorded "you're welcome" clip
             key = self._normalize_phrase("you're welcome pilot")
