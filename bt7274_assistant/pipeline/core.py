@@ -347,6 +347,35 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             mode_display = "Standard" if self.performance_mode == "standard" else "Streaming"
             status("USING", f"{mode_display} (preselected)")
 
+        # Pre-init: TTS engine selection
+        if self.tts_engine is None:
+            info("[1] Piper — Sub-second synthesis (default)")
+            info("[2] XTTS v2 — Authentic BT-7274 voice (~16s)")
+            info("[3] VITS — Balanced (~2s)")
+            while True:
+                try:
+                    choice = prompt("Select TTS engine [1-3]:")
+                    if choice == "1" or choice == "":
+                        self.tts_engine = "piper"
+                        status("SELECT", "Piper (sub-second)")
+                        break
+                    elif choice == "2":
+                        self.tts_engine = "xtts"
+                        status("SELECT", "XTTS v2 (authentic BT voice)")
+                        break
+                    elif choice == "3":
+                        self.tts_engine = "vits"
+                        status("SELECT", "VITS (balanced)")
+                        break
+                    else:
+                        warning("Invalid choice. Please enter 1, 2, or 3.")
+                except (EOFError, KeyboardInterrupt):
+                    info("Exiting...")
+                    sys.exit(0)
+        else:
+            engine_labels = {"piper": "Piper (sub-second)", "xtts": "XTTS v2 (authentic)", "vits": "VITS (balanced)"}
+            status("USING", f"{engine_labels.get(self.tts_engine, self.tts_engine)} (preselected)")
+
         spacer()
         section("Initializing Systems")
 
