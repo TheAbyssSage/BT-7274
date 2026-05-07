@@ -35,6 +35,7 @@ from bt7274_assistant.stt import WhisperSTT
 from bt7274_assistant.llm import OllamaClient, CloudLLMClient
 from bt7274_assistant.tts import XTTSClient
 from bt7274_assistant.tts_fast import StreamingXTTSClient
+from bt7274_assistant.tts_piper import FastPiperTTS
 from bt7274_assistant.ui import (
     header, section, sub_section, info, success, warning, error, status,
     bullet, spacer, divider, footer, prompt, choice_menu, box, progress, loading_bar,
@@ -52,7 +53,7 @@ from bt7274_assistant.translator import TranslatorTool
 class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMixin, CommandProcessingMixin):
     """BT-7274 Voice Assistant - Main Pipeline."""
 
-    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None, console_chat_mode: bool = False):
+    def __init__(self, config_path: Optional[str] = None, ai_mode: str = "local", performance_mode: Optional[str] = None, console_chat_mode: bool = False, tts_engine: Optional[str] = None):
         if config_path is None:
             # core.py is in bt7274_assistant/pipeline/, config.yaml is in bt7274_assistant/
             config_path = str(Path(__file__).parent.parent / "config.yaml")
@@ -60,9 +61,10 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.ai_mode = ai_mode  # "local" or "cloud"
         self.performance_mode = performance_mode  # "standard" or "performance"
         self.console_chat_mode = console_chat_mode  # True = text input, no mic
+        self.tts_engine = tts_engine  # Override for config's tts.engine (piper/xtts/vits)
         self.stt: Optional[WhisperSTT] = None
         self.llm: Optional[OllamaClient] = None
-        self.tts: Optional[XTTSClient | StreamingXTTSClient] = None  # Can be XTTSClient or StreamingXTTSClient
+        self.tts: Optional[XTTSClient | StreamingXTTSClient | FastPiperTTS] = None
         self.actions: Optional[ActionHandler] = None
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
@@ -382,12 +384,29 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
         # [3] Text-to-Speech
         try:
-            if self.performance_mode == "performance":
-                self.tts = StreamingXTTSClient(self.config["tts"])
-                status("STREAM", "Streaming TTS initialized")
-            else:
+            tts_engine = self.tts_engine or self.config.get("tts", {}).get("engine", "xtts")
+            
+            if tts_engine == "piper":
+                piper_tts = FastPiperTTS(self.config["tts"])
+                if piper_tts._is_ready():
+                    self.tts = piper_tts
+                    status("TTS", "Piper engine (sub-second)")
+                else:
+                    warning("Piper not available, falling back to VITS")
+                    tts_engine = "vits"
+            
+            if tts_engine == "vits":
                 self.tts = XTTSClient(self.config["tts"])
-                success("Standard TTS initialized")
+                self.tts.model_name = "tts_models/en/ljspeech/vits"
+                status("TTS", "VITS engine (fast)")
+            elif tts_engine == "xtts":
+                if self.performance_mode == "performance":
+                    self.tts = StreamingXTTSClient(self.config["tts"])
+                    status("STREAM", "Streaming XTTS initialized")
+                else:
+                    self.tts = XTTSClient(self.config["tts"])
+                    status("TTS", "XTTS v2 engine (authentic BT voice)")
+            
             self.tts.ensure_ready()
             success("TTS ready")
         except Exception as e:
