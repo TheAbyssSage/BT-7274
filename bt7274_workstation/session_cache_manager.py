@@ -180,7 +180,11 @@ def save_location_cache(
     region: str,
     country: str,
 ) -> bool:
-    """Persist the last known location."""
+    """Persist the last known location (encrypted)."""
+    from bt7274_workstation.log_encryption import LogEncryptor
+    from bt7274_workstation.log_manager import get_encryption_key_path, ensure_encryption_key
+    ensure_encryption_key()
+    encryptor = LogEncryptor(key_path=str(get_encryption_key_path()))
     data = {
         "lat": lat,
         "lon": lon,
@@ -189,24 +193,68 @@ def save_location_cache(
         "country": country,
         "timestamp": datetime.now().isoformat(),
     }
-    return save_json(get_location_cache_path(), data)
+    encrypted = encryptor.encrypt_json(data)
+    path = get_location_cache_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            f.write(encrypted)
+        return True
+    except Exception:
+        return False
 
 
 def load_location_cache() -> Optional[dict]:
-    """Load the last known location."""
-    return load_json(get_location_cache_path(), None)
+    """Load the last known location (decrypted)."""
+    from bt7274_workstation.log_encryption import LogEncryptor
+    from bt7274_workstation.log_manager import get_encryption_key_path, ensure_encryption_key
+    path = get_location_cache_path()
+    if not path.exists():
+        return None
+    try:
+        ensure_encryption_key()
+        encryptor = LogEncryptor(key_path=str(get_encryption_key_path()))
+        with open(path, "r") as f:
+            encrypted = f.read()
+        return encryptor.decrypt_json(encrypted)
+    except Exception:
+        return None
 
 
 # ─── Session state ────────────────────────────────────────────────
 
 def save_session_state(state: dict[str, Any]) -> bool:
-    """Persist current session metadata."""
-    return save_json(get_session_state_path(), state)
+    """Persist current session metadata (encrypted)."""
+    from bt7274_workstation.log_encryption import LogEncryptor
+    from bt7274_workstation.log_manager import get_encryption_key_path, ensure_encryption_key
+    ensure_encryption_key()
+    encryptor = LogEncryptor(key_path=str(get_encryption_key_path()))
+    encrypted = encryptor.encrypt_json(state)
+    path = get_session_state_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            f.write(encrypted)
+        return True
+    except Exception:
+        return False
 
 
 def load_session_state() -> Optional[dict]:
-    """Load the last session state."""
-    return load_json(get_session_state_path(), None)
+    """Load the last session state (decrypted)."""
+    from bt7274_workstation.log_encryption import LogEncryptor
+    from bt7274_workstation.log_manager import get_encryption_key_path, ensure_encryption_key
+    path = get_session_state_path()
+    if not path.exists():
+        return None
+    try:
+        ensure_encryption_key()
+        encryptor = LogEncryptor(key_path=str(get_encryption_key_path()))
+        with open(path, "r") as f:
+            encrypted = f.read()
+        return encryptor.decrypt_json(encrypted)
+    except Exception:
+        return None
 
 
 # ─── Speaker latents (PyTorch) ────────────────────────────────────

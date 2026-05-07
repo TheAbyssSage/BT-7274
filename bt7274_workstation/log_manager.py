@@ -99,6 +99,27 @@ def daily_log_path(directory: Path, prefix: str) -> Path:
     return directory / f"{prefix}_{today}.log"
 
 
+# ─── Encryption key management ────────────────────────────────────
+
+def get_encryption_key_path() -> Path:
+    """Path to the encryption key file."""
+    return LOGS_ROOT / "bt7274.key"
+
+
+def ensure_encryption_key() -> bool:
+    """Generate an encryption key if one doesn't exist. Returns True if new key was created."""
+    from bt7274_workstation.log_encryption import generate_key
+    key_path = get_encryption_key_path()
+    if not key_path.exists():
+        key = generate_key()
+        with open(key_path, "wb") as f:
+            f.write(key)
+        # Restrict permissions on the key file
+        os.chmod(key_path, 0o600)
+        return True
+    return False
+
+
 # ─── Atomic JSONL append ──────────────────────────────────────────
 
 def append_jsonl(path: Path, entry: dict) -> bool:
