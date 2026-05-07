@@ -1318,13 +1318,19 @@ class CommandProcessingMixin(_AssistantBase):
             # Combine all collected responses
             response = " ".join(response_parts)
         elif not handled_types:
-            # No specific handlers matched, use normal LLM processing
+            # No specific handlers matched, use streaming LLM for faster first-token time
             log_llm("Thinking...")
             llm_start = time.time()
             try:
-                response = self.llm.chat(text) if self.llm else "Response unavailable"
+                if self.llm:
+                    tokens = []
+                    for token in self.llm.chat_stream(text):
+                        tokens.append(token)
+                    response = "".join(tokens)
+                else:
+                    response = "Response unavailable"
             except Exception as e:
-                self._report_error("llm", "chat", e, {"pilot_message": text})
+                self._report_error("llm", "chat_stream", e, {"pilot_message": text})
                 response = "Pilot, my neural network is experiencing interference. Please try again."
             llm_response_time = time.time() - llm_start
         else:
