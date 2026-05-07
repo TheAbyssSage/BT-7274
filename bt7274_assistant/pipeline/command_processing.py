@@ -368,6 +368,30 @@ class CommandProcessingMixin(_AssistantBase):
                                 
             return None
 
+        def _maybe_log_autonomously_async(pilot_message: str, bt_response: str):
+            """Fire-and-forget autonomous logging in a background thread."""
+            if not self.autonomous_log_enabled:
+                return
+            if time.time() < self.autonomous_log_cooldown_until:
+                return
+            if self.autonomous_logs_this_session >= self.autonomous_log_max_per_session:
+                return
+            if not self.llm:
+                return
+            
+            import hashlib
+            content_hash = hashlib.md5(f"{pilot_message}|{bt_response}".encode()).hexdigest()[:16]
+            if content_hash == self._last_autonomous_log_hash:
+                return
+            
+            def _do_log():
+                decision = _should_log_autonomously(pilot_message, bt_response)
+                if decision:
+                    _perform_autonomous_log(pilot_message, bt_response)
+            
+            t = threading.Thread(target=_do_log, daemon=True)
+            t.start()
+
         def _should_log_autonomously(pilot_message: str, bt_response: str) -> dict | None:
             """
             Ask the LLM whether this interaction is worth logging to BT's memory.
@@ -1691,7 +1715,7 @@ class CommandProcessingMixin(_AssistantBase):
         # ─── Autonomous BT Memory Logging ───────────────────────────────────
         # Let BT decide if this interaction is worth remembering
         try:
-            _perform_autonomous_log(text, clean_response)
+            _maybe_log_autonomously_async(text, clean_response)
         except Exception as e:
             # Never let autonomous logging break the main pipeline
             self._report_error("pipeline", "autonomous_log", e)
