@@ -67,6 +67,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.location: Optional[LocationProvider] = None
         self.recorder: Optional[PersistentAudioRecorder] = None
         self.standby_clips: dict[str, str] = {}  # phrase -> wav_path
+        self._standby_shortlist: list[str] = []  # Pre-computed standby clip paths
         self.bt_clips: dict[str, str] = {}  # phrase -> wav_path for BT's original lines
         self.bt_clip_texts: dict[str, str] = {}  # filename -> original text for BT's lines
         self.running = False
@@ -634,6 +635,18 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         loading_bar("Generating standby clips", total_missing, total_missing)
 
         success(f"Standby check complete. Loaded: {loaded}, Generated: {generated}, Failed: {failed}")
+
+        # Pre-compute a shortlist of available standby clips for instant playback
+        standby_phrases = self.config.get("pipeline", {}).get("standby_phrases", [])
+        self._standby_shortlist = []
+        for phrase in standby_phrases:
+            key = self._normalize_phrase(phrase)
+            path = self.standby_clips.get(key)
+            if path and Path(path).exists():
+                self._standby_shortlist.append(path)
+        if not self._standby_shortlist:
+            # Fallback: grab any available standby clip
+            self._standby_shortlist = [p for p in self.standby_clips.values() if Path(p).exists()]
 
     def run(self):
         """Main interaction loop."""

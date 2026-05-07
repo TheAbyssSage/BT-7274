@@ -225,56 +225,15 @@ class CommandProcessingMixin(_AssistantBase):
 
         # Helper: speak a standby phrase immediately (pre-recorded if available)
         def speak_standby(task: str = "generic"):
-            task_key = f"standby_phrases_{task}"
-            phrases = self.config["pipeline"].get(task_key) or self.config["pipeline"].get("standby_phrases", ["Copy that, Pilot. Stand by."])
+            """Play a pre-computed standby clip instantly."""
             import random
-            
-            # Update personality weights based on current context
-            current_topic = self.current_context.get("topic", "neutral")
-            self._update_personality_weights(current_topic)
-            
-            # Apply personality-based weighting to phrases
-            weighted_phrases = self._apply_personality_weights(phrases, " ".join(phrases))
-            
-            # Try context-aware phrase selection first
-            context_phrases = self._get_context_aware_phrases()
-            if context_phrases:
-                # Filter to only phrases that are in our standby phrases and context-aware
-                matching_phrases = [p for p in phrases if self._normalize_phrase(p) in context_phrases]
-                if matching_phrases:
-                    # Apply personality weighting to context matches
-                    weighted_context = self._apply_personality_weights(matching_phrases, " ".join(matching_phrases))
-                    if weighted_context:
-                        phrase = weighted_context[0][0]  # Take highest weighted
-                        status("STBY", f"[Context+Personality] {phrase}")
-                    else:
-                        phrase = random.choice(matching_phrases)
-                        status("STBY", f"[Context-aware] {phrase}")
-                else:
-                    if weighted_phrases:
-                        phrase = weighted_phrases[0][0]  # Take highest weighted
-                        status("STBY", f"[Personality] {phrase}")
-                    else:
-                        phrase = random.choice(phrases)
-                        status("STBY", phrase)
-            else:
-                if weighted_phrases:
-                    phrase = weighted_phrases[0][0]  # Take highest weighted
-                    status("STBY", f"[Personality] {phrase}")
-                else:
-                    phrase = random.choice(phrases)
-                    status("STBY", phrase)
-
-            # Try pre-recorded clip first (BT's original clips take priority)
-            key = self._normalize_phrase(phrase)
-            wav_path = self.bt_clips.get(key) or self.standby_clips.get(key)
-            if wav_path and Path(wav_path).exists():
-                play_audio(wav_path)
+            if self._standby_shortlist:
+                path = random.choice(self._standby_shortlist)
+                play_audio(path)
                 return
-
-            # Fallback: generate on the fly
+            # Fallback: TTS
             if self.tts:
-                wav = self.tts.speak(phrase)
+                wav = self.tts.speak("Copy that, Pilot. Stand by.")
                 if wav:
                     play_audio(wav)
                 
