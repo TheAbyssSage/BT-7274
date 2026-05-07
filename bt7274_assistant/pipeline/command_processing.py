@@ -94,6 +94,7 @@ class CommandProcessingMixin(_AssistantBase):
 
         # Add common response patterns to generic
         common_responses = [
+            # Acknowledgments
             "Processing complete, Pilot.",
             "Operation complete, Pilot.",
             "Task completed, Pilot.",
@@ -101,7 +102,41 @@ class CommandProcessingMixin(_AssistantBase):
             "Sequence complete, Pilot.",
             "Protocol fulfilled, Pilot.",
             "Mission accomplished, Pilot.",
-            "Objective achieved, Pilot."
+            "Objective achieved, Pilot.",
+            "Copy that, Pilot.",
+            "Acknowledged, Pilot.",
+            "Understood, Pilot.",
+            "Affirmative, Pilot.",
+            "Confirmed, Pilot.",
+            # Standby / processing
+            "Stand by, Pilot.",
+            "Processing your request, Pilot.",
+            "One moment, Pilot.",
+            "Calculating, Pilot.",
+            "Analyzing, Pilot.",
+            # Status
+            "All systems operational, Pilot.",
+            "Systems nominal, Pilot.",
+            "Ready for deployment, Pilot.",
+            "Standing by for orders, Pilot.",
+            # Time/location responses
+            "Checking chronometer, Pilot.",
+            "Accessing navigation systems, Pilot.",
+            "Triangulating position, Pilot.",
+            # Weather
+            "Accessing atmospheric sensors, Pilot.",
+            "Fetching environmental data, Pilot.",
+            # Search
+            "Searching data networks, Pilot.",
+            "Querying external databases, Pilot.",
+            # Errors
+            "Unable to comply, Pilot.",
+            "Systems experiencing interference, Pilot.",
+            "Neural network connection lost, Pilot.",
+            # Gratitude
+            "You're welcome, Pilot.",
+            "Glad to assist, Pilot.",
+            "Always ready to serve, Pilot.",
         ]
         phrases_by_category.setdefault("generic", []).extend(common_responses)
 
