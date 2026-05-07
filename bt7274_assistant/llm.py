@@ -9,6 +9,8 @@ from typing import Optional
 
 import requests
 
+from bt7274_workstation.security_guard import Sanitizer
+
 
 class OllamaClient:
     def __init__(self, config: dict):
@@ -19,13 +21,15 @@ class OllamaClient:
         self.max_tokens = config.get("max_tokens", 150)
         self.system_prompt = config.get("system_prompt", "")
         self.history = []
+        self._sanitizer = Sanitizer()
 
     def chat(self, message: str) -> str:
         """Send a message to Ollama and return the response text."""
         # Build messages
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
-        messages.append({"role": "user", "content": message})
+        sanitized_message = self._sanitizer.redact(message)
+        messages.append({"role": "user", "content": sanitized_message})
 
         try:
             response = requests.post(
@@ -46,7 +50,7 @@ class OllamaClient:
             reply = data.get("message", {}).get("content", "")
 
             # Update history (keep last 10 exchanges)
-            self.history.append({"role": "user", "content": message})
+            self.history.append({"role": "user", "content": sanitized_message})
             self.history.append({"role": "assistant", "content": reply})
             if len(self.history) > 20:
                 self.history = self.history[-20:]
@@ -99,13 +103,15 @@ class CloudLLMClient:
         self.max_tokens = config.get("max_tokens", 150)
         self.system_prompt = config.get("system_prompt", "")
         self.history = []
+        self._sanitizer = Sanitizer()
 
     def chat(self, message: str) -> str:
         """Send a message to cloud Ollama and return the response text."""
         # Build messages
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
-        messages.append({"role": "user", "content": message})
+        sanitized_message = self._sanitizer.redact(message)
+        messages.append({"role": "user", "content": sanitized_message})
 
         try:
             response = requests.post(
@@ -126,7 +132,7 @@ class CloudLLMClient:
             reply = data.get("message", {}).get("content", "")
 
             # Update history (keep last 10 exchanges)
-            self.history.append({"role": "user", "content": message})
+            self.history.append({"role": "user", "content": sanitized_message})
             self.history.append({"role": "assistant", "content": reply})
             if len(self.history) > 20:
                 self.history = self.history[-20:]
