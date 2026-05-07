@@ -34,15 +34,10 @@ def suppress_stdout():
 
 
 def play_audio(wav_path: str, device: Optional[int] = None):
-    """Play a WAV audio file through the default output device."""
-    # Use afplay on macOS as primary (avoids PortAudio conflicts with recorder)
-    if os.system(f'afplay "{wav_path}"') == 0:
-        return
-    # Fallback to sounddevice if afplay fails
+    """Play a WAV audio file. Uses afplay on macOS for reliability."""
+    import subprocess
     try:
-        data, samplerate = sf.read(wav_path)
-        sd.play(data, samplerate, device=device)
-        sd.wait()
+        subprocess.run(["afplay", wav_path], check=True, capture_output=True)
     except Exception as e:
         error(f"Audio playback error: {e}")
 
