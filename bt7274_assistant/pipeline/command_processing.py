@@ -18,6 +18,7 @@ from bt7274_assistant.ui import (
 )
 from bt7274_assistant.utils import play_audio, record_until_silence
 from bt7274_workstation.voice_telemetry import VoiceTelemetry
+from bt7274_workstation.security_guard import PromptGuard
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -181,6 +182,35 @@ class CommandProcessingMixin(_AssistantBase):
             if wake_words and not any(ww.lower() in text.lower() for ww in wake_words):
                 info("Wake word not detected. Ignoring.")
                 return False
+
+        # Prompt injection scan
+        prompt_guard = PromptGuard()
+        scan_result = prompt_guard.scan(text)
+        if scan_result.is_suspicious:
+            warning(f"Prompt injection detected: {', '.join(scan_result.reasons)}")
+            self._report_error("security", "prompt_injection",
+                ValueError(f"Injection detected: {scan_result.reasons}"),
+                {"user_input": text[:200]}
+            )
+            # Log the blocked attempt
+            try:
+                self.logger.log_interaction(
+                    pilot_message=text,
+                    bt_response="[BLOCKED - prompt injection detected]",
+                    interaction_type="security_blocked",
+                    ai_mode=self.ai_mode,
+                    performance_mode=self.performance_mode or "standard",
+                    session_id=self.session_id,
+                    protocol_reference="Protocol 3: Protect the Pilot",
+                    pilot_trust_level=self.pilot_trust_level,
+                    metadata={
+                        "block_reason": "prompt_injection",
+                        "reasons": scan_result.reasons,
+                    }
+                )
+            except Exception:
+                pass
+            return False
 
         # Voice telemetry: log wake + STT
         if self.voice_telemetry:

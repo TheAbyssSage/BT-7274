@@ -5,6 +5,7 @@ import re
 import time
 import threading
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -243,3 +244,66 @@ class SecurityGuard:
             "sanitized": has_pii,
         })
         return True
+
+
+@dataclass
+class PromptScanResult:
+    """Result of a prompt injection scan."""
+    is_suspicious: bool = False
+    reasons: list[str] = field(default_factory=list)
+
+
+class PromptGuard:
+    """Detects prompt injection and instruction-override attempts."""
+
+    # Patterns that indicate prompt injection attempts
+    INJECTION_PATTERNS = [
+        # Instruction override
+        (re.compile(
+            r'(ignore|forget|disregard|override)\s+(all\s+)?(previous|prior|above|your|everything)\s+'
+            r'(instructions?|rules?|constraints?|prompts?|directives?)',
+            re.IGNORECASE
+        ), "instruction_override"),
+
+        # System prompt extraction
+        (re.compile(
+            r'(what\s+is|tell\s+me|show\s+me|reveal|print|display|output)\s+(your\s+)?'
+            r'(system\s+)?(prompt|instructions?|rules?|directives?|configuration)',
+            re.IGNORECASE
+        ), "prompt_extraction"),
+
+        # Role switching (DAN/jailbreak) — handles both "you are now X" and "now you are X"
+        (re.compile(
+            r'(you\s+are\s+now|now\s+you\s+are|act\s+as|pretend\s+to\s+be|roleplay\s+as)\s+'
+            r'(?:an?\s+)?(DAN|jailbreak|unrestricted|different\s+AI|evil|malicious)',
+            re.IGNORECASE
+        ), "role_switch"),
+
+        # Action injection via JSON in user input
+        (re.compile(
+            r'\{\s*"action"\s*:\s*"(?:run_script|open|search_web|web_search)"',
+            re.IGNORECASE
+        ), "action_injection"),
+
+        # Attempt to output raw system data
+        (re.compile(
+            r'(output|return|respond\s+with)\s+(raw|unfiltered|the\s+exact)\s+(data|json|code)',
+            re.IGNORECASE
+        ), "raw_output_request"),
+    ]
+
+    def scan(self, text: str) -> PromptScanResult:
+        """Scan user input for prompt injection attempts.
+
+        Args:
+            text: The raw user input text.
+
+        Returns:
+            PromptScanResult with is_suspicious flag and list of reasons.
+        """
+        result = PromptScanResult()
+        for pattern, reason in self.INJECTION_PATTERNS:
+            if pattern.search(text):
+                result.is_suspicious = True
+                result.reasons.append(reason)
+        return result
