@@ -13,6 +13,8 @@ from typing import Optional
 
 import requests
 
+from bt7274_workstation.security_guard import Sanitizer
+
 
 class VisionEngine:
     """
@@ -44,6 +46,7 @@ class VisionEngine:
         self.vision_model = vision_model
         self.timeout = timeout
         self._available_models: Optional[list[str]] = None
+        self._sanitizer = Sanitizer()
 
     def _encode_image(self, image_path: str) -> str:
         """Base64-encode an image file for the Ollama API."""
@@ -124,6 +127,9 @@ class VisionEngine:
             prompt = self.BT_PERSONALITY_PROMPT if use_bt_personality else self.DEFAULT_VISION_PROMPT
         elif use_bt_personality:
             prompt = f"{self.BT_PERSONALITY_PROMPT}\n\n{prompt}"
+
+        # Sanitize custom prompts to prevent location/PII leak through vision
+        prompt = self._sanitizer.sanitize_llm_prompt(prompt, purpose="vision")
 
         # Encode image
         try:

@@ -28,6 +28,7 @@ from bt7274_workstation.session_cache_manager import (
     save_session_state,
     archive_and_clear_session,
 )
+from bt7274_workstation.security_guard import SecurityGuard, PromptGuard
 from bt7274_perception import PerceptionManager
 from bt7274_assistant.utils import play_audio, PersistentAudioRecorder, beep, record_until_silence
 from bt7274_assistant.stt import WhisperSTT
@@ -135,6 +136,19 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.autonomous_log_enabled: bool = self.config.get("llm", {}).get("autonomous_logging", {}).get("enabled", True)
         self.autonomous_log_cooldown_seconds: float = self.config.get("llm", {}).get("autonomous_logging", {}).get("cooldown_seconds", 60)
         self._last_autonomous_log_hash: str = ""  # Deduplication hash
+
+        # Security
+        security_config = self.config.get("security", {})
+        self.security_enabled = security_config.get("enabled", True)
+        if self.security_enabled:
+            self.security_guard = SecurityGuard(
+                allow_http_hosts=set(security_config.get("allow_http_hosts", ["ip-api.com"])),
+                max_calls_per_minute=security_config.get("rate_limits", {}),
+            )
+            self.prompt_guard = PromptGuard()
+        else:
+            self.security_guard = None
+            self.prompt_guard = None
 
         # Translator tool
         self.translator: Optional[TranslatorTool] = None
@@ -336,6 +350,12 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         # [0] Log directories
         self._ensure_log_directories()
         success("Log directories")
+
+        # Initialize encryption key if needed
+        if self.config.get("security", {}).get("encrypt_sensitive_logs", True):
+            from bt7274_workstation.log_manager import ensure_encryption_key
+            if ensure_encryption_key():
+                info("Generated new encryption key for sensitive log data.")
 
         # [1] Speech-to-Text
         if not self.console_chat_mode:

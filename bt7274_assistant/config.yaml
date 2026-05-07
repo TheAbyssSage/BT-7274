@@ -175,6 +175,31 @@ network_telemetry:
 voice_telemetry:
   enabled: true
 
+# Security Configuration
+security:
+  enabled: true
+  # PII / sensitive data redaction before sending to LLM
+  sanitize_llm_prompts: true
+  # Prompt injection detection
+  block_prompt_injection: true
+  # Rate limiting for external API calls (calls per minute)
+  rate_limits:
+    open-meteo: 30
+    ip-api: 10
+    duckduckgo: 20
+    ollama: 120
+  # HTTP hosts allowed (all others must use HTTPS)
+  allow_http_hosts:
+    - ip-api.com
+  # Encrypt sensitive data at rest (location cache, session state)
+  encrypt_sensitive_logs: true
+  # Audit logging for all outbound requests
+  audit_outbound_requests: true
+  # Dangerous shell command blocking
+  block_dangerous_commands: true
+  # Maximum shell command timeout (seconds)
+  shell_command_timeout: 30
+
 actions:
   enabled: true
   allowed_commands:
