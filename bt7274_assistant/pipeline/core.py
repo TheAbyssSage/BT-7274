@@ -399,7 +399,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
         # [5] BT original clips + semantic matching
         self._load_bt_original_clips()
-        self._initialize_semantic_matching()
+        # Semantic matching index is lazy-loaded on first use
 
         # [6] Action Handler
         try:

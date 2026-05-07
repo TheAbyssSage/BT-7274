@@ -166,6 +166,11 @@ class ClipMatchingMixin(_AssistantBase):
             self.semantic_clip_matrix = None
             self.semantic_clip_phrases = []
 
+    def _ensure_semantic_index(self):
+        """Lazy-load the semantic index on first use."""
+        if self.semantic_vectorizer is None and SEMANTIC_SIMILARITY_AVAILABLE and self.bt_clips:
+            self._initialize_semantic_matching()
+
     def _update_conversation_context(self, user_query: str, bot_response: str):
         """Update conversation context with the latest interaction."""
         # Add to conversation history

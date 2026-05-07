@@ -82,6 +82,9 @@ class _AssistantBase:
     def _select_dynamic_clip(self, response_text: str, context: Any = None) -> Any:
         return None
 
+    def _ensure_semantic_index(self) -> None:
+        pass
+
     def _report_error(self, component: str, function: str, exc: Exception, context: Any = None) -> None:
         pass
 

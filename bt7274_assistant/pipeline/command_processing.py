@@ -294,6 +294,7 @@ class CommandProcessingMixin(_AssistantBase):
                         return path
             
             # 5. Try semantic similarity matching if available
+            self._ensure_semantic_index()
             if self.semantic_vectorizer and self.semantic_clip_matrix is not None and cosine_similarity is not None:
                 try:
                     response_vector = self.semantic_vectorizer.transform([normalized])
