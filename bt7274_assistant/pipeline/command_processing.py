@@ -367,11 +367,11 @@ class CommandProcessingMixin(_AssistantBase):
 
             # Load prompt template from config
             prompt_template = self.config.get("llm", {}).get("autonomous_logging", {}).get("decision_prompt", "")
-            prompt = prompt_template.format(
-                pilot_message=pilot_message,
-                bt_response=bt_response,
-                context_summary=context_summary,
-            )
+            # Use simple string replacement instead of .format() to avoid
+            # conflicts with literal curly braces in the prompt (e.g. JSON examples)
+            prompt = prompt_template.replace("{pilot_message}", pilot_message)
+            prompt = prompt.replace("{bt_response}", bt_response)
+            prompt = prompt.replace("{context_summary}", context_summary)
 
             try:
                 decision_raw = self.llm.chat(prompt)

@@ -238,20 +238,24 @@ pipeline:
     - "B.T"
     - "B,T"
     - "B T"
+    # Alternative wake words inspired by BT-7274's character and voice
     - "Beatee"
+    - "B2"
+    - "E.T"
+    - "PT"
     # Noise-resistant variants for noisy environments
     - "hey b*t"
     - "b*t"
     - "b t"
     - "b*t*7274"
     - "b*t*7*7*4"
-  wake_word_sensitivity: 0.6  # Increased sensitivity for noisy environments
-  idle_timeout: 300           # Seconds before unloading models
-  play_beep: false            # No beep on start/stop listening
+  wake_word_sensitivity: 0.6   # Increased sensitivity for noisy environments
+  idle_timeout: 300            # Seconds before unloading models
+  play_beep: false             # No beep on start/stop listening
   follow_up:
-    max_depth: 2              # How many follow-up turns allowed (0 = disabled)
-    timeout_seconds: 8        # How long to listen for follow-up
-    stop_phrases:             # Phrases that cancel follow-up listening
+    max_depth: 2               # How many follow-up turns allowed (0 = disabled)
+    timeout_seconds: 8         # How long to listen for follow-up
+    stop_phrases:              # Phrases that cancel follow-up listening
       - "no"
       - "nope"
       - "never mind"
