@@ -61,3 +61,5 @@ models/
 .github
 .superpowers
 docslogs/bt7274.key
+*.onnx
+*.zip
