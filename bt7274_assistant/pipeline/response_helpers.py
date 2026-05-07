@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Optional
 
 from bt7274_assistant.pipeline._base import _AssistantBase
-from ui import status, clip_play, log_tts, warning
-from utils import play_audio
+from bt7274_assistant.ui import status, clip_play, log_tts, warning
+from bt7274_assistant.utils import play_audio
 
 
 class ResponseHelpersMixin(_AssistantBase):

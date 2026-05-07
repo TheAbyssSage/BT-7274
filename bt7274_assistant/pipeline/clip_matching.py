@@ -13,7 +13,7 @@ from bt7274_workstation.session_cache_manager import (
     save_semantic_vectors,
     load_semantic_vectors,
 )
-from ui import success, warning, info, status, loading_bar, error
+from bt7274_assistant.ui import success, warning, info, status, loading_bar, error
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer

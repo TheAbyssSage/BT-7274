@@ -5,14 +5,6 @@ This file re-exports BT7274Assistant from the pipeline package for backward
 compatibility. New code should import from bt7274_assistant.pipeline directly.
 """
 
-import sys
-from pathlib import Path
-
-# Ensure project root is on sys.path when run directly (e.g., via bt-link)
-_project_root = Path(__file__).parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
-
 from bt7274_assistant.pipeline.core import BT7274Assistant
 
 __all__ = ["BT7274Assistant"]
@@ -41,7 +33,7 @@ if __name__ == "__main__":
     if args.generate_responses or args.force_regenerate:
         assistant.initialize()
         count = assistant.generate_standby_responses(force_regenerate=args.force_regenerate)
-        from ui import footer
+        from bt7274_assistant.ui import footer
         footer(f"Successfully generated {count} standby responses!")
     else:
         assistant.run()

@@ -11,7 +11,6 @@ Architecture:
 """
 
 import os
-import sys
 import re
 import time
 import queue
@@ -22,13 +21,10 @@ from typing import Any, Optional, Callable, List, Dict
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 
-# Allow imports from project root
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import numpy as np
 import sounddevice as sd
 
-from ui import info, success, warning, error, cache_hit, log_tts, loading_bar
+from bt7274_assistant.ui import info, success, warning, error, cache_hit, log_tts, loading_bar
 import soundfile as sf
 
 from bt7274_workstation.session_cache_manager import (

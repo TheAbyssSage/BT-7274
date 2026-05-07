@@ -3,7 +3,6 @@ Text-to-Speech module using Coqui XTTS v2 for BT-7274 voice cloning.
 """
 
 import os
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -11,10 +10,7 @@ from typing import Any, Optional, Dict
 from functools import lru_cache
 import hashlib
 
-# Allow imports from project root
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from ui import info, success, warning, error, cache_hit, loading_bar
+from bt7274_assistant.ui import info, success, warning, error, cache_hit, loading_bar
 from bt7274_workstation.session_cache_manager import (
     get_tts_output_dir,
     load_tts_cache_index,
