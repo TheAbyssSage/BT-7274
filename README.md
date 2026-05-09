@@ -57,13 +57,22 @@ A dedicated Titanfall 2-style HUD window with live camera feed and semi-transpar
 - Ability icons, weapon readout, notification feed
 - Center reticle for aiming/focus
 - Voice-activated via "Open HUD" or "Show HUD"
-- Launch with `python hud_launcher.py` or `python hud_launcher.py --windowed`
+- Launch with `python scripts/hud_launcher.py` or `python scripts/hud_launcher.py --windowed`
 
 ## Folder Structure
 
 ```
 BT-7274/
-├── bt-7274.Modelfile          # Ollama model definition (BT-7274 personality)
+├── models/
+│   ├── bt-7274.Modelfile      # Ollama model definition (BT-7274 personality)
+│   ├── yolov8n.pt             # YOLO nano detection model
+│   └── yolov8s.pt             # YOLO small detection model
+├── scripts/
+│   ├── start_bt7274.sh        # One-click launcher
+│   ├── hud_launcher.py        # Camera stream launcher
+│   ├── run_realtime_hud.py    # Real-time YOLO HUD launcher
+│   ├── view_logs.py           # Log viewer launcher
+│   └── vision_viewer.py       # Vision viewer launcher
 ├── BT-7274.Voicepack/         # Your extracted audio dataset
 │   ├── metadata.csv           # Transcriptions for each audio file
 │   ├── wav/                   # Processed WAV files (16 kHz, mono)
@@ -245,7 +254,7 @@ You already have a `Modelfile`. Let's build and test it.
 
 ```bash
 cd /path/to/BT-7274
-ollama create bt7274 -f bt-7274.Modelfile
+ollama create bt7274 -f models/bt-7274.Modelfile
 ```
 
 ### 4.2 Test the Model
@@ -347,7 +356,7 @@ For convenience, you can use the provided startup script:
 
 ```bash
 # Start the assistant
-./start_bt7274.sh
+./scripts/start_bt7274.sh
 ```
 
 ### 5.5 Wake Word (Optional)
@@ -515,7 +524,7 @@ Create a one-click launcher:
 
 ```bash
 #!/bin/bash
-# start_bt7274.sh
+# scripts/start_bt7274.sh
 cd /path/to/BT-7274
 source venv/bin/activate
 ollama serve &
@@ -523,7 +532,7 @@ sleep 2
 python bt7274_assistant/pipeline.py
 ```
 
-Make it executable: `chmod +x start_bt7274.sh`
+Make it executable: `chmod +x scripts/start_bt7274.sh`
 
 ---
 
@@ -542,14 +551,14 @@ Make it executable: `chmod +x start_bt7274.sh`
 
 ## Viewing Interaction Logs
 
-You can view BT-7274's interaction logs using the `view_logs.py` script with the following options:
+You can view BT-7274's interaction logs using the `scripts/view_logs.py` script with the following options:
 
 **New Usage Options**
-- `python view_logs.py` - Show today's interactions (enhanced formatting)
-- `python view_logs.py --all` - Show all log files (enhanced formatting)
-- `python view_logs.py --summary` - Show summary statistics (enhanced formatting)
-- `python view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
-- `python view_logs.py --logs` - Show all logs content (NEW)
+- `python scripts/view_logs.py` - Show today's interactions (enhanced formatting)
+- `python scripts/view_logs.py --all` - Show all log files (enhanced formatting)
+- `python scripts/view_logs.py --summary` - Show summary statistics (enhanced formatting)
+- `python scripts/view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
+- `python scripts/view_logs.py --logs` - Show all logs content (NEW)
 
 The enhanced formatting provides better readability with clear section headers, visual indicators for response times and confidence levels, and organized technical details.
 

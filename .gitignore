@@ -52,6 +52,7 @@ bt7274_workstation/session_cache
 *.ckpt
 *.safetensors
 models/
+!models/bt-7274.Modelfile
 
 # Logs
 *.log

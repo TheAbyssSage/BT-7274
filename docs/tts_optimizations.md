@@ -100,7 +100,7 @@ python bt7274_assistant/scripts/test_tts_optimizations.py
 
 ### Running the Assistant
 ```bash
-./start_bt7274.sh
+./scripts/start_bt7274.sh
 ```
 
 ## Future Improvements

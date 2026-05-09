@@ -131,7 +131,7 @@ performance_mode: performance  # Options: standard | performance
 
 The `start_bt7274.sh` script now asks which mode to use:
 ```bash
-./start_bt7274.sh
+./scripts/start_bt7274.sh
 # Select mode [1-2] (default: 1):
 ```
 
