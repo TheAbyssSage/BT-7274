@@ -40,7 +40,7 @@ def cmd_bt_link(args):
     banner.append("   BT-7274  VANGUARD-CLASS  TITAN  AI         ", style="bold yellow")
     banner.append("║\n", style="bold cyan")
     banner.append("║", style="bold cyan")
-    banner.append("   Neural Link Establishment Protocol          ", style="dim white")
+    banner.append("   Neural Link Establishment Protocol         ", style="dim white")
     banner.append("║\n", style="bold cyan")
     banner.append("╚══════════════════════════════════════════════╝", style="bold cyan")
     console.print(banner)
