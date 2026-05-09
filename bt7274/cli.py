@@ -2,6 +2,7 @@
 """BT-7274 Unified Command-Line Interface.
 
 Usage:
+    bt7274 bt-link            # Full startup sequence (Ollama + mode select)
     bt7274 assistant          # Launch the voice assistant
     bt7274 assistant --chat   # Console chat mode
     bt7274 camera             # Open camera stream window
@@ -16,9 +17,110 @@ Usage:
 
 import argparse
 import json
+import os
+import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
+
+
+def cmd_bt_link(args):
+    """Full BT-7274 startup sequence: Ollama check + mode selection + launch."""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+
+    console = Console()
+
+    # ── Banner ──
+    banner = Text()
+    banner.append("╔══════════════════════════════════════════════╗\n", style="bold cyan")
+    banner.append("║", style="bold cyan")
+    banner.append("   BT-7274  VANGUARD-CLASS  TITAN  AI         ", style="bold yellow")
+    banner.append("║\n", style="bold cyan")
+    banner.append("║", style="bold cyan")
+    banner.append("   Neural Link Establishment Protocol          ", style="dim white")
+    banner.append("║\n", style="bold cyan")
+    banner.append("╚══════════════════════════════════════════════╝", style="bold cyan")
+    console.print(banner)
+    print()
+
+    # ── Ollama check ──
+    console.print("  [bold cyan][SYS][/] Checking Ollama server...", end=" ")
+    try:
+        import requests
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if r.status_code == 200:
+            console.print("[green]ONLINE[/]")
+        else:
+            console.print("[yellow]STARTING...[/]")
+            subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(3)
+            console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+    except Exception:
+        console.print("[yellow]STARTING...[/]")
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(3)
+        console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+
+    # ── Input Mode Selection ──
+    console.print("\n  [bold]Select Input Mode:[/]")
+    console.print("    [1] Voice Mode       — Microphone + wake word")
+    console.print("    [2] Console Chat     — Text input (like Ollama)")
+
+    mode_arg = ""
+    while True:
+        try:
+            choice = input("  > Mode [1-2]: ").strip()
+            if choice == "1":
+                console.print("  [bold cyan][SELECT][/] Voice Mode")
+                break
+            elif choice == "2":
+                mode_arg = "--chat"
+                console.print("  [bold cyan][SELECT][/] Console Chat")
+                break
+            else:
+                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n  [yellow]Link aborted.[/]")
+            return
+
+    # ── TTS Mode Selection ──
+    console.print("\n  [bold]Select TTS Mode:[/]")
+    console.print("    [1] Standard    — Full synthesis, then play")
+    console.print("    [2] Streaming   — Sentence-level parallel playback")
+
+    perf_arg = ""
+    while True:
+        try:
+            choice = input("  > TTS [1-2]: ").strip()
+            if choice == "1":
+                perf_arg = "--performance-mode standard"
+                console.print("  [bold cyan][SELECT][/] Standard")
+                break
+            elif choice == "2":
+                perf_arg = "--performance-mode performance"
+                console.print("  [bold cyan][SELECT][/] Streaming")
+                break
+            else:
+                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n  [yellow]Link aborted.[/]")
+            return
+
+    # ── Establish link ──
+    console.print("\n  [bold green]⚡ Establishing Neural Link...[/]\n")
+
+    # Build args and delegate to cmd_assistant
+    class LinkArgs:
+        chat = (mode_arg == "--chat")
+        ai_mode = "local"
+        performance_mode = "performance" if "performance" in perf_arg else "standard"
+        generate_standby = False
+        force_regenerate = False
+
+    cmd_assistant(LinkArgs())
 
 
 def cmd_assistant(args):
@@ -183,6 +285,9 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    # ── bt-link ──
+    subparsers.add_parser("bt-link", help="Full startup sequence (Ollama + mode select + launch)")
+
     # ── assistant ──
     assist_parser = subparsers.add_parser("assistant", help="Launch the voice assistant")
     assist_parser.add_argument("--chat", action="store_true", help="Console chat mode (text input)")
@@ -230,6 +335,7 @@ def main():
         return
 
     commands = {
+        "bt-link": cmd_bt_link,
         "assistant": cmd_assistant,
         "camera": cmd_camera,
         "hud": cmd_hud,

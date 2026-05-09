@@ -577,4 +577,4 @@ This project is for **personal cosplay use only**. BT-7274 and Titanfall 2 are i
 5. ✅ Run the full pipeline (Step 5)
 6. 🎉 Suit up, Pilot!
 
-**Good luck with your cosplay, Pilot. Protocol 3: Protect the cosplayer.**
+**Good luck with your cosplay, Pilot. Protocol 3: Protect the Pilot.**
