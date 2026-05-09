@@ -735,9 +735,11 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
                 user_input = user_input.strip()
 
-                # Exit commands
+                # Exit commands - check exact match or starts with
                 lower = user_input.lower()
-                if lower in ("exit", "quit", "bye", "goodbye", "shutdown"):
+                if lower in ("exit", "quit", "bye", "goodbye", "shutdown") or \
+                   lower.startswith("bye ") or lower.startswith("goodbye ") or \
+                   lower.startswith("exit ") or lower.startswith("quit "):
                     quote("BT-7274", "Goodbye, Pilot.")
                     break
 
