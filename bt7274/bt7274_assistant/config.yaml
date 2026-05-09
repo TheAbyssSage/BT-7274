@@ -48,6 +48,7 @@ llm:
     For notes: use add_note, list_notes.
     For vision: use look, vision_summary, vision_status actions.
     For protocol brief: use protocol_brief action.
+    For calendar: use get_calendar_events or get_upcoming_events actions.
     When Pilot asks about travel/transport, use their current location from context.
     You can clear TTS cache by saying "clear tts cache".
   autonomous_logging:
@@ -132,6 +133,13 @@ vpn:
   provider: protonvpn         # VPN provider name for logs
   auto_cloak: true            # Auto-warn on public Wi-Fi without VPN
 
+# Calendar Awareness — macOS Calendar.app integration
+calendar_access:
+  enabled: false              # Off by default; enable via voice or config
+  interval: 300               # seconds between checks (5 minutes)
+  upcoming_warning_minutes: 15  # Warn about events starting within N minutes
+  max_events_display: 10      # Max events to show in responses
+
 # Hardware Telemetry — CPU, RAM, disk, thermal, uptime
 hardware_telemetry:
   enabled: true
@@ -204,6 +212,8 @@ actions:
     - look
     - vision_summary
     - vision_status
+    - get_calendar_events
+    - get_upcoming_events
 
 # Vision / Perception Configuration
 vision:
@@ -322,6 +332,13 @@ pipeline:
     - "Initializing optical scan."
     - "Accessing visual feed."
     - "Running visual analysis."
+  standby_phrases_calendar:   # Spoken while fetching calendar data
+    - "Accessing your schedule, Pilot."
+    - "Checking your calendar."
+    - "Retrieving today's events."
+    - "Querying calendar data."
+    - "Pulling up your agenda."
+    - "Scanning your schedule."
 
 paths:
   dataset: dataset

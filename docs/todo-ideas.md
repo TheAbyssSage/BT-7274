@@ -2,7 +2,6 @@
 
 ---
 
-
 ## 2. Combat Effectiveness Rating
 
 Tracks a % rating that increases when you complete:
@@ -64,13 +63,6 @@ Config:
 - Option to auto‑connect on public Wi‑Fi.
 - Ask BT to enable/disable auto‑cloak.
 
-Logging:
-
-- All VPN state changes:
-  - To `logs/system_logs`
-    - Example:  
-      `2025-04-28T12:00Z [vpn] connected proton-be-01 wifi=Starbucks_Guest`
-
 ---
 
 ## 6. Heart-Rate Style Monitoring (“Stress Mode”)
@@ -117,7 +109,6 @@ Logging:
 
 ---
 
-
 ## 10. Calendar & Memory
 
 ### 10.1 Calendar Awareness
@@ -133,15 +124,7 @@ Config:
 - `calendar_access: on/off`.
 - Ask BT to enable/disable it.
 
-Logging:
-
-- State changes:
-  - To `logs/system_logs`
-- Alerts/reminders fired:
-  - To `logs/bt_logs`
-    - Example:  
-      `2025-04-29T08:30Z [calendar_alert] "Syntra class" starts in 30min`
-
+Log it down
 
 ### 10.3 Voice Link / Identity Check
 
