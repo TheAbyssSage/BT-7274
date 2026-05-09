@@ -120,7 +120,7 @@ voice_telemetry:
 All paths are exposed through `bt7274_workstation.log_manager`:
 
 ```python
-from bt7274_workstation.log_manager import (
+from bt7274.bt7274_workstation.log_manager import (
     get_conversations_dir,
     get_bt_memory_dir,
     get_pilot_memory_dir,
@@ -146,7 +146,7 @@ from bt7274_workstation.log_manager import (
 If you previously used the old flat layout (`bt-pilot_interactions/`, `bt_logs/`, `system_logs/`, etc.), run this once to migrate existing files:
 
 ```python
-from bt7274_workstation.log_manager import migrate_legacy_logs
+from bt7274.bt7274_workstation.log_manager import migrate_legacy_logs
 migrate_legacy_logs()
 ```
 

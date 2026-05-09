@@ -22,7 +22,7 @@ The BT-7274 assistant now includes all original voice lines from the Titanfall 2
 
 ### File Structure
 ```
-BT-7274.Voicepack/
+bt7274/BT-7274.Voicepack/
 ├── bt_clips/              # Individual WAV files
 ├── bt_clips_index.csv     # Mapping of lines to filenames
 └── metadata.csv           # Additional metadata
@@ -79,7 +79,7 @@ Modify the `try_standby_for_response` method in `pipeline.py` to adjust matching
 
 ### Missing Clips
 If some clips aren't loading:
-1. Verify audio files exist in BT-7274.Voicepack/bt_clips/
+1. Verify audio files exist in bt7274/BT-7274.Voicepack/bt_clips/
 2. Check that filenames match entries in bt_clips_index.csv
 3. Ensure file permissions allow reading
 

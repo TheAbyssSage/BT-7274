@@ -2,6 +2,7 @@
 """BT-7274 Unified Command-Line Interface.
 
 Usage:
+    bt7274 bt-link            # Full startup sequence (Ollama + mode select)
     bt7274 assistant          # Launch the voice assistant
     bt7274 assistant --chat   # Console chat mode
     bt7274 camera             # Open camera stream window
@@ -16,14 +17,115 @@ Usage:
 
 import argparse
 import json
+import os
+import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
 
+def cmd_bt_link(args):
+    """Full BT-7274 startup sequence: Ollama check + mode selection + launch."""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+
+    console = Console()
+
+    # ── Banner ──
+    banner = Text()
+    banner.append("╔══════════════════════════════════════════════╗\n", style="bold cyan")
+    banner.append("║", style="bold cyan")
+    banner.append("   BT-7274  VANGUARD-CLASS  TITAN  AI         ", style="bold yellow")
+    banner.append("║\n", style="bold cyan")
+    banner.append("║", style="bold cyan")
+    banner.append("   Neural Link Establishment Protocol         ", style="dim white")
+    banner.append("║\n", style="bold cyan")
+    banner.append("╚══════════════════════════════════════════════╝", style="bold cyan")
+    console.print(banner)
+    print()
+
+    # ── Ollama check ──
+    console.print("  [bold cyan][SYS][/] Checking Ollama server...", end=" ")
+    try:
+        import requests
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if r.status_code == 200:
+            console.print("[green]ONLINE[/]")
+        else:
+            console.print("[yellow]STARTING...[/]")
+            subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(3)
+            console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+    except Exception:
+        console.print("[yellow]STARTING...[/]")
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(3)
+        console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+
+    # ── Input Mode Selection ──
+    console.print("\n  [bold]Select Input Mode:[/]")
+    console.print("    [1] Voice Mode       — Microphone + wake word")
+    console.print("    [2] Console Chat     — Text input (like Ollama)")
+
+    mode_arg = ""
+    while True:
+        try:
+            choice = input("  > Mode [1-2]: ").strip()
+            if choice == "1":
+                console.print("  [bold cyan][SELECT][/] Voice Mode")
+                break
+            elif choice == "2":
+                mode_arg = "--chat"
+                console.print("  [bold cyan][SELECT][/] Console Chat")
+                break
+            else:
+                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n  [yellow]Link aborted.[/]")
+            return
+
+    # ── TTS Mode Selection ──
+    console.print("\n  [bold]Select TTS Mode:[/]")
+    console.print("    [1] Standard    — Full synthesis, then play")
+    console.print("    [2] Streaming   — Sentence-level parallel playback")
+
+    perf_arg = ""
+    while True:
+        try:
+            choice = input("  > TTS [1-2]: ").strip()
+            if choice == "1":
+                perf_arg = "--performance-mode standard"
+                console.print("  [bold cyan][SELECT][/] Standard")
+                break
+            elif choice == "2":
+                perf_arg = "--performance-mode performance"
+                console.print("  [bold cyan][SELECT][/] Streaming")
+                break
+            else:
+                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n  [yellow]Link aborted.[/]")
+            return
+
+    # ── Establish link ──
+    console.print("\n  [bold green]⚡ Establishing Neural Link...[/]\n")
+
+    # Build args and delegate to cmd_assistant
+    class LinkArgs:
+        chat = (mode_arg == "--chat")
+        ai_mode = "local"
+        performance_mode = "performance" if "performance" in perf_arg else "standard"
+        generate_standby = False
+        force_regenerate = False
+
+    cmd_assistant(LinkArgs())
+
+
 def cmd_assistant(args):
     """Launch the BT-7274 voice assistant."""
-    from bt7274_assistant.pipeline.core import BT7274Assistant
+    from bt7274.bt7274_assistant.pipeline.core import BT7274Assistant
 
     assistant = BT7274Assistant(
         ai_mode=args.ai_mode,
@@ -43,7 +145,7 @@ def cmd_assistant(args):
 
 def cmd_camera(args):
     """Open the camera stream window."""
-    from bt7274_hud.hud_window import CameraWindow
+    from bt7274.bt7274_hud.hud_window import CameraWindow
 
     print(f"  [SYS] Camera device: {args.device}")
     print(f"  [SYS] Mode: {'windowed' if args.windowed else 'fullscreen'}")
@@ -61,7 +163,7 @@ def cmd_camera(args):
 
 def cmd_hud(args):
     """Open the real-time YOLO detection HUD."""
-    from bt7274_hud.realtime_hud_window import RealtimeHudWindow
+    from bt7274.bt7274_hud.realtime_hud_window import RealtimeHudWindow
 
     if args.low_latency:
         args.width = 640
@@ -95,13 +197,13 @@ def cmd_hud(args):
 
 def cmd_vision(args):
     """Open the vision viewer window."""
-    from bt7274_perception.vision_viewer import main as vision_main
+    from bt7274.bt7274_perception.vision_viewer import main as vision_main
     vision_main()
 
 
 def cmd_logs(args):
     """View interaction logs."""
-    from bt7274_workstation.interaction_logger import InteractionLogger
+    from bt7274.bt7274_workstation.interaction_logger import InteractionLogger
 
     logger = InteractionLogger()
 
@@ -166,7 +268,7 @@ def cmd_logs(args):
 
 def cmd_list_cameras(args):
     """List available cameras."""
-    from bt7274_hud.camera_stream import CameraStream
+    from bt7274.bt7274_hud.camera_stream import CameraStream
     devices = CameraStream.list_devices()
     if not devices:
         print("No cameras detected.")
@@ -182,6 +284,9 @@ def main():
         description="BT-7274 Vanguard-class Titan AI Assistant"
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # ── bt-link ──
+    subparsers.add_parser("bt-link", help="Full startup sequence (Ollama + mode select + launch)")
 
     # ── assistant ──
     assist_parser = subparsers.add_parser("assistant", help="Launch the voice assistant")
@@ -204,7 +309,7 @@ def main():
     hud_parser.add_argument("--width", type=int, default=1280)
     hud_parser.add_argument("--height", type=int, default=720)
     hud_parser.add_argument("--fullscreen", action="store_true")
-    hud_parser.add_argument("--model", default="yolov8n.pt")
+    hud_parser.add_argument("--model", default="bt7274/models/yolov8n.pt")
     hud_parser.add_argument("--conf", type=float, default=0.5)
     hud_parser.add_argument("--iou", type=float, default=0.45)
     hud_parser.add_argument("--no-yolo", action="store_true", help="Disable YOLO detection")
@@ -230,6 +335,7 @@ def main():
         return
 
     commands = {
+        "bt-link": cmd_bt_link,
         "assistant": cmd_assistant,
         "camera": cmd_camera,
         "hud": cmd_hud,

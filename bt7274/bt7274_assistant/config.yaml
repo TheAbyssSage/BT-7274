@@ -1,0 +1,329 @@
+# BT-7274 Assistant Configuration
+# Adjust these settings for your M1 MacBook Air
+
+# Startup Mode Configuration
+# mic_mode: true = use microphone for voice input, false = console text input
+# console_chat_mode: true = run as terminal chat (like local ollama), false = full voice assistant
+startup:
+  mic_mode: true              # Enable microphone listening at startup
+  console_chat_mode: false    # Run as terminal chat interface (no mic, text input)
+  # When console_chat_mode is true, mic_mode is automatically disabled
+  # and BT runs like a local ollama in-terminal chat system.
+
+stt:
+  model: tiny.en                  # FAST: tiny.en | BALANCED: base.en | ACCURATE: small.en
+  language: en
+  device: mps                     # 'mps' = Metal GPU (M1), 'cpu' = fallback
+  sample_rate: 16000
+  silence_threshold: 0.015        # Lower = less likely to stop on brief pauses
+  silence_duration: 2.5           # Longer = more time to finish your sentence after "BT"
+  max_record_seconds: 15          # Cap recording length
+  post_wake_grace: 1.5            # Extra seconds to keep recording after speech starts
+  min_confidence: 0.25            # Minimum confidence threshold for noisy environments
+
+llm:
+  # Local Ollama settings
+  local:
+    model: bt7274
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 80                # Keep responses concise (1-3 sentences)
+  cloud:
+    model: gpt-oss:120b-cloud
+    url: http://localhost:11434
+    temperature: 0.7
+    max_tokens: 120               # Slightly larger but still concise
+  # Current mode (local or cloud)
+  mode: local
+  system_prompt: |
+    You are BT-7274, a Vanguard-class Titan from Titanfall 2. Your Pilot is Roamer.
+    Be concise, tactical, calm, with dry humor. Address the user as "Pilot".
+    Most responses: 1-3 sentences. Never echo the user's question.
+    Never output markdown, code blocks, JSON, headers, or meta-text.
+    Never break character. Only output plain text sentences.
+    For weather: use get_weather_forecast action.
+    For VPN/cloak toggle: respond confirming the change.
+    For logs: use make_log (create) or read_logs (view). Log type "bt" for your memory.
+    For tasks: use add_todo, complete_todo, remove_todo, list_todo, clear_todo.
+    For notes: use add_note, list_notes.
+    For vision: use look, vision_summary, vision_status actions.
+    For protocol brief: use protocol_brief action.
+    When Pilot asks about travel/transport, use their current location from context.
+    You can clear TTS cache by saying "clear tts cache".
+  autonomous_logging:
+    enabled: true              # Master switch
+    cooldown_seconds: 60       # Minimum seconds between autonomous logs
+    max_per_session: 10        # Cap to prevent spam in long sessions
+    decision_prompt: |
+      You are BT-7274's internal memory processor. Review the conversation below.
+      Decide if this interaction is worth recording in BT's personal memory logs.
+      Worth logging: significant pilot orders, emotional moments, mission updates,
+      trust milestones, errors, discoveries, or anything BT should remember later.
+      Do NOT log: trivial greetings, weather checks, time queries, or repetitive chatter.
+      
+      Respond with ONLY a JSON object in this exact format:
+      {"log": true, "reason": "brief reason", "content": "concise log entry text"}
+      or
+      {"log": false, "reason": "brief reason"}
+      
+      Conversation:
+      Pilot: {pilot_message}
+      BT-7274: {bt_response}
+      Context: {context_summary}
+
+location:
+  # Set manual location to override IP geolocation (which may be inaccurate)
+  # Leave empty/null to use automatic detection
+  manual:
+    # lat: 50.9311
+    # lon: 5.3378
+    # city: "Hasselt"
+    # region: "Limburg"
+    # country: "Belgium"
+
+tts:
+  model: tts_models/multilingual/multi-dataset/xtts_v2
+  # Use BT-7274 original voice clips for multi-reference voice cloning
+  # Options:
+  #   - Single file: "bt7274/bt7274_assistant/dataset/reference_speaker.wav"
+  #   - Directory (auto-discovers *.wav): "bt7274/bt7274_assistant/dataset/bt_references"
+  #   - List of files: ["clip1.wav", "clip2.wav"]
+  reference_wav: bt7274/bt7274_assistant/dataset/bt_references
+  language: en
+  speed: 1.0
+  output_dir: bt7274/bt7274_workstation/session_cache/tts_outputs
+  use_mps: false              # XTTS v2 works best on CPU for M1
+
+  # TTS Engine Selection
+  # piper: ultra-fast (<0.5s), no voice cloning, best for responsiveness
+  # xtts: authentic BT-7274 voice (~16s), best for immersion
+  # vits: balanced (~2s), good quality, no voice cloning
+  engine: piper
+  
+  # Piper-specific settings (only used when engine: piper)
+  piper_model: bt7274/bt7274_assistant/piper_models/en_US-lessac-medium.onnx
+  piper_espeak_data: venv/lib/python3.11/site-packages/piper/espeak-ng-data
+
+# Performance Mode Configuration
+# Choose between "standard" (original) and "performance" (streaming) TTS
+# standard: Full response synthesized at once, then played
+# performance: Sentence-level streaming with parallel synthesis and playback
+performance_mode: standard    # Options: standard | performance
+
+# Streaming TTS settings (only used in performance mode)
+streaming:
+  enabled: false              # Auto-enabled when performance_mode = performance
+  max_queue_size: 3           # Max sentences to buffer ahead
+  sentence_min_length: 20     # Minimum characters to treat as a sentence
+  enable_metrics: true        # Show timing stats after each response
+
+battery:
+  enabled: true
+  interval: 60                # seconds between checks
+  thresholds: [50, 20, 10, 5]
+
+environmental_warnings:
+  enabled: true
+  interval: 300               # seconds between checks (5 minutes)
+
+vpn:
+  enabled: true
+  interval: 10                # seconds between checks
+  provider: protonvpn         # VPN provider name for logs
+  auto_cloak: true            # Auto-warn on public Wi-Fi without VPN
+
+# Hardware Telemetry — CPU, RAM, disk, thermal, uptime
+hardware_telemetry:
+  enabled: true
+  interval: 60                # seconds between snapshots
+
+# Network Telemetry — Wi-Fi, VPN, latency, public-network detection
+network_telemetry:
+  enabled: true
+  interval: 30               # seconds between snapshots
+  latency_target: "1.1.1.1"  # Target for latency checks
+
+# Voice Telemetry — STT confidence, TTS metrics, wake events, pipeline errors
+voice_telemetry:
+  enabled: true
+
+# Security Configuration
+security:
+  enabled: true
+  # PII / sensitive data redaction before sending to LLM
+  sanitize_llm_prompts: true
+  # Prompt injection detection
+  block_prompt_injection: true
+  # Rate limiting for external API calls (calls per minute)
+  rate_limits:
+    open-meteo: 30
+    ip-api: 10
+    duckduckgo: 20
+    ollama: 120
+  # HTTP hosts allowed (all others must use HTTPS)
+  allow_http_hosts:
+    - ip-api.com
+  # Encrypt sensitive data at rest (location cache, session state)
+  encrypt_sensitive_logs: true
+  # Audit logging for all outbound requests
+  audit_outbound_requests: true
+  # Dangerous shell command blocking
+  block_dangerous_commands: true
+  # Maximum shell command timeout (seconds)
+  shell_command_timeout: 30
+
+actions:
+  enabled: true
+  allowed_commands:
+    - say
+    - open
+    - run_script
+    - set_volume
+    - tell_time
+    - tell_date
+    - web_search
+    - trigger_shortcut
+    - search_web
+    - get_location
+    - get_location_structured
+    - get_weather
+    - get_weather_for_location
+    - get_weather_forecast
+    - clear_tts_cache
+    - read_logs
+    - make_log
+    - read_bt_logs
+    - protocol_brief
+    - add_todo
+    - complete_todo
+    - remove_todo
+    - list_todo
+    - clear_todo
+    - add_note
+    - list_notes
+    - look
+    - vision_summary
+    - vision_status
+
+# Vision / Perception Configuration
+vision:
+  enabled: true
+  camera_device: "0"              # AVFoundation device index (0 = default FaceTime HD)
+  ollama_url: http://localhost:11434
+  vision_model: llava             # Options: llava, moondream, bakllava
+
+# Protocol Mode Configuration
+# Toggle at startup or via voice command
+protocol_mode:
+  enabled: true               # Start with protocol mode off by default
+  startup_announce: true      # Announce protocol mode status at startup
+  auto_brief_on_start: true   # Auto-run protocol brief when BT starts
+  log_protocol_events: true   # Log protocol mode events to system logs
+
+pipeline:
+  wake_words:                 # List of trigger phrases (any match activates BT)
+    - "hey bt"
+    - "bt"
+    - "bt 7274"
+    - "bt-7274"
+    - "hey bt-7274"
+    - "hey bt 7274"
+    - "B.T."
+    - "B,T."
+    - "B.T,"
+    - "B,T,"
+    - "B.T"
+    - "B,T"
+    - "B T"
+    # Alternative wake words inspired by BT-7274's character and voice
+    - "Beatee"
+    - "B2"
+    - "E.T"
+    - "PT"
+    - "ET"
+    # Noise-resistant variants for noisy environments
+    - "hey b*t"
+    - "b*t"
+    - "b t"
+    - "b*t*7274"
+    - "b*t*7*7*4"
+  wake_word_sensitivity: 0.6   # Increased sensitivity for noisy environments
+  idle_timeout: 300            # Seconds before unloading models
+  play_beep: false             # No beep on start/stop listening
+  follow_up:
+    max_depth: 2               # How many follow-up turns allowed (0 = disabled)
+    timeout_seconds: 8         # How long to listen for follow-up
+    stop_phrases:              # Phrases that cancel follow-up listening
+      - "no"
+      - "nope"
+      - "never mind"
+      - "stop"
+      - "cancel"
+      - "that's all"
+      - "that is all"
+      - "goodbye"
+      - "bye"
+      - "exit"
+      - "quit"
+      - "nothing"
+      - "forget it"
+  standby_phrases:            # Generic fallback phrases
+    - "Copy that, Pilot. Stand by."
+    - "Processing, Pilot."
+    - "Acknowledged. Retrieving data."
+    - "Stand by, Pilot."
+    - "You're welcome, Pilot."
+    - "My pleasure, Pilot."
+    - "Glad to assist, Pilot."
+    - "Happy to help, Pilot."
+    - "Anytime, Pilot."
+    - "Understood, Pilot."
+    - "Affirmative, Pilot."
+    - "Roger that, Pilot."
+    - "Confirmed, Pilot."
+    - "Executing, Pilot."
+    - "Initiating, Pilot."
+    - "Commencing, Pilot."
+  standby_phrases_weather:    # Spoken while fetching weather data
+    - "Copy that, Pilot. Pulling weather data."
+    - "Acknowledged. Accessing atmospheric sensors."
+    - "Stand by. Retrieving local weather conditions."
+    - "Copy. Querying meteorological feeds."
+    - "Processing weather data."
+    - "Analyzing atmospheric conditions."
+  standby_phrases_search:     # Spoken while searching the web
+    - "Retrieving data from the web."
+    - "Copy that. Searching data networks."
+    - "Stand by, Pilot. Accessing external databases."
+    - "Acknowledged. Pulling information from the grid."
+    - "Querying data repositories."
+    - "Accessing information networks."
+  standby_phrases_location:   # Spoken while fetching location
+    - "Locating Pilot position."
+    - "Determining current coordinates."
+    - "Acquiring positional data."
+    - "Establishing geographic position."
+  standby_phrases_time:       # Spoken while fetching time
+    - "Checking chronometer."
+    - "Accessing temporal systems."
+    - "Querying time databases."
+    - "Retrieving current timestamp."
+  standby_phrases_translate:  # Spoken while processing translations
+    - "Processing translation."
+    - "Analyzing linguistic data."
+    - "Translating now, Pilot."
+    - "Interpreting foreign speech."
+    - "Running translation protocol."
+    - "Decoding language patterns."
+  standby_phrases_vision:     # Spoken while activating optical sensors
+    - "Activating optical sensors."
+    - "Scanning visual spectrum."
+    - "Engaging camera systems."
+    - "Initializing optical scan."
+    - "Accessing visual feed."
+    - "Running visual analysis."
+
+paths:
+  dataset: dataset
+  outputs: outputs
+  scripts: scripts

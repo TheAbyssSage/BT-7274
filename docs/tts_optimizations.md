@@ -89,18 +89,18 @@ The original TTS system had several inefficiencies:
 ### Regenerating Standby Clips
 ```bash
 source venv/bin/activate
-python bt7274_assistant/scripts/regenerate_standby_bt_voice.py --force
+python bt7274/bt7274_assistant/scripts/regenerate_standby_bt_voice.py --force
 ```
 
 ### Testing Optimizations
 ```bash
 source venv/bin/activate
-python bt7274_assistant/scripts/test_tts_optimizations.py
+python bt7274/bt7274_assistant/scripts/test_tts_optimizations.py
 ```
 
 ### Running the Assistant
 ```bash
-./start_bt7274.sh
+./scripts/start_bt7274.sh
 ```
 
 ## Future Improvements

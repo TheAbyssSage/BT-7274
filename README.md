@@ -57,36 +57,43 @@ A dedicated Titanfall 2-style HUD window with live camera feed and semi-transpar
 - Ability icons, weapon readout, notification feed
 - Center reticle for aiming/focus
 - Voice-activated via "Open HUD" or "Show HUD"
-- Launch with `python hud_launcher.py` or `python hud_launcher.py --windowed`
+- Launch with `python bt7274/scripts/hud_launcher.py` or `python bt7274/scripts/hud_launcher.py --windowed`
 
 ## Folder Structure
 
 ```
 BT-7274/
-├── bt-7274.Modelfile          # Ollama model definition (BT-7274 personality)
-├── BT-7274.Voicepack/         # Your extracted audio dataset
-│   ├── metadata.csv           # Transcriptions for each audio file
-│   ├── wav/                   # Processed WAV files (16 kHz, mono)
-│   └── raw/                   # Original MP3 files
-├── bt7274_assistant/          # Main application code
-│   ├── config.yaml            # Configuration
-│   ├── pipeline.py            # Main voice loop
-│   ├── stt.py                 # Whisper STT wrapper
-│   ├── tts.py                 # TTS engine (XTTS v2)
-│   ├── llm.py                 # Ollama LLM client
-│   ├── actions.py             # Task execution handler
-│   ├── utils.py               # Audio helpers
-│   ├── scripts/               # Setup & utility scripts
-│   │   ├── prepare_dataset.py # Dataset cleaning & splitting
-│   │   ├── train_voice.py     # XTTS v2 voice cloning setup
-│   │   ├── test_tts.py        # Quick TTS test
-│   │   └── install_deps.sh    # Dependency installer
-│   ├── dataset/               # Voice dataset
-│   ├── outputs/               # TTS output files
-│   ├── standby/               # Pre-recorded standby phrases
-│   ├── mappings/              # Generated phrase-to-file mappings
-│   ├── training_data/         # TTS training resources
-│   └── Testing-Scripts/       # Testing utilities
+├── bt7274/                    # Main package
+│   ├── models/
+│   │   └── bt-7274.Modelfile  # Ollama model definition (BT-7274 personality)
+│   ├── scripts/
+│   │   ├── start_bt7274.sh    # One-click launcher
+│   │   ├── hud_launcher.py    # Camera stream launcher
+│   │   ├── run_realtime_hud.py# Real-time YOLO HUD launcher
+│   │   ├── view_logs.py       # Log viewer launcher
+│   │   └── vision_viewer.py   # Vision viewer launcher
+│   ├── BT-7274.Voicepack/     # Your extracted audio dataset
+│   │   ├── metadata.csv       # Transcriptions for each audio file
+│   │   ├── wav/               # Processed WAV files (16 kHz, mono)
+│   │   └── bt_clips/          # Original BT-7274 voice lines
+│   ├── bt7274_assistant/      # Main application code
+│   │   ├── config.yaml        # Configuration
+│   │   ├── pipeline.py        # Main voice loop
+│   │   ├── stt.py             # Whisper STT wrapper
+│   │   ├── tts.py             # TTS engine (XTTS v2)
+│   │   ├── llm.py             # Ollama LLM client
+│   │   ├── utils.py           # Audio helpers
+│   │   ├── scripts/           # Setup & utility scripts
+│   │   ├── dataset/           # Voice dataset
+│   │   ├── standby/           # Pre-recorded standby phrases
+│   │   ├── mappings/          # Generated phrase-to-file mappings
+│   │   └── training_data/     # TTS training resources
+│   ├── bt7274_hud/            # HUD display module
+│   ├── bt7274_perception/     # Vision & detection module
+│   ├── bt7274_workstation/    # Telemetry & logging module
+│   └── tests/                 # Test suite
+├── docs/                      # Documentation
+├── logs/                      # Runtime logs
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
@@ -169,18 +176,18 @@ Your `metadata.csv` already has transcriptions — great! But we need to clean a
 
 ```bash
 source venv/bin/activate
-python bt7274_assistant/scripts/prepare_dataset.py
+python bt7274/bt7274_assistant/scripts/prepare_dataset.py
 ```
 
 This script will:
 1. Convert all MP3/WAV files to 22050 Hz mono WAV
 2. Split long files (like the compilation) into shorter clips using voice activity detection (VAD)
 3. Normalize audio levels
-4. Create a `bt7274_assistant/dataset/` folder with clean, training-ready audio
+4. Create a `bt7274/bt7274_assistant/dataset/` folder with clean, training-ready audio
 
 ### 2.3 Manual Cleanup (Recommended)
 
-After running the script, listen to the clips in `bt7274_assistant/dataset/wavs/` and remove any that:
+After running the script, listen to the clips in `bt7274/bt7274_assistant/dataset/wavs/` and remove any that:
 - Contain music, gunfire, or heavy SFX
 - Have overlapping dialogue
 - Are too quiet or distorted
@@ -210,16 +217,16 @@ For the best results, concatenate your best 5–10 clean clips into one referenc
 
 ```bash
 # Use the preparation script to create a reference speaker file
-python bt7274_assistant/scripts/prepare_dataset.py --create-reference
+python bt7274/bt7274_assistant/scripts/prepare_dataset.py --create-reference
 ```
 
-This creates `bt7274_assistant/dataset/reference_speaker.wav` (~30–60 seconds of clean BT-7274 speech).
+This creates `bt7274/bt7274_assistant/dataset/reference_speaker.wav` (~30–60 seconds of clean BT-7274 speech).
 
 ### 3.3 Test Voice Cloning
 
 ```bash
 # Generate a test phrase in BT-7274's voice
-python bt7274_assistant/scripts/test_tts.py --text "Pilot, I am standing by."
+python bt7274/bt7274_assistant/scripts/test_tts.py --text "Pilot, I am standing by."
 ```
 
 This will:
@@ -245,7 +252,7 @@ You already have a `Modelfile`. Let's build and test it.
 
 ```bash
 cd /path/to/BT-7274
-ollama create bt7274 -f bt-7274.Modelfile
+ollama create bt7274 -f bt7274/models/bt-7274.Modelfile
 ```
 
 ### 4.2 Test the Model
@@ -261,7 +268,7 @@ Try prompts like:
 
 ### 4.3 Enhanced Modelfile (Recommended)
 
-For better intent recognition and action handling, use an enhanced system prompt. See `bt7274_assistant/config.yaml` for the full prompt template.
+For better intent recognition and action handling, use an enhanced system prompt. See `bt7274/bt7274_assistant/config.yaml` for the full prompt template.
 
 ---
 
@@ -271,7 +278,7 @@ The main application ties everything together.
 
 ### 5.1 Configuration
 
-Edit `bt7274_assistant/config.yaml` to set your preferences:
+Edit `bt7274/bt7274_assistant/config.yaml` to set your preferences:
 
 ```yaml
 stt:
@@ -300,7 +307,7 @@ llm:
 
 tts:
   model: tts_models/multilingual/multi-dataset/xtts_v2
-  reference_wav: bt7274_assistant/dataset/reference_speaker.wav
+  reference_wav: bt7274/bt7274_assistant/dataset/reference_speaker.wav
   language: en
   speed: 1.0
 
@@ -320,7 +327,7 @@ actions:
 source venv/bin/activate
 
 # Run the assistant (will prompt for model selection)
-python bt7274_assistant/pipeline.py
+python bt7274/bt7274_assistant/pipeline.py
 ```
 
 The pipeline runs in a loop:
@@ -347,7 +354,7 @@ For convenience, you can use the provided startup script:
 
 ```bash
 # Start the assistant
-./start_bt7274.sh
+./bt7274/scripts/start_bt7274.sh
 ```
 
 ### 5.5 Wake Word (Optional)
@@ -413,7 +420,7 @@ BT-7274 can execute tasks. The action handler parses intents from the LLM respon
 
 ### 6.2 Adding Custom Actions
 
-Edit `bt7274_assistant/actions.py` to add your own. Example:
+Edit `bt7274/bt7274_assistant/actions.py` to add your own. Example:
 
 ```python
 @register_action("trigger_automation")
@@ -483,7 +490,7 @@ Quick overview:
 
 Enable via command line:
 ```bash
-python bt7274_assistant/pipeline.py --performance-mode performance
+python bt7274/bt7274_assistant/pipeline.py --performance-mode performance
 ```
 
 Or set in `config.yaml`:
@@ -515,15 +522,15 @@ Create a one-click launcher:
 
 ```bash
 #!/bin/bash
-# start_bt7274.sh
+# scripts/start_bt7274.sh
 cd /path/to/BT-7274
 source venv/bin/activate
 ollama serve &
 sleep 2
-python bt7274_assistant/pipeline.py
+python bt7274/bt7274_assistant/pipeline.py
 ```
 
-Make it executable: `chmod +x start_bt7274.sh`
+Make it executable: `chmod +x bt7274/scripts/start_bt7274.sh`
 
 ---
 
@@ -542,14 +549,14 @@ Make it executable: `chmod +x start_bt7274.sh`
 
 ## Viewing Interaction Logs
 
-You can view BT-7274's interaction logs using the `view_logs.py` script with the following options:
+You can view BT-7274's interaction logs using the `bt7274/scripts/view_logs.py` script with the following options:
 
 **New Usage Options**
-- `python view_logs.py` - Show today's interactions (enhanced formatting)
-- `python view_logs.py --all` - Show all log files (enhanced formatting)
-- `python view_logs.py --summary` - Show summary statistics (enhanced formatting)
-- `python view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
-- `python view_logs.py --logs` - Show all logs content (NEW)
+- `python bt7274/scripts/view_logs.py` - Show today's interactions (enhanced formatting)
+- `python bt7274/scripts/view_logs.py --all` - Show all log files (enhanced formatting)
+- `python bt7274/scripts/view_logs.py --summary` - Show summary statistics (enhanced formatting)
+- `python bt7274/scripts/view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
+- `python bt7274/scripts/view_logs.py --logs` - Show all logs content (NEW)
 
 The enhanced formatting provides better readability with clear section headers, visual indicators for response times and confidence levels, and organized technical details.
 
@@ -570,4 +577,4 @@ This project is for **personal cosplay use only**. BT-7274 and Titanfall 2 are i
 5. ✅ Run the full pipeline (Step 5)
 6. 🎉 Suit up, Pilot!
 
-**Good luck with your cosplay, Pilot. Protocol 3: Protect the cosplayer.**
+**Good luck with your cosplay, Pilot. Protocol 3: Protect the Pilot.**

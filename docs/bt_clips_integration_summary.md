@@ -17,8 +17,8 @@ We've successfully integrated all 885 original BT-7274 voice lines from Titanfal
 
 #### Modified Files
 1. `bt7274_assistant/pipeline.py` - Enhanced assistant with BT clips support
-2. `BT-7274.Voicepack/bt_clips_index.csv` - Index of all voice lines
-3. `BT-7274.Voicepack/bt_clips/` - Directory with 885 WAV files
+2. `bt7274/BT-7274.Voicepack/bt_clips_index.csv` - Index of all voice lines
+3. `bt7274/BT-7274.Voicepack/bt_clips/` - Directory with 885 WAV files
 
 #### New Files Created
 1. `NEW_BT_CLIPS_FEATURES.md` - Feature documentation
