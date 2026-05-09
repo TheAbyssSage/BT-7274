@@ -27,69 +27,60 @@ from pathlib import Path
 
 def cmd_bt_link(args):
     """Full BT-7274 startup sequence: Ollama check + mode selection + launch."""
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.text import Text
-
-    console = Console()
 
     # ── Banner ──
-    banner = Text()
-    banner.append("╔══════════════════════════════════════════════╗\n", style="bold cyan")
-    banner.append("║", style="bold cyan")
-    banner.append("   BT-7274  VANGUARD-CLASS  TITAN  AI         ", style="bold yellow")
-    banner.append("║\n", style="bold cyan")
-    banner.append("║", style="bold cyan")
-    banner.append("   Neural Link Establishment Protocol         ", style="dim white")
-    banner.append("║\n", style="bold cyan")
-    banner.append("╚══════════════════════════════════════════════╝", style="bold cyan")
-    console.print(banner)
+    print()
+    print("  BT-7274 AI ASSISTANT  |  Neural Link Establishment Protocol")
     print()
 
     # ── Ollama check ──
-    console.print("  [bold cyan][SYS][/] Checking Ollama server...", end=" ")
+    print("  │  [SYS] Checking Ollama server...", end=" ")
     try:
         import requests
         r = requests.get("http://localhost:11434/api/tags", timeout=3)
         if r.status_code == 200:
-            console.print("[green]ONLINE[/]")
+            print("ONLINE")
         else:
-            console.print("[yellow]STARTING...[/]")
+            print("STARTING...")
             subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(3)
-            console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+            print("  │  [SYS] Ollama server READY")
     except Exception:
-        console.print("[yellow]STARTING...[/]")
+        print("STARTING...")
         subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(3)
-        console.print("  [bold cyan][SYS][/] Ollama server [green]READY[/]")
+        print("  │  [SYS] Ollama server READY")
 
     # ── Input Mode Selection ──
-    console.print("\n  [bold]Select Input Mode:[/]")
-    console.print("    [1] Voice Mode       — Microphone + wake word")
-    console.print("    [2] Console Chat     — Text input (like Ollama)")
+    print()
+    print("  Select Input Mode")
+    print("  ────────────────────────────────────────")
+    print("  │  [1] Voice Mode       — Microphone + wake word")
+    print("  │  [2] Console Chat     — Text input (like Ollama)")
 
     mode_arg = ""
     while True:
         try:
             choice = input("  > Mode [1-2]: ").strip()
             if choice == "1":
-                console.print("  [bold cyan][SELECT][/] Voice Mode")
+                print("  │  [SELECT] Voice Mode")
                 break
             elif choice == "2":
                 mode_arg = "--chat"
-                console.print("  [bold cyan][SELECT][/] Console Chat")
+                print("  │  [SELECT] Console Chat")
                 break
             else:
-                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+                print("  │  Invalid choice. Enter 1 or 2.")
         except (EOFError, KeyboardInterrupt):
-            console.print("\n  [yellow]Link aborted.[/]")
+            print("\n  Link aborted.")
             return
 
     # ── TTS Mode Selection ──
-    console.print("\n  [bold]Select TTS Mode:[/]")
-    console.print("    [1] Standard    — Full synthesis, then play")
-    console.print("    [2] Streaming   — Sentence-level parallel playback")
+    print()
+    print("  Select TTS Mode")
+    print("  ────────────────────────────────────────")
+    print("  │  [1] Standard    — Full synthesis, then play")
+    print("  │  [2] Streaming   — Sentence-level parallel playback")
 
     perf_arg = ""
     while True:
@@ -97,20 +88,22 @@ def cmd_bt_link(args):
             choice = input("  > TTS [1-2]: ").strip()
             if choice == "1":
                 perf_arg = "--performance-mode standard"
-                console.print("  [bold cyan][SELECT][/] Standard")
+                print("  │  [SELECT] Standard")
                 break
             elif choice == "2":
                 perf_arg = "--performance-mode performance"
-                console.print("  [bold cyan][SELECT][/] Streaming")
+                print("  │  [SELECT] Streaming")
                 break
             else:
-                console.print("  [red]Invalid choice. Enter 1 or 2.[/]")
+                print("  │  Invalid choice. Enter 1 or 2.")
         except (EOFError, KeyboardInterrupt):
-            console.print("\n  [yellow]Link aborted.[/]")
+            print("\n  Link aborted.")
             return
 
     # ── Establish link ──
-    console.print("\n  [bold green]⚡ Establishing Neural Link...[/]\n")
+    print()
+    print("  │  Establishing Neural Link...")
+    print()
 
     # Build args and delegate to cmd_assistant
     class LinkArgs:
