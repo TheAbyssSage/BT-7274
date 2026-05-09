@@ -24,7 +24,7 @@ class TestPipelineIntegration:
 
     def test_yolo_to_overlay_pipeline(self):
         """YOLO detections → overlay produces annotated frame."""
-        yolo = YoloEngine(model_path="yolov8n.pt", conf_threshold=0.5)
+        yolo = YoloEngine(model_path="models/yolov8n.pt", conf_threshold=0.5)
         overlay = DetectionOverlay(width=640, height=480)
 
         # Create a fake dark frame

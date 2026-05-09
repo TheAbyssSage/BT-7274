@@ -204,7 +204,7 @@ def main():
     hud_parser.add_argument("--width", type=int, default=1280)
     hud_parser.add_argument("--height", type=int, default=720)
     hud_parser.add_argument("--fullscreen", action="store_true")
-    hud_parser.add_argument("--model", default="yolov8n.pt")
+    hud_parser.add_argument("--model", default="models/yolov8n.pt")
     hud_parser.add_argument("--conf", type=float, default=0.5)
     hud_parser.add_argument("--iou", type=float, default=0.45)
     hud_parser.add_argument("--no-yolo", action="store_true", help="Disable YOLO detection")

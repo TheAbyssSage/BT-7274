@@ -38,7 +38,7 @@ class Detection:
 class YoloEngine:
     """Thin wrapper around Ultralytics YOLO for frame-by-frame inference."""
 
-    DEFAULT_MODEL = "yolov8n.pt"
+    DEFAULT_MODEL = "models/yolov8n.pt"
     DEFAULT_CONF = 0.5
     DEFAULT_IOU = 0.45
 
