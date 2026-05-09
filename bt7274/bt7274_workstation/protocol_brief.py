@@ -201,8 +201,13 @@ class ProtocolBrief:
 
     # ─── Protocol Brief Summary ─────────────────────────────────────────
 
-    def get_brief(self, name: str = "pilot") -> str:
-        """Generate a protocol brief summary."""
+    def get_brief(self, name: str = "pilot", calendar_events: Optional[str] = None) -> str:
+        """Generate a protocol brief summary.
+
+        Args:
+            name: Pilot name.
+            calendar_events: Optional pre-formatted calendar events string to include.
+        """
         items = self._load_todo(name)
         active = [it for it in items if not it["completed"]]
         completed = [it for it in items if it["completed"]]
@@ -229,6 +234,10 @@ class ProtocolBrief:
             except IOError:
                 pass
         lines.append(f"Total notes: {note_count}")
+
+        # Include calendar events if provided
+        if calendar_events:
+            lines.append(f"\n{calendar_events}")
 
         return "\n".join(lines)
 

@@ -34,6 +34,7 @@ class _AssistantBase:
     vpn: Any = None
     weather: Any = None
     battery: Any = None
+    calendar: Any = None
     protocol_brief: Any = None
     logger: Any = None
     voice_telemetry: Any = None

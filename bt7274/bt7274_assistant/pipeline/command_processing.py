@@ -47,6 +47,8 @@ _INTENT_PATTERNS = [
     ("hud", re.compile(r'\b(open\s+hud|show\s+hud|activate\s+hud|pilot\s+hud)\b', re.IGNORECASE)),
     ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
     ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
+    ("calendar", re.compile(r'\b(calendar|events?|schedule|appointments?|agenda|what\'?s?\s+on\s+today|what\s+do\s+i\s+have\s+today|my\s+schedule)\b', re.IGNORECASE)),
+    ("calendar_toggle", re.compile(r'\b((enable|disable|turn\s+(on|off))\s+(calendar|calendar\s+access))\b', re.IGNORECASE)),
 ]
 
 
@@ -931,13 +933,80 @@ class CommandProcessingMixin(_AssistantBase):
                     response_parts.append("Cloak disengagement failed, Pilot.")
                 handled_types.add("vpn")
 
+        # Check for calendar commands
+        if "calendar" in intents and "calendar" not in handled_types:
+            status("CAL", "Accessing calendar...")
+            try:
+                speak_standby("calendar")
+                calendar_result = self.actions.execute("get_calendar_events") if self.actions else "Calendar unavailable"
+                if calendar_result and not calendar_result.startswith("Calendar access failed"):
+                    status("CAL", calendar_result[:100] + "..." if len(calendar_result) > 100 else calendar_result)
+                    response_parts.append(calendar_result)
+                    handled_types.add("calendar")
+                else:
+                    response_parts.append("Pilot, I cannot access your calendar. Check System Settings > Privacy > Calendars.")
+                    handled_types.add("calendar")
+            except Exception as e:
+                self._report_error("actions", "get_calendar_events", e)
+                response_parts.append("Pilot, calendar access is currently unavailable.")
+                handled_types.add("calendar")
+
+        # Check for upcoming events query
+        if any(phrase in lower_text for phrase in ["upcoming events", "what's next", "what is next", "next event", "what's coming up", "what is coming up"]):
+            status("CAL", "Checking upcoming events...")
+            try:
+                upcoming_result = self.actions.execute("get_upcoming_events") if self.actions else "Calendar unavailable"
+                if upcoming_result and not upcoming_result.startswith("Calendar access failed"):
+                    status("CAL", upcoming_result[:100] + "..." if len(upcoming_result) > 100 else upcoming_result)
+                    response_parts.append(upcoming_result)
+                    handled_types.add("calendar")
+                else:
+                    response_parts.append("Pilot, I cannot access your calendar right now.")
+                    handled_types.add("calendar")
+            except Exception as e:
+                self._report_error("actions", "get_upcoming_events", e)
+                response_parts.append("Pilot, unable to check upcoming events.")
+                handled_types.add("calendar")
+
+        # Check for calendar access toggle
+        if "calendar_toggle" in intents and "calendar" not in handled_types:
+            lower = text.lower()
+            is_enabling = any(phrase in lower for phrase in ["enable calendar", "turn on calendar", "enable calendar access", "turn on calendar access"])
+            is_disabling = any(phrase in lower for phrase in ["disable calendar", "turn off calendar", "disable calendar access", "turn off calendar access"])
+
+            if is_enabling:
+                status("CAL", "Enabling calendar access...")
+                if self.calendar:
+                    self.calendar.enabled = True
+                    self.calendar.start()
+                    response_parts.append("Calendar access enabled, Pilot. I will monitor your schedule.")
+                else:
+                    response_parts.append("Calendar monitor is not initialized, Pilot.")
+                handled_types.add("calendar")
+            elif is_disabling:
+                status("CAL", "Disabling calendar access...")
+                if self.calendar:
+                    self.calendar.enabled = False
+                    self.calendar.stop()
+                    response_parts.append("Calendar access disabled, Pilot.")
+                else:
+                    response_parts.append("Calendar monitor is not initialized, Pilot.")
+                handled_types.add("calendar")
+
         # Check for Protocol Mode commands
         lower_text = text.lower()
         if "protocol brief" in lower_text:
             status("PROTOCOL", "Generating protocol brief...")
             try:
                 if self.protocol_brief:
-                    brief = self.protocol_brief.get_brief()
+                    # Include calendar events if calendar is enabled
+                    calendar_events = None
+                    if self.calendar and self.calendar.enabled:
+                        try:
+                            calendar_events = self.calendar.get_today_events()
+                        except Exception:
+                            pass
+                    brief = self.protocol_brief.get_brief(calendar_events=calendar_events)
                     response_parts.append(brief)
                     logger.info(f"[PROTOCOL] Protocol brief generated for pilot")
                 else:

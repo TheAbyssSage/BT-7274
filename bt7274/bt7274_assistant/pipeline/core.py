@@ -20,6 +20,7 @@ from bt7274.bt7274_workstation.interaction_logger import InteractionLogger
 from bt7274.bt7274_workstation.battery_monitor import BatteryMonitor
 from bt7274.bt7274_workstation.weather_monitor import WeatherMonitor
 from bt7274.bt7274_workstation.vpn_monitor import VPNMonitor
+from bt7274.bt7274_workstation.calendar_monitor import CalendarMonitor
 from bt7274.bt7274_workstation.hardware_telemetry import HardwareTelemetry
 from bt7274.bt7274_workstation.network_telemetry import NetworkTelemetry
 from bt7274.bt7274_workstation.voice_telemetry import VoiceTelemetry
@@ -89,6 +90,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         self.battery: Optional[BatteryMonitor] = None
         self.weather: Optional[WeatherMonitor] = None
         self.vpn: Optional[VPNMonitor] = None
+        self.calendar: Optional[CalendarMonitor] = None
         self.hardware_telemetry: Optional[HardwareTelemetry] = None
         self.network_telemetry: Optional[NetworkTelemetry] = None
         self.voice_telemetry: Optional[VoiceTelemetry] = None
@@ -501,6 +503,14 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         except Exception as e:
             self._report_error("vpn", "initialize", e)
             warning("VPN monitor failed")
+
+        try:
+            self.calendar = CalendarMonitor(self.config.get("calendar_access", {}))
+            self.calendar.start()
+            success("Calendar monitor")
+        except Exception as e:
+            self._report_error("calendar", "initialize", e)
+            warning("Calendar monitor failed")
 
         # [9b] Telemetry monitors
         try:

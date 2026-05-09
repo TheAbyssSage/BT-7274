@@ -789,3 +789,62 @@ def action_vision_status():
         return "\n".join(lines)
     except Exception as e:
         return f"Vision status unavailable: {str(e)}"
+
+
+# ─── Calendar Actions ───────────────────────────────────────────────
+
+@register_action("get_calendar_events")
+def action_get_calendar_events():
+    """Return today's calendar events from macOS Calendar.app."""
+    try:
+        from bt7274.bt7274_workstation.calendar_monitor import CalendarMonitor
+        monitor = CalendarMonitor({"enabled": True})
+        return monitor.get_today_events()
+    except Exception as e:
+        return f"Calendar access failed: {str(e)}"
+
+
+@register_action("get_upcoming_events")
+def action_get_upcoming_events(hours: int = 2):
+    """Return upcoming calendar events within the next N hours."""
+    try:
+        from bt7274.bt7274_workstation.calendar_monitor import CalendarMonitor
+        monitor = CalendarMonitor({
+            "enabled": True,
+            "upcoming_warning_minutes": hours * 60,
+        })
+        events = monitor._fetch_events()
+        if not events:
+            return "No upcoming events, Pilot."
+
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        threshold = now + timedelta(hours=hours)
+
+        upcoming = []
+        for evt in events:
+            try:
+                start_str = evt.get("start_time", "")
+                if " at " in start_str:
+                    date_part, time_part = start_str.split(" at ")
+                    from datetime import datetime as dt
+                    start_dt = dt.strptime(f"{date_part} {time_part}", "%A, %B %d, %Y %I:%M:%S %p")
+                    if now <= start_dt <= threshold:
+                        upcoming.append(evt)
+            except Exception:
+                continue
+
+        if not upcoming:
+            return f"No events in the next {hours} hour{'s' if hours != 1 else ''}, Pilot."
+
+        lines = [f"Upcoming events in the next {hours} hour{'s' if hours != 1 else ''}:"]
+        for evt in upcoming:
+            time_str = monitor._format_event_time(evt)
+            title = evt.get("title", "Untitled")
+            location = evt.get("location", "")
+            loc_str = f" at {location}" if location else ""
+            lines.append(f"  {time_str} — {title}{loc_str}")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Calendar access failed: {str(e)}"
