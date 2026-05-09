@@ -33,21 +33,22 @@ except ImportError:
 _INTENT_PATTERNS = [
     ("gratitude", re.compile(r'\b(thank|thanks|thx|appreciate|grateful)\b', re.IGNORECASE)),
     ("weather", re.compile(r'\b(weather|temperature|forecast|rain|snow|sunny|cloudy|humid)\b', re.IGNORECASE)),
-    ("time", re.compile(r'\bwhat\s+(time|date|day)|current\s+time|today\'?s?\s+date\b', re.IGNORECASE)),
+    ("time", re.compile(r"\bwhat(?:'s|\s+is)?\s+(?:the\s+)?(?:time|date|day)|current\s+time|today'?s?\s+date\b", re.IGNORECASE)),
     ("location", re.compile(r'\b(my\s+location|where\s+(am\s+i|are\s+we)|find\s+my\s+location)\b', re.IGNORECASE)),
     ("status", re.compile(r'\b(your\s+status|status\s+report|systems?\s+(check|status)|how\s+are\s+you)\b', re.IGNORECASE)),
     ("vpn_status", re.compile(r'\b(vpn\s+status|cloak\s+status|is\s+(the\s+)?(vpn|cloak))\b', re.IGNORECASE)),
     ("vpn_toggle", re.compile(r'\b(turn\s+(on|off)\s+(the\s+)?(vpn|cloak)|enable\s+(vpn|cloak)|disable\s+(vpn|cloak)|engage\s+(cloak|vpn))\b', re.IGNORECASE)),
     ("search", re.compile(r'\b(who\s+(won|was)|news|latest|search|look\s+up|tell\s+me\s+about|find|when\s+is|how\s+much)\b', re.IGNORECASE)),
     ("vision", re.compile(r'\b(what\s+do\s+you\s+see|look\s+around|scan\s+the\s+room|optical\s+sensors?)\b', re.IGNORECASE)),
+    ("analyze_that", re.compile(r'\b(analy(?:ze|se)\s+(?:that|this)|scan\s+(?:that|this|object)|identify\s+(?:that|this|object)|tactical\s+analysis|what\s+(?:is|are)\s+(?:that|this|those|these))\b', re.IGNORECASE)),
     ("todo", re.compile(r'\b(add\s+(a\s+)?(task|todo|to-do)|complete\s+(task|todo)|list\s+(tasks?|todos?|to-dos?)|remove\s+(task|todo)|clear\s+(tasks?|todos?))\b', re.IGNORECASE)),
     ("note", re.compile(r'\b(make\s+(a\s+)?note|add\s+(a\s+)?note|list\s+notes?|read\s+notes?)\b', re.IGNORECASE)),
     ("log", re.compile(r'\b(make\s+log|read\s+logs?|view\s+logs?|protocol\s+brief)\b', re.IGNORECASE)),
-    ("translate", re.compile(r'\b(translate|translation|in\s+\w+\s+please)\b', re.IGNORECASE)),
+    ("translate", re.compile(r'\b(translat(?:e|ing|ion)|in\s+\w+\s+please)\b', re.IGNORECASE)),
     ("hud", re.compile(r'\b(open\s+hud|show\s+hud|activate\s+hud|pilot\s+hud)\b', re.IGNORECASE)),
     ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
     ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
-    ("calendar", re.compile(r'\b(calendar|events?|schedule|appointments?|agenda|what\'?s?\s+on\s+today|what\s+do\s+i\s+have\s+today|my\s+schedule)\b', re.IGNORECASE)),
+    ("calendar", re.compile(r"\b(calendar|events?|schedul\w*|appointments?|agenda|what'?s?\s+on\s+today|what\s+(?:do|am)\s+i\s+have\s+today|my\s+schedul\w*)\b", re.IGNORECASE)),
     ("calendar_toggle", re.compile(r'\b((enable|disable|turn\s+(on|off))\s+(calendar|calendar\s+access))\b', re.IGNORECASE)),
 ]
 
@@ -581,6 +582,51 @@ class CommandProcessingMixin(_AssistantBase):
                 response_parts.append("Pilot, unable to retrieve vision logs.")
                 handled_types.add("vision")
 
+        # Check for tactical object analysis ("analyze that")
+        if "analyze_that" in intents and "analyze_that" not in handled_types:
+            status("VISION", "Running tactical object analysis...")
+            try:
+                if self.perception:
+                    speak_standby("generic")
+                    analysis_result = self.perception.analyze_that(
+                        pilot_query=text,
+                        include_web_lookup=True,
+                    )
+                    if analysis_result["success"]:
+                        # Build a concise spoken response
+                        obj_count = len(analysis_result["objects"])
+                        threats = [o for o in analysis_result["objects"] if o["threat"] in ("medium", "high", "critical")]
+                        high_rel = [o for o in analysis_result["objects"] if o["relevance"] in ("medium", "high")]
+
+                        spoken = analysis_result["description"]
+                        if threats:
+                            threat_labels = ", ".join(o["label"] for o in threats[:3])
+                            spoken += f" Threats detected: {threat_labels}."
+                        if high_rel:
+                            rel_labels = ", ".join(o["label"] for o in high_rel[:3])
+                            spoken += f" Mission-relevant: {rel_labels}."
+
+                        status("VISION", f"Analyzed {obj_count} objects, {len(threats)} threats")
+                        response_parts.append(spoken)
+                        handled_types.add("analyze_that")
+                        skip_normal_tts = True
+                        followup_tts_text = spoken
+
+                        # If web lookups suggested, do them in background
+                        if analysis_result["web_lookups"]:
+                            status("SEARCH", f"Suggested lookups: {', '.join(analysis_result['web_lookups'][:3])}")
+                    else:
+                        error_msg = analysis_result.get("error", "Optical sensors failed.")
+                        response_parts.append(f"Pilot, my optical sensors are offline. {error_msg}")
+                        handled_types.add("analyze_that")
+                else:
+                    response_parts.append("Pilot, my optical sensors are not initialized.")
+                    handled_types.add("analyze_that")
+            except Exception as e:
+                self._report_error("perception", "analyze_that", e)
+                response_parts.append("Pilot, tactical analysis encountered an error.")
+                handled_types.add("analyze_that")
+
         # Check for HUD open request
         if "hud" in intents and "hud" not in handled_types:
             status("HUD", "Activating Pilot HUD...")
@@ -717,6 +763,27 @@ class CommandProcessingMixin(_AssistantBase):
                 response_parts.append("VPN monitor is not initialized, Pilot.")
             handled_types.add("vpn")
 
+        # Check for weather warnings toggle (must be BEFORE weather intent handler)
+        lower_text = text.lower()
+        if any(phrase in lower_text for phrase in ["turn on weather warnings", "enable weather warnings", "turn on environmental warnings", "enable environmental warnings"]):
+            if self.weather:
+                self.weather.enabled = True
+                self.weather.start()
+                response_parts.append("Environmental warnings enabled, Pilot.")
+            else:
+                response_parts.append("Environmental monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+            intents.discard("weather")  # Suppress weather intent
+        elif any(phrase in lower_text for phrase in ["turn off weather warnings", "disable weather warnings", "turn off environmental warnings", "disable environmental warnings"]):
+            if self.weather:
+                self.weather.enabled = False
+                self.weather.stop()
+                response_parts.append("Environmental warnings disabled, Pilot.")
+            else:
+                response_parts.append("Environmental monitor is not initialized, Pilot.")
+            handled_types.add("maintenance")
+            intents.discard("weather")  # Suppress weather intent
+
         # Check for weather query
         if "weather" in intents:
             status("WEATHER", "Fetching local data...")
@@ -823,25 +890,6 @@ class CommandProcessingMixin(_AssistantBase):
             cache_hit("Clearing TTS cache...")
             self.clear_tts_cache()
             response_parts.append("TTS cache cleared, Pilot.")
-            handled_types.add("maintenance")
-
-        # Check for environmental warnings toggle
-        lower_text = text.lower()
-        if any(phrase in lower_text for phrase in ["turn on weather warnings", "enable weather warnings", "turn on environmental warnings", "enable environmental warnings"]):
-            if self.weather:
-                self.weather.enabled = True
-                self.weather.start()
-                response_parts.append("Environmental warnings enabled, Pilot.")
-            else:
-                response_parts.append("Environmental monitor is not initialized, Pilot.")
-            handled_types.add("maintenance")
-        elif any(phrase in lower_text for phrase in ["turn off weather warnings", "disable weather warnings", "turn off environmental warnings", "disable environmental warnings"]):
-            if self.weather:
-                self.weather.enabled = False
-                self.weather.stop()
-                response_parts.append("Environmental warnings disabled, Pilot.")
-            else:
-                response_parts.append("Environmental monitor is not initialized, Pilot.")
             handled_types.add("maintenance")
 
         # Check for VPN / auto-cloak toggle
@@ -1456,6 +1504,18 @@ class CommandProcessingMixin(_AssistantBase):
         # Strip markdown, JSON, and instruction blocks before TTS
         import re
         clean_response = response
+        
+        # Strip surrounding double quotes (LLM sometimes wraps responses)
+        clean_response = clean_response.strip()
+        if clean_response.startswith('"') and clean_response.endswith('"'):
+            clean_response = clean_response[1:-1].strip()
+        if clean_response.startswith("'") and clean_response.endswith("'"):
+            clean_response = clean_response[1:-1].strip()
+        
+        # Strip JSON blocks (autonomous logging decisions leaking into response)
+        clean_response = re.sub(r'\{[^{}]*"log"[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', '', clean_response, flags=re.DOTALL)
+        clean_response = re.sub(r'```json\s*\{.*?\}\s*```', '', clean_response, flags=re.DOTALL)
+        
         # Remove markdown headers, code blocks, horizontal rules
         clean_response = re.sub(r'#{1,6}\s+.*', '', clean_response)
         clean_response = re.sub(r'```.*?```', '', clean_response, flags=re.DOTALL)

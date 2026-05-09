@@ -791,6 +791,78 @@ def action_vision_status():
         return f"Vision status unavailable: {str(e)}"
 
 
+@register_action("analyze_that")
+def action_analyze_that(pilot_query: str | None = None):
+    """
+    Tactical object analysis — detect, classify, and assess threat/relevance.
+
+    Captures a frame and returns a structured tactical analysis with:
+      - Object labels with confidence levels
+      - Threat assessment (none/low/medium/high/critical)
+      - Mission relevance (none/low/medium/high)
+      - Suggested web lookups for unknown objects
+
+    Args:
+        pilot_query: The Pilot's exact words that triggered the analysis.
+
+    Returns:
+        Formatted tactical analysis string, or error message.
+    """
+    try:
+        from bt7274.bt7274_perception import PerceptionManager
+        pm = PerceptionManager()
+        result = pm.analyze_that(pilot_query=pilot_query, include_web_lookup=True)
+        if not result["success"]:
+            return f"Optical sensors offline: {result.get('error', 'Unknown error')}"
+
+        # Build a formatted response
+        lines = [result["description"]]
+
+        if result["objects"]:
+            lines.append("")
+            lines.append("OBJECT ANALYSIS:")
+            for obj in result["objects"]:
+                threat_icon = _threat_icon(obj["threat"])
+                rel_icon = _relevance_icon(obj["relevance"])
+                reason_str = f" — {obj['reason']}" if obj.get("reason") else ""
+                lines.append(
+                    f"  {threat_icon} {obj['label']} "
+                    f"(confidence: {obj['confidence']}, "
+                    f"threat: {obj['threat']}{rel_icon}){reason_str}"
+                )
+
+        if result["web_lookups"]:
+            lines.append("")
+            lines.append("SUGGESTED WEB LOOKUPS:")
+            for lookup in result["web_lookups"]:
+                lines.append(f"  • {lookup}")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Vision system error: {str(e)}"
+
+
+def _threat_icon(threat: str) -> str:
+    """Return a visual icon for threat level."""
+    return {
+        "none": "○",
+        "low": "◈",
+        "medium": "◆",
+        "high": "⚠",
+        "critical": "☠",
+    }.get(threat.lower(), "?")
+
+
+def _relevance_icon(relevance: str) -> str:
+    """Return a visual icon for relevance level."""
+    return {
+        "none": "",
+        "low": "",
+        "medium": " ★",
+        "high": " ★★",
+    }.get(relevance.lower(), "")
+
+
 # ─── Calendar Actions ───────────────────────────────────────────────
 
 @register_action("get_calendar_events")
