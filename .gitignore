@@ -43,16 +43,16 @@ outputs/
 dataset/
 test_output.wav
 *.wav
-!BT-7274.Voicepack/wav/*.wav
-bt7274_workstation/session_cache
+!bt7274/BT-7274.Voicepack/wav/*.wav
+bt7274/bt7274_workstation/session_cache
 
 # Model caches
 *.pt
 *.pth
 *.ckpt
 *.safetensors
-models/
-!models/bt-7274.Modelfile
+bt7274/models/
+!bt7274/models/bt-7274.Modelfile
 
 # Logs
 *.log

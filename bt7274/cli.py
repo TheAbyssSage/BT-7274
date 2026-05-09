@@ -23,7 +23,7 @@ from pathlib import Path
 
 def cmd_assistant(args):
     """Launch the BT-7274 voice assistant."""
-    from bt7274_assistant.pipeline.core import BT7274Assistant
+    from bt7274.bt7274_assistant.pipeline.core import BT7274Assistant
 
     assistant = BT7274Assistant(
         ai_mode=args.ai_mode,
@@ -43,7 +43,7 @@ def cmd_assistant(args):
 
 def cmd_camera(args):
     """Open the camera stream window."""
-    from bt7274_hud.hud_window import CameraWindow
+    from bt7274.bt7274_hud.hud_window import CameraWindow
 
     print(f"  [SYS] Camera device: {args.device}")
     print(f"  [SYS] Mode: {'windowed' if args.windowed else 'fullscreen'}")
@@ -61,7 +61,7 @@ def cmd_camera(args):
 
 def cmd_hud(args):
     """Open the real-time YOLO detection HUD."""
-    from bt7274_hud.realtime_hud_window import RealtimeHudWindow
+    from bt7274.bt7274_hud.realtime_hud_window import RealtimeHudWindow
 
     if args.low_latency:
         args.width = 640
@@ -95,13 +95,13 @@ def cmd_hud(args):
 
 def cmd_vision(args):
     """Open the vision viewer window."""
-    from bt7274_perception.vision_viewer import main as vision_main
+    from bt7274.bt7274_perception.vision_viewer import main as vision_main
     vision_main()
 
 
 def cmd_logs(args):
     """View interaction logs."""
-    from bt7274_workstation.interaction_logger import InteractionLogger
+    from bt7274.bt7274_workstation.interaction_logger import InteractionLogger
 
     logger = InteractionLogger()
 
@@ -166,7 +166,7 @@ def cmd_logs(args):
 
 def cmd_list_cameras(args):
     """List available cameras."""
-    from bt7274_hud.camera_stream import CameraStream
+    from bt7274.bt7274_hud.camera_stream import CameraStream
     devices = CameraStream.list_devices()
     if not devices:
         print("No cameras detected.")
