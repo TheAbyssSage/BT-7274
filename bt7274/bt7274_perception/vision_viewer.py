@@ -9,11 +9,11 @@ A tkinter window that shows what BT-7274's optical sensors see:
   - Manual "Look" trigger with progress feedback
 
 Usage:
-    python vision_viewer.py
-    python -m bt7274_perception.vision_viewer
+    python bt7274/scripts/vision_viewer.py
+    python -m bt7274.bt7274_perception.vision_viewer
 
     # or from the assistant:
-    from bt7274_perception.vision_viewer import VisionViewerWindow
+    from bt7274.bt7274_perception.vision_viewer import VisionViewerWindow
     viewer = VisionViewerWindow()
     viewer.start()
 """

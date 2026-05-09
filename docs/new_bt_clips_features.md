@@ -29,7 +29,7 @@ This document summarizes the new features added to the BT-7274 assistant using t
 
 ### File Structure
 ```
-BT-7274.Voicepack/
+bt7274/BT-7274.Voicepack/
 ├── bt_clips/              # Individual WAV files (885 total)
 ├── bt_clips_index.csv     # Index with timestamps and transcriptions
 └── metadata.csv           # Additional metadata

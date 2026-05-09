@@ -66,8 +66,8 @@ Target: ≥30 FPS with <2 frames of latency on Apple Silicon.
 ## Customizing State
 
 ```python
-from bt7274_hud.hud_window import CameraWindow
-from bt7274_hud.hud_data import HudState, Marker, AbilityIcon
+from bt7274.bt7274_hud.hud_window import CameraWindow
+from bt7274.bt7274_hud.hud_data import HudState, Marker, AbilityIcon
 
 hud = CameraWindow(fullscreen=False)
 # Note: CameraWindow is a bare camera feed — for HUD overlays, use HudRenderer

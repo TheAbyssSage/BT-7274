@@ -69,10 +69,10 @@ class CommandRouterTester:
             },
             "tts": {
                 "model": "tts_models/multilingual/multi-dataset/xtts_v2",
-                "reference_wav": "bt7274_assistant/dataset/reference_speaker.wav",
+                "reference_wav": "bt7274/bt7274_assistant/dataset/reference_speaker.wav",
                 "language": "en",
                 "speed": 1.0,
-                "output_dir": "bt7274_workstation/session_cache/tts_outputs",
+                "output_dir": "bt7274/bt7274_workstation/session_cache/tts_outputs",
                 "use_mps": False
             },
             "pipeline": {

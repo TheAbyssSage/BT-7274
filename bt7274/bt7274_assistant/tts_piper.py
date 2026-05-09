@@ -24,7 +24,7 @@ class FastPiperTTS:
         self.config = config
         self.model_path = config.get(
             "piper_model",
-            "bt7274_assistant/piper_models/en_US-lessac-medium.onnx",
+            "bt7274/bt7274_assistant/piper_models/en_US-lessac-medium.onnx",
         )
         self.output_dir = Path(config.get("output_dir", str(get_tts_output_dir())))
         self.output_dir.mkdir(parents=True, exist_ok=True)

@@ -51,7 +51,7 @@ class XTTSClient:
         self._last_metrics: Dict[str, float | str | bool] = {}
 
         # Resolve reference_wav: single file, list of files, or directory
-        raw_ref = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
+        raw_ref = config.get("reference_wav", "bt7274/bt7274_assistant/dataset/reference_speaker.wav")
         self.reference_wav = self._resolve_references(raw_ref)
 
     def _resolve_references(self, raw_ref) -> list[str]:

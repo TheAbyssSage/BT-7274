@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Regenerate all standby phrases using BT-7274's voice.
-Run: source venv/bin/activate && python bt7274_assistant/scripts/regenerate_standby_bt_voice.py
+Run: source venv/bin/activate && python bt7274/bt7274_assistant/scripts/regenerate_standby_bt_voice.py
 """
 
 import sys
@@ -62,10 +62,10 @@ def load_phrases_from_config():
 def regenerate_standby_phrases(force_regenerate: bool = False):
     config = {
         "model": "tts_models/multilingual/multi-dataset/xtts_v2",
-        "reference_wav": "bt7274_assistant/dataset/reference_speaker.wav",
+        "reference_wav": "bt7274/bt7274_assistant/dataset/reference_speaker.wav",
         "language": "en",
         "speed": 1.0,
-        "output_dir": "bt7274_assistant/standby",
+        "output_dir": "bt7274/bt7274_assistant/standby",
     }
 
     tts = XTTSClient(config)

@@ -85,12 +85,12 @@ def find_bt_clips_dir() -> Path:
     if clips_dir.exists():
         return clips_dir
     
-    # Try relative to this script
-    clips_dir = Path(__file__).parent.parent / "BT-7274.Voicepack" / "bt_clips"
+    # Try relative to this script (one level up from scripts/)
+    clips_dir = Path(__file__).parent.parent.parent / "BT-7274.Voicepack" / "bt_clips"
     if clips_dir.exists():
         return clips_dir
     
-    raise FileNotFoundError("BT clips directory not found. Expected: BT-7274.Voicepack/bt_clips")
+    raise FileNotFoundError("BT clips directory not found. Expected: bt7274/BT-7274.Voicepack/bt_clips")
 
 
 def normalize_filename(filename: str) -> str:

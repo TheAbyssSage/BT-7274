@@ -69,7 +69,7 @@ class StreamingXTTSClient:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Resolve reference_wav: single file, list of files, or directory
-        raw_ref = config.get("reference_wav", "bt7274_assistant/dataset/reference_speaker.wav")
+        raw_ref = config.get("reference_wav", "bt7274/bt7274_assistant/dataset/reference_speaker.wav")
         self.reference_wav = self._resolve_references(raw_ref)
 
         # Model state

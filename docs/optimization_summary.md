@@ -15,10 +15,10 @@ This is a quick-reference summary of the TTS optimizations. For full technical d
 
 ```bash
 # Regenerate standby clips
-python bt7274_assistant/scripts/regenerate_standby_bt_voice.py --force
+python bt7274/bt7274_assistant/scripts/regenerate_standby_bt_voice.py --force
 
 # Test optimizations
-python bt7274_assistant/scripts/test_tts_optimizations.py
+python bt7274/bt7274_assistant/scripts/test_tts_optimizations.py
 
 # Start the assistant
 ./scripts/start_bt7274.sh

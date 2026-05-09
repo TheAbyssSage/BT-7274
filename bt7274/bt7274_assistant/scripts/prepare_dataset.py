@@ -133,11 +133,11 @@ def prepare_dataset(input_dir: Path, output_dir: Path, metadata_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Prepare BT-7274 voice dataset")
-    parser.add_argument("--input", type=Path, default=Path("BT-7274.Voicepack/raw"),
+    parser.add_argument("--input", type=Path, default=Path("bt7274/BT-7274.Voicepack/raw"),
                         help="Input directory with raw audio files")
-    parser.add_argument("--output", type=Path, default=Path("bt7274_assistant/dataset"),
+    parser.add_argument("--output", type=Path, default=Path("bt7274/bt7274_assistant/dataset"),
                         help="Output directory for processed dataset")
-    parser.add_argument("--metadata", type=Path, default=Path("BT-7274.Voicepack/metadata.csv"),
+    parser.add_argument("--metadata", type=Path, default=Path("bt7274/BT-7274.Voicepack/metadata.csv"),
                         help="Path to metadata.csv")
     parser.add_argument("--create-reference", action="store_true",
                         help="Only create reference speaker from existing wavs")

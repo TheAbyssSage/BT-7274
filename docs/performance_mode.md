@@ -114,15 +114,15 @@ When starting the assistant, you'll see:
 
 ```bash
 # Standard mode
-python bt7274_assistant/pipeline.py --performance-mode standard
+python bt7274/bt7274_assistant/pipeline.py --performance-mode standard
 
 # Performance mode
-python bt7274_assistant/pipeline.py --performance-mode performance
+python bt7274/bt7274_assistant/pipeline.py --performance-mode performance
 ```
 
 ### Configuration File
 
-Edit `bt7274_assistant/config.yaml`:
+Edit `bt7274/bt7274_assistant/config.yaml`:
 ```yaml
 performance_mode: performance  # Options: standard | performance
 ```
@@ -141,7 +141,7 @@ The `start_bt7274.sh` script now asks which mode to use:
 
 ```bash
 source venv/bin/activate
-python bt7274_assistant/scripts/test_performance_mode.py
+python bt7274/bt7274_assistant/scripts/test_performance_mode.py
 ```
 
 This synthesizes the same test phrase in both modes and shows timing comparison.
@@ -150,7 +150,7 @@ This synthesizes the same test phrase in both modes and shows timing comparison.
 
 ```bash
 source venv/bin/activate
-python bt7274_assistant/scripts/test_tts_optimizations.py
+python bt7274/bt7274_assistant/scripts/test_tts_optimizations.py
 ```
 
 Tests caching, text preprocessing, and cache management.

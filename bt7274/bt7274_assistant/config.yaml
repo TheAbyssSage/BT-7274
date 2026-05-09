@@ -85,13 +85,13 @@ tts:
   model: tts_models/multilingual/multi-dataset/xtts_v2
   # Use BT-7274 original voice clips for multi-reference voice cloning
   # Options:
-  #   - Single file: "bt7274_assistant/dataset/reference_speaker.wav"
-  #   - Directory (auto-discovers *.wav): "bt7274_assistant/dataset/bt_references"
+  #   - Single file: "bt7274/bt7274_assistant/dataset/reference_speaker.wav"
+  #   - Directory (auto-discovers *.wav): "bt7274/bt7274_assistant/dataset/bt_references"
   #   - List of files: ["clip1.wav", "clip2.wav"]
-  reference_wav: bt7274_assistant/dataset/bt_references
+  reference_wav: bt7274/bt7274_assistant/dataset/bt_references
   language: en
   speed: 1.0
-  output_dir: bt7274_workstation/session_cache/tts_outputs
+  output_dir: bt7274/bt7274_workstation/session_cache/tts_outputs
   use_mps: false              # XTTS v2 works best on CPU for M1
 
   # TTS Engine Selection
@@ -101,7 +101,7 @@ tts:
   engine: piper
   
   # Piper-specific settings (only used when engine: piper)
-  piper_model: bt7274_assistant/piper_models/en_US-lessac-medium.onnx
+  piper_model: bt7274/bt7274_assistant/piper_models/en_US-lessac-medium.onnx
   piper_espeak_data: venv/lib/python3.11/site-packages/piper/espeak-ng-data
 
 # Performance Mode Configuration
