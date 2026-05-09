@@ -954,7 +954,7 @@ class CommandProcessingMixin(_AssistantBase):
                 try:
                     # Try to connect VPN using the VPN monitor
                     if self.vpn:
-                        result = self.vpn.connect_and_wait(timeout=15)
+                        result = self.vpn.connect_and_wait(timeout=30)
                         if result:
                             response_parts.append("Cloak engaged, Pilot. Network traffic is now obfuscated.")
                         else:

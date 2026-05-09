@@ -140,9 +140,9 @@ vpn:
 
 # Calendar Awareness — macOS Calendar.app integration
 calendar_access:
-  enabled: false              # Off by default; enable via voice or config
+  enabled: true               # Off by default; enable via voice or config
   interval: 300               # seconds between checks (5 minutes)
-  upcoming_warning_minutes: 15  # Warn about events starting within N minutes
+  upcoming_warning_minutes: 30  # Warn about events starting within N minutes
   max_events_display: 10      # Max events to show in responses
 
 # Hardware Telemetry — CPU, RAM, disk, thermal, uptime
