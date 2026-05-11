@@ -56,13 +56,18 @@ Say any of these to get BT's attention:
 
 | Command | What It Does |
 |---------|-------------|
-| `BT, what do I have today?` / `What's on today?` | Lists today's calendar events. |
+| `BT, what do I have today?` / `What's on today?` / `What's my day?` | Lists today's calendar events. |
+| `BT, what's on tomorrow?` / `What do I have tomorrow?` / `What's happening tomorrow?` | Lists tomorrow's calendar events. |
 | `BT, what's my schedule?` / `What do I have scheduled?` / `My schedule` / `My agenda` | Shows upcoming calendar events. |
+| `BT, what's on this week?` / `What do I have this week?` / `My week` / `Weekly schedule` | Lists all events for the rest of this week. |
+| `BT, what's on next week?` / `What do I have next week?` / `Next week's schedule` / `The week after` | Lists all events for next week (Monday–Sunday). |
+| `BT, what's on this month?` / `What do I have this month?` / `Rest of the month` / `Monthly schedule` | Lists all events for the rest of this month. |
+| `BT, what's on next month?` / `What do I have next month?` / `Next month's schedule` / `The month after` | Lists all events for next month. |
 | `BT, upcoming events` / `What's next?` / `What is next?` / `Next event` / `What's coming up?` | Shows the next event on your calendar. |
 | `BT, enable calendar access` / `Turn on calendar access` | Grants BT access to your macOS Calendar. |
 | `BT, disable calendar access` / `Turn off calendar access` | Revokes BT's calendar access. |
 
-> **Note:** Calendar integration uses macOS Calendar.app via AppleScript. Grant permission in System Settings > Privacy > Calendars if prompted.
+> **Note:** Calendar integration uses macOS Calendar.app via AppleScript. Grant permission in System Settings > Privacy > Calendars if prompted. BT searches ALL your calendar folders (iCloud, Gmail, etc.) automatically.
 
 ---
 
