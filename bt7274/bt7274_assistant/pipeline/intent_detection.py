@@ -406,6 +406,60 @@ class IntentDetectionMixin(_AssistantBase):
         ]
         return any(phrase in lower for phrase in close_phrases)
 
+    # ─── Calendar Time-Range Intent Detection ────────────────────────────
+
+    def _detect_calendar_range(self, text: str) -> Optional[str]:
+        """Detect which time range the pilot is asking about for calendar events.
+
+        Returns one of: 'today', 'tomorrow', 'this_week', 'next_week',
+        'this_month', 'next_month', or None if no range detected.
+        """
+        lower = text.lower().strip()
+
+        # Check for "next month" first (before "month" alone matches)
+        if any(phrase in lower for phrase in [
+            "next month", "the month after", "following month",
+            "month ahead", "coming month",
+        ]):
+            return "next_month"
+
+        if any(phrase in lower for phrase in [
+            "this month", "rest of the month", "rest of month",
+            "the month", "monthly", "my month",
+        ]):
+            return "this_month"
+
+        if any(phrase in lower for phrase in [
+            "next week", "the week after", "following week",
+            "week ahead", "coming week",
+        ]):
+            return "next_week"
+
+        if any(phrase in lower for phrase in [
+            "this week", "rest of the week", "rest of week",
+            "the week", "weekly", "my week",
+        ]):
+            return "this_week"
+
+        if any(phrase in lower for phrase in [
+            "tomorrow", "tmrw", "tmr", "the next day",
+            "day after", "following day",
+        ]):
+            return "tomorrow"
+
+        if any(phrase in lower for phrase in [
+            "today", "today's", "todays", "on today",
+            "what do i have", "what's on", "whats on",
+            "my day", "the day",
+        ]):
+            return "today"
+
+        return None
+
+    def _is_calendar_range_query(self, text: str) -> bool:
+        """Detect if the user is asking about calendar events for a specific time range."""
+        return self._detect_calendar_range(text) is not None
+
     # ─── Translator Intent Detection ─────────────────────────────────────
 
     def _is_translate_command(self, text: str) -> bool:

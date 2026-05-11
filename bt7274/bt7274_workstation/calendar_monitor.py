@@ -6,6 +6,7 @@ Logs state changes to telemetry/system and event data to telemetry/health.
 """
 
 import json
+import os
 import subprocess
 import threading
 import time
@@ -45,14 +46,14 @@ class CalendarMonitor:
         self._system_log_dir.mkdir(parents=True, exist_ok=True)
         self._health_log_dir.mkdir(parents=True, exist_ok=True)
 
-    # ─── AppleScript queries ──────────────────────────────────────────
+    # ─── AppleScript execution ────────────────────────────────────────
 
     def _run_applescript(self, script: str) -> tuple[bool, str]:
         """Run an AppleScript and return (success, output)."""
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True, text=True, timeout=45,
             )
             if result.returncode == 0:
                 return True, result.stdout.strip()
@@ -70,22 +71,28 @@ class CalendarMonitor:
         if self._calendar_access_granted is not None:
             return self._calendar_access_granted
 
-        script = '''
-        try
-            tell application "Calendar"
-                set calNames to name of every calendar
-            end tell
-            return "granted"
-        on error errMsg
-            return "denied: " & errMsg
-        end try
-        '''
+        script = (
+            'tell application "Calendar"\n'
+            '    set calNames to name of every calendar\n'
+            'end tell\n'
+            'return "granted"'
+        )
         success_flag, output = self._run_applescript(script)
-        self._calendar_access_granted = success_flag and output.startswith("granted")
+        self._calendar_access_granted = success_flag and "granted" in output
         return self._calendar_access_granted
 
+    # ─── Event fetching ───────────────────────────────────────────────
+
     def _fetch_events(self) -> list[dict]:
-        """Fetch today's and upcoming events from Calendar.app.
+        """Fetch today's events from Calendar."""
+        return self._fetch_events_range(0, 1)
+
+    def _fetch_events_range(self, start_offset_days: int, num_days: int) -> list[dict]:
+        """Fetch events from Calendar.app for a specific date range.
+
+        Args:
+            start_offset_days: Days from today to start (0 = today, 1 = tomorrow, etc.)
+            num_days: Number of days to include in the range.
 
         Returns a list of dicts with keys:
             title, start_time, end_time, location, calendar_name, all_day, uid
@@ -93,58 +100,49 @@ class CalendarMonitor:
         if not self._check_calendar_access():
             return []
 
-        # Fetch events for today + upcoming_warning_minutes buffer
-        script = f'''
-        tell application "Calendar"
-            set todayStart to (current date) - (time of (current date))
-            set todayEnd to todayStart + (24 * hours) + ({self.upcoming_warning_minutes} * minutes)
-            
-            set eventList to {{}}
-            repeat with cal in every calendar
-                set calName to name of cal
-                try
-                    set calEvents to (every event of cal whose start date >= todayStart and start date <= todayEnd)
-                    repeat with evt in calEvents
-                        set evtTitle to summary of evt
-                        if evtTitle is missing value then set evtTitle to "(No title)"
-                        set evtStart to start date of evt
-                        set evtEnd to end date of evt
-                        set evtLocation to location of evt
-                        if evtLocation is missing value then set evtLocation to ""
-                        set evtAllDay to allday event of evt
-                        set evtUID to uid of evt
-                        if evtUID is missing value then set evtUID to ""
-                        
-                        set end of eventList to {{
-                            title:evtTitle,
-                            start_time:evtStart as string,
-                            end_time:evtEnd as string,
-                            location:evtLocation,
-                            calendar_name:calName,
-                            all_day:evtAllDay,
-                            uid:evtUID
-                        }}
-                    end repeat
-                end try
-            end repeat
-            
-            -- Sort by start time
-            set AppleScript's text item delimiters to "|||"
-            set outputList to {{}}
-            repeat with evt in eventList
-                set evtStr to title of evt & "|||" & start_time of evt & "|||" & end_time of evt & "|||" & location of evt & "|||" & calendar_name of evt & "|||" & (all_day of evt as string) & "|||" & uid of evt
-                set end of outputList to evtStr
-            end repeat
-            
-            return outputList as string
-        end tell
-        '''
+        # Build AppleScript using string concatenation to avoid f-string
+        # escaping issues with AppleScript's {} record syntax
+        script = (
+            'tell application "Calendar"\n'
+            f'    set rangeStart to ((current date) - (time of (current date))) + ({start_offset_days} * days)\n'
+            f'    set rangeEnd to rangeStart + ({num_days} * days)\n'
+            '    set eventList to {}\n'
+            '    repeat with cal in every calendar\n'
+            '        set calName to name of cal\n'
+            '        try\n'
+            '            set calEvents to (every event of cal whose start date >= rangeStart and start date <= rangeEnd)\n'
+            '            repeat with evt in calEvents\n'
+            '                set evtTitle to summary of evt\n'
+            '                if evtTitle is missing value then set evtTitle to "(No title)"\n'
+            '                set evtStart to start date of evt\n'
+            '                set evtEnd to end date of evt\n'
+            '                set evtLocation to location of evt\n'
+            '                if evtLocation is missing value then set evtLocation to ""\n'
+            '                set evtAllDay to allday event of evt\n'
+            '                set evtUID to uid of evt\n'
+            '                if evtUID is missing value then set evtUID to ""\n'
+            '                set end of eventList to {title:evtTitle, start_time:evtStart as string, end_time:evtEnd as string, location:evtLocation, calendar_name:calName, all_day:evtAllDay, uid:evtUID}\n'
+            '            end repeat\n'
+            '        end try\n'
+            '    end repeat\n'
+            '    if (count of eventList) is 0 then\n'
+            '        return "NO_EVENTS"\n'
+            '    end if\n'
+            '    set AppleScript\'s text item delimiters to "|||"\n'
+            '    set outputList to {}\n'
+            '    repeat with evt in eventList\n'
+            '        set evtStr to title of evt & "|||" & start_time of evt & "|||" & end_time of evt & "|||" & location of evt & "|||" & calendar_name of evt & "|||" & (all_day of evt as string) & "|||" & uid of evt\n'
+            '        set end of outputList to evtStr\n'
+            '    end repeat\n'
+            '    return outputList as string\n'
+            'end tell'
+        )
         success_flag, output = self._run_applescript(script)
         if not success_flag:
             error(f"Calendar fetch failed: {output}")
             return []
 
-        if not output:
+        if not output or output == "NO_EVENTS":
             return []
 
         events = []
@@ -169,30 +167,55 @@ class CalendarMonitor:
 
         # Sort by start_time
         events.sort(key=lambda e: e.get("start_time", ""))
-
         return events
 
     # ─── Event formatting ─────────────────────────────────────────────
+
+    def _parse_event_datetime(self, event: dict) -> Optional[datetime]:
+        """Parse an event's start_time string into a datetime object.
+
+        Handles both AppleScript format ("Sunday, May 10, 2026 at 10:00:00 AM")
+        and NSDate description format ("2026-05-10 08:00:00 +0000").
+        """
+        start_str = event.get("start_time", "")
+        if not start_str:
+            return None
+
+        # Try NSDate description format: "2026-05-10 08:00:00 +0000"
+        try:
+            # Strip timezone offset
+            clean = start_str.rsplit(" ", 1)[0] if " +" in start_str or " -" in start_str[10:] else start_str
+            return datetime.strptime(clean, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+
+        # Try AppleScript format: "Sunday, May 10, 2026 at 10:00:00 AM"
+        try:
+            if " at " in start_str:
+                date_part, time_part = start_str.split(" at ")
+                return datetime.strptime(f"{date_part} {time_part}", "%A, %B %d, %Y %I:%M:%S %p")
+        except ValueError:
+            pass
+
+        return None
 
     def _format_event_time(self, event: dict) -> str:
         """Format an event's time for display."""
         if event.get("all_day"):
             return "All day"
 
-        try:
-            start_str = event.get("start_time", "")
-            # AppleScript returns dates like "Friday, May 9, 2026 at 10:00:00 AM"
-            # Try to parse and extract just the time
-            if " at " in start_str:
-                time_part = start_str.split(" at ")[1]
-                # Strip seconds: "10:00:00 AM" -> "10:00 AM"
-                parts = time_part.split(":")
-                if len(parts) >= 2:
-                    ampm = parts[-1].split(" ")[-1] if " " in parts[-1] else ""
-                    return f"{parts[0]}:{parts[1]} {ampm}".strip()
-            return start_str
-        except Exception:
-            return event.get("start_time", "")
+        dt = self._parse_event_datetime(event)
+        if dt:
+            return dt.strftime("%I:%M %p").lstrip("0")
+
+        return event.get("start_time", "")
+
+    def _format_event_date(self, event: dict) -> str:
+        """Format an event's date for multi-day views (e.g., 'Sun 10 May')."""
+        dt = self._parse_event_datetime(event)
+        if dt:
+            return dt.strftime("%a %d %b")
+        return event.get("start_time", "")
 
     def _format_event_for_llm(self, event: dict) -> str:
         """Format a single event compactly for LLM consumption."""
@@ -240,6 +263,152 @@ class CalendarMonitor:
         formatted = [self._format_event_for_llm(e) for e in events[:self.max_events_display]]
         return "Today's events: " + "; ".join(formatted)
 
+    # ─── Time-range queries ───────────────────────────────────────────
+
+    def _format_events_for_voice(self, events: list[dict], label: str) -> str:
+        """Format a list of events into a voice-friendly string.
+
+        For short ranges (today, tomorrow): lists each event individually.
+        For longer ranges (week, month): groups events by day.
+        """
+        if not events:
+            return f"No events {label}, Pilot."
+
+        # Deduplicate by UID
+        seen_uids = set()
+        unique = []
+        for e in events:
+            uid = e.get("uid", "")
+            if uid and uid in seen_uids:
+                continue
+            seen_uids.add(uid)
+            unique.append(e)
+
+        count = len(unique)
+
+        # For short ranges (1-2 days), list individually
+        if label in ("today", "tomorrow"):
+            unique = unique[:self.max_events_display]
+            lines = [f"You have {count} event{'s' if count != 1 else ''} {label}:"]
+            for evt in unique:
+                time_str = self._format_event_time(evt)
+                title = evt.get("title", "Untitled")
+                location = evt.get("location", "")
+                cal = evt.get("calendar_name", "")
+                if time_str == "All day":
+                    line = f"  {title}"
+                else:
+                    line = f"  {time_str} — {title}"
+                if location:
+                    line += f" at {location}"
+                if cal:
+                    line += f" [{cal}]"
+                lines.append(line)
+            return "\n".join(lines)
+
+        # For longer ranges, group by day
+        from collections import defaultdict
+        by_day = defaultdict(list)
+        for evt in unique:
+            date_str = self._format_event_date(evt)
+            by_day[date_str].append(evt)
+
+        # Sort days chronologically
+        sorted_days = sorted(by_day.keys())
+
+        lines = [f"You have {count} event{'s' if count != 1 else ''} {label}:"]
+        for day in sorted_days:
+            day_events = by_day[day]
+            if len(day_events) == 1:
+                evt = day_events[0]
+                time_str = self._format_event_time(evt)
+                title = evt.get("title", "Untitled")
+                location = evt.get("location", "")
+                cal = evt.get("calendar_name", "")
+                if time_str == "All day":
+                    line = f"  {day} — {title}"
+                else:
+                    line = f"  {day} {time_str} — {title}"
+                if location:
+                    line += f" at {location}"
+                if cal:
+                    line += f" [{cal}]"
+                lines.append(line)
+            else:
+                lines.append(f"  {day}:")
+                for evt in day_events:
+                    time_str = self._format_event_time(evt)
+                    title = evt.get("title", "Untitled")
+                    location = evt.get("location", "")
+                    cal = evt.get("calendar_name", "")
+                    if time_str == "All day":
+                        sub = f"    {title}"
+                    else:
+                        sub = f"    {time_str} — {title}"
+                    if location:
+                        sub += f" at {location}"
+                    if cal:
+                        sub += f" [{cal}]"
+                    lines.append(sub)
+
+        return "\n".join(lines)
+
+    def get_tomorrow_events(self) -> str:
+        """Return formatted events for tomorrow."""
+        events = self._fetch_events_range(1, 1)
+        return self._format_events_for_voice(events, "tomorrow")
+
+    def get_this_week_events(self) -> str:
+        """Return formatted events for the rest of this week (today through Sunday)."""
+        now = datetime.now()
+        # Days until Sunday (weekday 6): Monday=0, Sunday=6
+        days_until_sunday = 6 - now.weekday()
+        events = self._fetch_events_range(0, days_until_sunday + 1)
+        return self._format_events_for_voice(events, "this week")
+
+    def get_next_week_events(self) -> str:
+        """Return formatted events for next week (Monday through Sunday)."""
+        now = datetime.now()
+        days_until_monday = 7 - now.weekday()
+        events = self._fetch_events_range(days_until_monday, 7)
+        return self._format_events_for_voice(events, "next week")
+
+    def get_this_month_events(self) -> str:
+        """Return formatted events for the rest of this month."""
+        now = datetime.now()
+        # Calculate days remaining in this month
+        if now.month == 12:
+            next_month = datetime(now.year + 1, 1, 1)
+        else:
+            next_month = datetime(now.year, now.month + 1, 1)
+        days_remaining = (next_month - now).days
+        events = self._fetch_events_range(0, days_remaining)
+        return self._format_events_for_voice(events, "this month")
+
+    def get_next_month_events(self) -> str:
+        """Return formatted events for next month."""
+        now = datetime.now()
+        # Calculate start of next month
+        if now.month == 12:
+            first_of_next = datetime(now.year + 1, 1, 1)
+            first_of_month_after = datetime(now.year + 1, 2, 1)
+        elif now.month == 11:
+            first_of_next = datetime(now.year, 12, 1)
+            first_of_month_after = datetime(now.year + 1, 1, 1)
+        else:
+            first_of_next = datetime(now.year, now.month + 1, 1)
+            first_of_month_after = datetime(now.year, now.month + 2, 1)
+
+        days_in_next_month = (first_of_month_after - first_of_next).days
+        days_until_next_month = (first_of_next - now).days
+        events = self._fetch_events_range(days_until_next_month, days_in_next_month)
+        return self._format_events_for_voice(events, "next month")
+
+    def get_events_for_range(self, start_offset_days: int, num_days: int, label: str) -> str:
+        """Return formatted events for an arbitrary date range."""
+        events = self._fetch_events_range(start_offset_days, num_days)
+        return self._format_events_for_voice(events, label)
+
     def get_upcoming_warnings(self) -> list[dict]:
         """Return events starting within upcoming_warning_minutes that haven't been warned about."""
         events = self._fetch_events()
@@ -254,26 +423,12 @@ class CalendarMonitor:
             if uid in self._warned_event_ids:
                 continue
 
-            try:
-                start_str = evt.get("start_time", "")
-                # Parse AppleScript date format
-                # "Friday, May 9, 2026 at 10:00:00 AM"
-                if " at " in start_str:
-                    date_part, time_part = start_str.split(" at ")
-                    # Parse date: "Friday, May 9, 2026"
-                    # Parse time: "10:00:00 AM"
-                    from datetime import datetime as dt
-                    try:
-                        start_dt = dt.strptime(f"{date_part} {time_part}", "%A, %B %d, %Y %I:%M:%S %p")
-                    except ValueError:
-                        continue
-                else:
-                    continue
-
-                if now <= start_dt <= threshold:
-                    upcoming.append(evt)
-            except Exception:
+            start_dt = self._parse_event_datetime(evt)
+            if start_dt is None:
                 continue
+
+            if now <= start_dt <= threshold:
+                upcoming.append(evt)
 
         return upcoming
 
@@ -344,19 +499,11 @@ class CalendarMonitor:
         now = datetime.now()
         to_remove = set()
         for uid in self._warned_event_ids:
-            # Find the event in last_events
             for evt in events:
                 if evt.get("uid") == uid:
-                    try:
-                        start_str = evt.get("start_time", "")
-                        if " at " in start_str:
-                            date_part, time_part = start_str.split(" at ")
-                            from datetime import datetime as dt
-                            start_dt = dt.strptime(f"{date_part} {time_part}", "%A, %B %d, %Y %I:%M:%S %p")
-                            if start_dt < now:
-                                to_remove.add(uid)
-                    except Exception:
-                        pass
+                    start_dt = self._parse_event_datetime(evt)
+                    if start_dt and start_dt < now:
+                        to_remove.add(uid)
                     break
         self._warned_event_ids -= to_remove
 

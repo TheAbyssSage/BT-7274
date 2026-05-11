@@ -48,7 +48,7 @@ _INTENT_PATTERNS = [
     ("hud", re.compile(r'\b(open\s+hud|show\s+hud|activate\s+hud|pilot\s+hud)\b', re.IGNORECASE)),
     ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
     ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
-    ("calendar", re.compile(r"\b(calendar|events?|schedul\w*|appointments?|agenda|what'?s?\s+on\s+today|what\s+(?:do|am)\s+i\s+have\s+today|my\s+schedul\w*)\b", re.IGNORECASE)),
+    ("calendar", re.compile(r"\b(calendar|events?|schedul\w*|appointments?|agenda|what'?s?\s+on\s+(?:today|tomorrow|this\s+week|next\s+week|this\s+month|next\s+month)|what\s+(?:do|am)\s+i\s+have\s+(?:today|tomorrow|this\s+week|next\s+week|this\s+month|next\s+month)|my\s+(?:day|week|month|schedul\w*)|(?:this|next)\s+(?:week|month)('?s)?\s+schedul\w*|rest\s+of\s+(?:the\s+)?(?:week|month)|weekly|monthly|the\s+(?:week|month)\s+ahead|coming\s+(?:week|month)|following\s+(?:day|week|month)|day\s+after|the\s+next\s+day)\b", re.IGNORECASE)),
     ("calendar_toggle", re.compile(r'\b((enable|disable|turn\s+(on|off))\s+(calendar|calendar\s+access))\b', re.IGNORECASE)),
 ]
 
@@ -307,49 +307,32 @@ class CommandProcessingMixin(_AssistantBase):
                 
         # Helper: try to find a suitable standby clip for common responses
         def try_standby_for_response(response_text: str) -> Optional[str]:
-            """Try to match a response to a pre-generated standby clip with enhanced matching."""
+            """Try to match a response to a pre-generated standby clip.
+
+            When using Piper TTS (sub-second), only does fast exact/direct matching
+            since fuzzy/semantic search is slower than just generating.
+            """
             if not response_text:
                 return None
-                
+
             normalized = self._normalize_phrase(response_text)
-            
-            # 1. First, try dynamic clip selection (combines all matching methods)
-            dynamic_clip = self._select_dynamic_clip(response_text)
-            if dynamic_clip and Path(dynamic_clip).exists():
-                return dynamic_clip
-            
-            # 2. Check for exact BT clip match
+
+            # Fast path: exact match only (no fuzzy/semantic — slower than Piper)
+            # 1. Check for exact BT clip match
             if normalized in self.bt_clips:
                 return self.bt_clips[normalized]
-            
-            # 3. Check for exact standby clip match
+
+            # 2. Check for exact standby clip match
             if normalized in self.standby_clips:
                 return self.standby_clips[normalized]
-                
-            # 4. Try fuzzy matching for BT clips (partial matches)
+
+            # 3. Quick substring match (O(n) scan but fast for small dicts)
             for key, path in self.bt_clips.items():
                 if normalized in key or key in normalized:
                     if Path(path).exists():
                         return path
-            
-            # 5. Try semantic similarity matching if available
-            self._ensure_semantic_index()
-            if self.semantic_vectorizer and self.semantic_clip_matrix is not None and cosine_similarity is not None:
-                try:
-                    response_vector = self.semantic_vectorizer.transform([normalized])
-                    similarities = cosine_similarity(response_vector, self.semantic_clip_matrix)
-                    best_match_idx = np.argmax(similarities)
-                    best_similarity = similarities[0][best_match_idx]
 
-                    if best_similarity > 0.3:
-                        best_phrase = self.semantic_clip_phrases[best_match_idx]
-                        path = self.bt_clips.get(best_phrase)
-                        if path and Path(path).exists():
-                            status("MATCH", f"Semantic match: \"{best_phrase}\" (score: {best_similarity:.2f})")
-                            return path
-                except Exception as e:
-                    warning(f"Semantic matching failed: {e}")
-            
+            # Skip semantic similarity — it's slower than Piper TTS generation
             return None
 
         def _maybe_log_autonomously_async(pilot_message: str, bt_response: str):
@@ -985,8 +968,17 @@ class CommandProcessingMixin(_AssistantBase):
         if "calendar" in intents and "calendar" not in handled_types:
             status("CAL", "Accessing calendar...")
             try:
-                speak_standby("calendar")
-                calendar_result = self.actions.execute("get_calendar_events") if self.actions else "Calendar unavailable"
+                # Detect which time range the pilot wants
+                calendar_range = self._detect_calendar_range(text)
+                if calendar_range and calendar_range != "today":
+                    # Use the new range-specific query
+                    speak_standby("calendar")
+                    calendar_result = self.actions.execute("get_calendar_range", range_name=calendar_range) if self.actions else "Calendar unavailable"
+                else:
+                    # Default to today
+                    speak_standby("calendar")
+                    calendar_result = self.actions.execute("get_calendar_events") if self.actions else "Calendar unavailable"
+
                 if calendar_result and not calendar_result.startswith("Calendar access failed"):
                     status("CAL", calendar_result[:100] + "..." if len(calendar_result) > 100 else calendar_result)
                     response_parts.append(calendar_result)

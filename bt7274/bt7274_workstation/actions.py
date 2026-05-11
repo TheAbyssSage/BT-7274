@@ -920,3 +920,32 @@ def action_get_upcoming_events(hours: int = 2):
         return "\n".join(lines)
     except Exception as e:
         return f"Calendar access failed: {str(e)}"
+
+
+@register_action("get_calendar_range")
+def action_get_calendar_range(range_name: str = "today"):
+    """Return calendar events for a specific time range.
+
+    Args:
+        range_name: One of 'today', 'tomorrow', 'this_week', 'next_week',
+                    'this_month', 'next_month'
+    """
+    try:
+        from bt7274.bt7274_workstation.calendar_monitor import CalendarMonitor
+        monitor = CalendarMonitor({"enabled": True})
+
+        range_handlers = {
+            "today": monitor.get_today_events,
+            "tomorrow": monitor.get_tomorrow_events,
+            "this_week": monitor.get_this_week_events,
+            "next_week": monitor.get_next_week_events,
+            "this_month": monitor.get_this_month_events,
+            "next_month": monitor.get_next_month_events,
+        }
+
+        handler = range_handlers.get(range_name)
+        if handler:
+            return handler()
+        return f"Unknown calendar range: {range_name}"
+    except Exception as e:
+        return f"Calendar access failed: {str(e)}"
