@@ -108,7 +108,7 @@ def cmd_bt_link(args):
     # Build args and delegate to cmd_assistant
     class LinkArgs:
         chat = (mode_arg == "--chat")
-        ai_mode = "local"
+        ai_mode = None  # Allow model selection in initialize()
         performance_mode = "performance" if "performance" in perf_arg else "standard"
         generate_standby = False
         force_regenerate = False

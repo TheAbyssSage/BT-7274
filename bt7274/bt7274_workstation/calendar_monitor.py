@@ -48,12 +48,17 @@ class CalendarMonitor:
 
     # ─── AppleScript execution ────────────────────────────────────────
 
-    def _run_applescript(self, script: str) -> tuple[bool, str]:
-        """Run an AppleScript and return (success, output)."""
+    def _run_applescript(self, script: str, timeout: int = 10) -> tuple[bool, str]:
+        """Run an AppleScript and return (success, output).
+        
+        Args:
+            script: The AppleScript code to execute
+            timeout: Maximum time in seconds to wait for completion (default 10s)
+        """
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
-                capture_output=True, text=True, timeout=45,
+                capture_output=True, text=True, timeout=timeout,
             )
             if result.returncode == 0:
                 return True, result.stdout.strip()
@@ -77,7 +82,7 @@ class CalendarMonitor:
             'end tell\n'
             'return "granted"'
         )
-        success_flag, output = self._run_applescript(script)
+        success_flag, output = self._run_applescript(script, timeout=5)
         self._calendar_access_granted = success_flag and "granted" in output
         return self._calendar_access_granted
 
