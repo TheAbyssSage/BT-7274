@@ -11,6 +11,7 @@ from bt7274.bt7274_workstation.log_manager import (
     get_telemetry_dir,
     get_vision_dir,
     get_archive_dir,
+    migrate_telemetry_and_archive,
 )
 from bt7274.bt7274_workstation.protocol_brief import ProtocolBrief
 from bt7274.bt7274_workstation.session_cache_manager import (
@@ -32,6 +33,7 @@ __all__ = [
     "get_telemetry_dir",
     "get_vision_dir",
     "get_archive_dir",
+    "migrate_telemetry_and_archive",
     "get_session_cache",
     "get_tts_output_dir",
     "get_stt_temp_dir",

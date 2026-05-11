@@ -275,6 +275,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             get_vision_dir,
             get_archive_dir,
             migrate_legacy_logs,
+            migrate_telemetry_and_archive,
         )
         # Ensure new hierarchy exists
         _ = get_conversations_dir()
@@ -287,8 +288,9 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         _ = get_telemetry_network_dir()
         _ = get_vision_dir()
         _ = get_archive_dir()
-        # One-shot migration of old flat layout
+        # One-shot migrations
         migrate_legacy_logs()
+        migrate_telemetry_and_archive()
 
     def initialize(self):
         """Initialize all components."""

@@ -1,6 +1,6 @@
 # BT-7274 Logging System
 
-> Last updated: 2026-05-03
+> Last updated: 2026-05-11
 
 ## Overview
 
@@ -10,16 +10,15 @@ All runtime data is persisted under the `logs/` directory at the project root. T
 
 ```
 logs/
-├── archive/              # Session cache archives (timestamped folders)
+├── archive/              # Session cache archives (JSONL with timestamped entries)
 ├── bt_memory/            # BT's internal memory / free-form logs
 ├── conversations/          # Pilot↔BT interaction transcripts (JSONL)
 ├── pilot_memory/           # Pilot's personal logs, todos, and notes
 ├── telemetry/
-│   ├── system/             # Battery, VPN, weather state changes
+│   ├── system/             # Hardware (CPU/RAM/disk), network (Wi-Fi/VPN/latency)
+│   │                        # Battery, VPN, and weather state changes
 │   ├── health/             # Environmental warnings, wellness alerts
-│   ├── voice/              # STT confidence, TTS metrics, wake events
-│   ├── hardware/           # CPU, RAM, disk, thermal, uptime snapshots
-│   └── network/            # Wi-Fi, VPN, latency, public-network events
+│   └── voice/              # STT confidence, TTS metrics, wake events
 └── vision/                 # Visual observations + archived images
 ```
 
@@ -46,9 +45,13 @@ logs/
 - **Content:** Anything the pilot explicitly saves via voice commands (`make log`, `make note`, `add todo`).
 
 ### `telemetry/system/`
-- **Format:** Text (`.log`)
-- **Files:** `bt7274_system_YYYY-MM-DD.log`
-- **Content:** State-change events for battery, VPN, and environmental warnings. One line per event with an ISO timestamp.
+- **Format:** JSONL
+- **Files:** 
+  - `hardware_telemetry_YYYY-MM-DD.jsonl` — CPU, RAM, disk, thermal, uptime snapshots
+  - `network_telemetry_YYYY-MM-DD.jsonl` — Wi-Fi, VPN, latency, and public-network events
+- **Content:** 
+  - **Hardware:** Periodic snapshots of CPU usage (%), RAM (total/used/percent), disk (total/used/free/percent), thermal state, and system uptime
+  - **Network:** Wi-Fi SSID/BSSID/RSSI/TX-rate, VPN state, latency to 1.1.1.1, public Wi-Fi detection, and change events
 
 ### `telemetry/health/`
 - **Format:** JSONL
@@ -65,25 +68,7 @@ logs/
   - `tts` events — text length, generation time, cache hit, streaming flag
   - `error` events — pipeline stage, error type, message
 
-### `telemetry/hardware/`
-- **Format:** JSONL
-- **Files:** `hardware_telemetry_YYYY-MM-DD.jsonl`
-- **Content:** Periodic snapshots of:
-  - CPU usage (%)
-  - RAM usage (total / used / percent)
-  - Disk usage (total / used / free / percent)
-  - macOS thermal state (if available)
-  - System uptime (seconds)
 
-### `telemetry/network/`
-- **Format:** JSONL
-- **Files:** `network_telemetry_YYYY-MM-DD.jsonl`
-- **Content:** Periodic snapshots of:
-  - Wi-Fi SSID, BSSID, RSSI (dBm), TX rate (Mbps)
-  - VPN connection state and service name
-  - Round-trip latency to `1.1.1.1` (ms)
-  - Public Wi-Fi detection flag
-  - Change events (`wifi_changed`, `vpn_changed`)
 
 ### `vision/`
 - **Format:** JSONL + image files
@@ -93,9 +78,14 @@ logs/
 - **Content:** Vision model descriptions, trigger type, pilot query, model name, response time, and paths to archived images.
 
 ### `archive/`
-- **Format:** Mixed (session cache dumps)
-- **Folders:** `<timestamp>/`
-- **Content:** End-of-session archives of TTS outputs, STT temp files, semantic vectors, speaker latents, location cache, and session state.
+- **Format:** JSONL (one entry per session)
+- **Files:** `sessions.jsonl`
+- **Content:** End-of-session archive metadata including:
+  - ISO timestamp of archival
+  - Session timestamp (YYYYMMdd_HHMMSS)
+  - Session state snapshot
+  - File counts by category (tts_outputs, stt_temp, semantic, etc.)
+  - Reference to where cached files are stored
 
 ## Configuration
 

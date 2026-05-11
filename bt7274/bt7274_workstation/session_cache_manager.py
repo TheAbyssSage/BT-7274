@@ -10,8 +10,8 @@ Provides centralized utilities for session-scoped temporary data:
 - Model warmup artifacts (speaker latents)
 - Session state
 
-When a session ends, data is archived to logs/archive/<timestamp>/
-and the session_cache is cleared for the next session.
+When a session ends, data is archived to logs/archive/sessions.jsonl
+with timestamped entries, and the session_cache is cleared for the next session.
 """
 
 import json
@@ -324,10 +324,10 @@ def load_speaker_latents(
 
 def archive_and_clear_session() -> Optional[Path]:
     """
-    Archive the current session cache to logs/archive/<timestamp>/
-    and clear the session_cache directory for the next session.
+    Archive the current session cache to logs/archive/sessions.jsonl
+    with timestamped entries, and clear the session_cache directory for the next session.
 
-    Returns the archive directory path, or None if nothing to archive.
+    Returns the archive file path, or None if nothing to archive.
     """
     if not SESSION_CACHE_DIR.exists():
         return None
@@ -342,33 +342,44 @@ def archive_and_clear_session() -> Optional[Path]:
     if not has_content:
         return None
 
-    # Create archive directory with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    archive_path = ARCHIVE_DIR / timestamp
-    archive_path.mkdir(parents=True, exist_ok=True)
+    # Create centralized archive directory if needed
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Use a single sessions.jsonl file for all archives
+    archive_file = ARCHIVE_DIR / "sessions.jsonl"
 
-    # Write session summary document
+    # Collect all session cache files into a temporary directory structure
+    session_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     session_state = load_session_state()
-    summary = {
-        "archived_at": datetime.now().isoformat(),
-        "session_state": session_state,
-        "file_counts": {},
-    }
+    
+    file_counts = {}
+    file_data = {}
 
-    # Copy files to archive
+    # Collect metadata about files
     for subdir in SESSION_CACHE_DIR.iterdir():
         if subdir.is_dir():
-            dest = archive_path / subdir.name
-            shutil.copytree(subdir, dest, dirs_exist_ok=True)
-            # Count files
             file_count = sum(1 for _ in subdir.rglob("*") if _.is_file())
-            summary["file_counts"][subdir.name] = file_count
+            file_counts[subdir.name] = file_count
         elif subdir.is_file():
-            shutil.copy2(subdir, archive_path / subdir.name)
-            summary["file_counts"][subdir.name] = 1
+            file_counts[subdir.name] = 1
 
-    # Write summary document
-    save_json(archive_path / "session_summary.json", summary)
+    # Create archive entry (JSONL format with timestamped metadata)
+    archive_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "session_timestamp": session_timestamp,
+        "session_state": session_state,
+        "file_counts": file_counts,
+        "cache_location": str(SESSION_CACHE_DIR),
+    }
+
+    # Append to centralized archive file
+    try:
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        with open(archive_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(archive_entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        # Best-effort: log but don't fail
+        pass
 
     # Clear session cache
     for item in SESSION_CACHE_DIR.iterdir():
@@ -377,7 +388,7 @@ def archive_and_clear_session() -> Optional[Path]:
         elif item.is_file():
             item.unlink()
 
-    return archive_path
+    return archive_file
 
 
 def clear_session_cache():

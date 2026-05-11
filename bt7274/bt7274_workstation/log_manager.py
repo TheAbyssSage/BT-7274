@@ -7,14 +7,14 @@ Provides a unified, clean directory structure for all logging:
     conversations/      — Pilot↔BT interactions (JSONL, daily)
     bt_memory/          — BT's internal memory logs (text + JSONL)
     pilot_memory/       — Pilot's personal logs, todos, notes
-    telemetry/          — System, health, voice-command, network, hardware telemetry
-      system/           — Battery, VPN, weather state changes (text logs)
+    telemetry/          — System, health, and voice telemetry
+      system/           — Hardware, network, battery, VPN, weather (JSONL)
+                           - hardware: CPU, RAM, thermal, disk usage snapshots
+                           - network: Wi-Fi, VPN, latency, public-network events
       health/           — Environmental warnings, wellness alerts (JSONL)
       voice/            — Wake-word, STT confidence, command metadata (JSONL)
-      hardware/         — CPU, RAM, thermal, disk usage snapshots (JSONL)
-      network/          — Wi-Fi, VPN, latency, public-network events (JSONL)
     vision/             — Visual observations + archived images (JSONL)
-    archive/            — Session cache archives (timestamped folders)
+    archive/            — Session cache archives (dated JSONL file entries)
 
 All paths are resolved relative to the project root (two levels above this file).
 """
@@ -72,11 +72,13 @@ def get_telemetry_voice_dir() -> Path:
 
 
 def get_telemetry_hardware_dir() -> Path:
-    return _ensure(LOGS_ROOT / "telemetry" / "hardware")
+    """Hardware telemetry now stored in system telemetry directory."""
+    return _ensure(LOGS_ROOT / "telemetry" / "system")
 
 
 def get_telemetry_network_dir() -> Path:
-    return _ensure(LOGS_ROOT / "telemetry" / "network")
+    """Network telemetry now stored in system telemetry directory."""
+    return _ensure(LOGS_ROOT / "telemetry" / "system")
 
 
 def get_vision_dir() -> Path:
@@ -269,3 +271,96 @@ def get_log_tree() -> str:
                         nsize_kb = round(sum(f.stat().st_size for f in nfiles if f.is_file()) / 1024, 1)
                         lines.append(f"  │   ├── {nested.name}/  ({nf_count} files, {nsize_kb} KB)")
     return "\n".join(lines)
+
+
+# ─── Telemetry consolidation and archive migration ──────────────
+
+def migrate_telemetry_and_archive():
+    """
+    Migrate existing telemetry structure:
+    - Move hardware/ files to system/
+    - Move network/ files to system/
+    - Consolidate archive/ timestamped folders to sessions.jsonl
+    
+    Safe to run multiple times (skips already-migrated items).
+    """
+    import shutil
+    import json
+    
+    system_dir = get_telemetry_system_dir()
+    moved_files = 0
+    
+    # 1. Move hardware telemetry files to system
+    old_hardware_dir = LOGS_ROOT / "telemetry" / "hardware"
+    if old_hardware_dir.exists():
+        for file in old_hardware_dir.iterdir():
+            if file.is_file():
+                dest = system_dir / file.name
+                if not dest.exists():
+                    try:
+                        shutil.move(str(file), str(dest))
+                        moved_files += 1
+                    except Exception:
+                        pass
+        # Clean up empty directory
+        try:
+            if not any(old_hardware_dir.iterdir()):
+                old_hardware_dir.rmdir()
+        except Exception:
+            pass
+    
+    # 2. Move network telemetry files to system
+    old_network_dir = LOGS_ROOT / "telemetry" / "network"
+    if old_network_dir.exists():
+        for file in old_network_dir.iterdir():
+            if file.is_file():
+                dest = system_dir / file.name
+                if not dest.exists():
+                    try:
+                        shutil.move(str(file), str(dest))
+                        moved_files += 1
+                    except Exception:
+                        pass
+        # Clean up empty directory
+        try:
+            if not any(old_network_dir.iterdir()):
+                old_network_dir.rmdir()
+        except Exception:
+            pass
+    
+    # 3. Consolidate archive structure (timestamped folders → sessions.jsonl)
+    archive_dir = get_archive_dir()
+    sessions_file = archive_dir / "sessions.jsonl"
+    consolidated_entries = 0
+    
+    if archive_dir.exists():
+        for item in sorted(archive_dir.iterdir()):
+            # Skip if it's already the consolidated file
+            if item.name == "sessions.jsonl":
+                continue
+            
+            # If it's a timestamped folder (old format)
+            if item.is_dir() and len(item.name) == 15:  # YYYYMMDD_HHMMSS format
+                try:
+                    # Read session_summary.json if it exists
+                    summary_file = item / "session_summary.json"
+                    if summary_file.exists():
+                        with open(summary_file, "r", encoding="utf-8") as f:
+                            entry = json.load(f)
+                        # Ensure it has a timestamp
+                        if "timestamp" not in entry:
+                            entry["timestamp"] = item.name
+                        # Append to consolidated sessions file
+                        with open(sessions_file, "a", encoding="utf-8") as f:
+                            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                        consolidated_entries += 1
+                    
+                    # Remove old folder (optional - keep for safety)
+                    # shutil.rmtree(item)
+                except Exception:
+                    pass
+    
+    return {
+        "telemetry_files_moved": moved_files,
+        "archive_entries_consolidated": consolidated_entries,
+    }
