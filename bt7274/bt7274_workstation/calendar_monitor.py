@@ -1,15 +1,13 @@
 """
 Calendar Awareness for BT-7274.
-Queries macOS Calendar.app via AppleScript for today's events.
+Queries macOS Calendar via EventKit (PyObjC) — no AppleScript, no Calendar.app launch.
 Warns about upcoming events within a configurable threshold.
 Logs state changes to telemetry/system and event data to telemetry/health.
 """
 
-import json
-import os
-import subprocess
 import threading
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -26,7 +24,7 @@ from bt7274.bt7274_workstation.log_manager import (
 
 
 class CalendarMonitor:
-    """Monitors macOS Calendar.app and surfaces events to BT-7274."""
+    """Monitors macOS Calendar via EventKit and surfaces events to BT-7274."""
 
     def __init__(self, config: Optional[dict] = None):
         self.config = config or {}
@@ -39,6 +37,7 @@ class CalendarMonitor:
         self._last_events: list[dict] = []
         self._warned_event_ids: set[str] = set()
         self._calendar_access_granted: Optional[bool] = None
+        self._event_store = None  # Lazy-loaded EKEventStore
 
         # Log directories
         self._system_log_dir = get_telemetry_system_dir()
@@ -46,44 +45,57 @@ class CalendarMonitor:
         self._system_log_dir.mkdir(parents=True, exist_ok=True)
         self._health_log_dir.mkdir(parents=True, exist_ok=True)
 
-    # ─── AppleScript execution ────────────────────────────────────────
+    # ─── EventKit access ──────────────────────────────────────────────
 
-    def _run_applescript(self, script: str, timeout: int = 10) -> tuple[bool, str]:
-        """Run an AppleScript and return (success, output).
-        
-        Args:
-            script: The AppleScript code to execute
-            timeout: Maximum time in seconds to wait for completion (default 10s)
-        """
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True, text=True, timeout=timeout,
-            )
-            if result.returncode == 0:
-                return True, result.stdout.strip()
-            else:
-                return False, result.stderr.strip()
-        except subprocess.TimeoutExpired:
-            return False, "AppleScript timed out"
-        except FileNotFoundError:
-            return False, "osascript not available"
-        except Exception as e:
-            return False, str(e)
+    def _get_event_store(self):
+        """Lazy-load the EKEventStore singleton."""
+        if self._event_store is None:
+            try:
+                import EventKit  # type: ignore
+                self._event_store = EventKit.EKEventStore.alloc().init()  # type: ignore
+            except Exception as e:
+                warning(f"EventKit not available: {e}")
+                return None
+        return self._event_store
 
     def _check_calendar_access(self) -> bool:
-        """Check if Calendar.app access is granted."""
+        """Check if Calendar access is granted via EventKit."""
         if self._calendar_access_granted is not None:
             return self._calendar_access_granted
 
-        script = (
-            'tell application "Calendar"\n'
-            '    set calNames to name of every calendar\n'
-            'end tell\n'
-            'return "granted"'
-        )
-        success_flag, output = self._run_applescript(script, timeout=5)
-        self._calendar_access_granted = success_flag and "granted" in output
+        store = self._get_event_store()
+        if store is None:
+            self._calendar_access_granted = False
+            return False
+
+        try:
+            import EventKit  # type: ignore
+            auth_status = EventKit.EKEventStore.authorizationStatusForEntityType_(  # type: ignore
+                EventKit.EKEntityTypeEvent  # type: ignore
+            )
+            # 0 = NotDetermined, 1 = Restricted, 2 = Denied, 3 = Authorized
+            if auth_status == 3:  # Authorized
+                self._calendar_access_granted = True
+            elif auth_status == 0:  # NotDetermined
+                # Request access synchronously on first check
+                granted = [False]
+                lock = threading.Event()
+
+                def completion(g, _err):
+                    granted[0] = g
+                    lock.set()
+
+                store.requestAccessToEntityType_completion_(  # type: ignore
+                    EventKit.EKEntityTypeEvent, completion  # type: ignore
+                )
+                lock.wait(timeout=10)
+                self._calendar_access_granted = granted[0]
+            else:
+                self._calendar_access_granted = False
+        except Exception as e:
+            warning(f"Calendar access check failed: {e}")
+            self._calendar_access_granted = False
+
         return self._calendar_access_granted
 
     # ─── Event fetching ───────────────────────────────────────────────
@@ -93,7 +105,7 @@ class CalendarMonitor:
         return self._fetch_events_range(0, 1)
 
     def _fetch_events_range(self, start_offset_days: int, num_days: int) -> list[dict]:
-        """Fetch events from Calendar.app for a specific date range.
+        """Fetch events from Calendar for a specific date range via EventKit.
 
         Args:
             start_offset_days: Days from today to start (0 = today, 1 = tomorrow, etc.)
@@ -105,82 +117,94 @@ class CalendarMonitor:
         if not self._check_calendar_access():
             return []
 
-        # Build AppleScript using string concatenation to avoid f-string
-        # escaping issues with AppleScript's {} record syntax
-        script = (
-            'tell application "Calendar"\n'
-            f'    set rangeStart to ((current date) - (time of (current date))) + ({start_offset_days} * days)\n'
-            f'    set rangeEnd to rangeStart + ({num_days} * days)\n'
-            '    set eventList to {}\n'
-            '    repeat with cal in every calendar\n'
-            '        set calName to name of cal\n'
-            '        try\n'
-            '            set calEvents to (every event of cal whose start date >= rangeStart and start date <= rangeEnd)\n'
-            '            repeat with evt in calEvents\n'
-            '                set evtTitle to summary of evt\n'
-            '                if evtTitle is missing value then set evtTitle to "(No title)"\n'
-            '                set evtStart to start date of evt\n'
-            '                set evtEnd to end date of evt\n'
-            '                set evtLocation to location of evt\n'
-            '                if evtLocation is missing value then set evtLocation to ""\n'
-            '                set evtAllDay to allday event of evt\n'
-            '                set evtUID to uid of evt\n'
-            '                if evtUID is missing value then set evtUID to ""\n'
-            '                set end of eventList to {title:evtTitle, start_time:evtStart as string, end_time:evtEnd as string, location:evtLocation, calendar_name:calName, all_day:evtAllDay, uid:evtUID}\n'
-            '            end repeat\n'
-            '        end try\n'
-            '    end repeat\n'
-            '    if (count of eventList) is 0 then\n'
-            '        return "NO_EVENTS"\n'
-            '    end if\n'
-            '    set AppleScript\'s text item delimiters to "|||"\n'
-            '    set outputList to {}\n'
-            '    repeat with evt in eventList\n'
-            '        set evtStr to title of evt & "|||" & start_time of evt & "|||" & end_time of evt & "|||" & location of evt & "|||" & calendar_name of evt & "|||" & (all_day of evt as string) & "|||" & uid of evt\n'
-            '        set end of outputList to evtStr\n'
-            '    end repeat\n'
-            '    return outputList as string\n'
-            'end tell'
-        )
-        success_flag, output = self._run_applescript(script)
-        if not success_flag:
-            error(f"Calendar fetch failed: {output}")
+        store = self._get_event_store()
+        if store is None:
             return []
 
-        if not output or output == "NO_EVENTS":
-            return []
+        try:
+            import EventKit  # type: ignore
+            from Foundation import NSDateComponents, NSCalendar  # type: ignore
 
-        events = []
-        for line in output.split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split("|||")
-            if len(parts) >= 7:
+            # Build date range using NSDateComponents for reliability
+            now = datetime.now()
+            cal = NSCalendar.currentCalendar()
+
+            # Start of range: midnight + offset days
+            start_comps = NSDateComponents.alloc().init()
+            start_comps.setYear_(now.year)
+            start_comps.setMonth_(now.month)
+            start_comps.setDay_(now.day + start_offset_days)
+            start_comps.setHour_(0)
+            start_comps.setMinute_(0)
+            start_comps.setSecond_(0)
+            range_start = cal.dateFromComponents_(start_comps)
+
+            # End of range: start + num_days
+            end_comps = NSDateComponents.alloc().init()
+            end_comps.setYear_(now.year)
+            end_comps.setMonth_(now.month)
+            end_comps.setDay_(now.day + start_offset_days + num_days)
+            end_comps.setHour_(0)
+            end_comps.setMinute_(0)
+            end_comps.setSecond_(0)
+            range_end = cal.dateFromComponents_(end_comps)
+
+            # Build predicate and fetch
+            predicate = store.predicateForEventsWithStartDate_endDate_calendars_(
+                range_start, range_end, None  # None = all calendars
+            )
+            ek_events = store.eventsMatchingPredicate_(predicate)
+
+            if not ek_events:
+                return []
+
+            # Sort by start date
+            ek_events = sorted(ek_events, key=lambda e: e.startDate())
+
+            events = []
+            for evt in ek_events:
                 try:
+                    title = evt.title() or "(No title)"
+                    is_all_day = evt.isAllDay()
+
+                    # Convert NSDate to Python datetime
+                    start_ts = evt.startDate().timeIntervalSince1970()
+                    end_ts = evt.endDate().timeIntervalSince1970()
+                    start_dt = datetime.fromtimestamp(start_ts)
+                    end_dt = datetime.fromtimestamp(end_ts)
+
+                    start_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    end_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+                    location = evt.location() or ""
+                    calendar_name = evt.calendar().title() if evt.calendar() else ""
+                    uid = evt.eventIdentifier() or ""
+
                     events.append({
-                        "title": parts[0].strip(),
-                        "start_time": parts[1].strip(),
-                        "end_time": parts[2].strip(),
-                        "location": parts[3].strip(),
-                        "calendar_name": parts[4].strip(),
-                        "all_day": parts[5].strip().lower() == "true",
-                        "uid": parts[6].strip(),
+                        "title": title,
+                        "start_time": start_str,
+                        "end_time": end_str,
+                        "location": location,
+                        "calendar_name": calendar_name,
+                        "all_day": is_all_day,
+                        "uid": uid,
                     })
-                except (IndexError, ValueError):
+                except Exception:
                     continue
 
-        # Sort by start_time
-        events.sort(key=lambda e: e.get("start_time", ""))
-        return events
+            return events
+
+        except Exception as e:
+            error(f"Calendar fetch failed: {e}")
+            return []
 
     # ─── Event formatting ─────────────────────────────────────────────
 
     def _parse_event_datetime(self, event: dict) -> Optional[datetime]:
         """Parse an event's start_time string into a datetime object.
 
-        Handles both AppleScript format ("Sunday, May 10, 2026 at 10:00:00 AM")
-        and NSDate description format ("2026-05-10 08:00:00 +0000").
+        Handles ISO format from EventKit: "2026-05-10 08:00:00"
+        Also handles legacy AppleScript format for backward compatibility.
         """
         start_str = event.get("start_time", "")
         if not start_str:
@@ -532,24 +556,29 @@ class CalendarMonitor:
             time.sleep(self.interval)
 
     def start(self):
-        """Start background calendar monitoring."""
+        """Start background calendar monitoring.
+        
+        Returns:
+            True if monitoring started successfully, False if access denied or disabled.
+        """
         if not self.enabled:
             info("Calendar access disabled.")
-            return
+            return False
         if self._running:
-            return
+            return True
 
         # Check access on start
         if not self._check_calendar_access():
             warning("Calendar access not granted. Grant permission in System Settings > Privacy > Calendars.")
             self._log_state_change("access_denied")
-            return
+            return False
 
         self._running = True
         self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self._thread.start()
         self._log_state_change("enabled")
         status("CAL", "Calendar monitoring active")
+        return True
 
     def stop(self):
         """Stop background calendar monitoring."""
