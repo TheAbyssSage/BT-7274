@@ -176,12 +176,16 @@ class PersistentAudioRecorder:
             self._audio_buffer = []
             self._silence_counter = 0
             self._speech_detected = False
+            self._speech_chunks = 0
+            self._recording = True
 
         info("Recording...")
         start_time = time.time()
         max_record_seconds = max_seconds if max_seconds is not None else self.max_record_seconds
         while self._recording and (time.time() - start_time) < max_record_seconds:
             time.sleep(0.05)
+        
+        self._recording = False
 
         with self._lock:
             if len(self._audio_buffer) < 5:

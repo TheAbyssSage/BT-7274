@@ -206,14 +206,31 @@ class LocationProvider:
         return None
 
     def enrich_query(self, query: str) -> str:
-        """Add location context to a search query."""
+        """Add location context to a search query.
+        
+        Only adds location for substantive queries. Skips short follow-up
+        questions (pronouns, clarifications) that would be corrupted by
+        injecting a location.
+        """
         try:
             if self._is_stale():
                 self.update()
             loc = self.location_str
             if loc and loc != "Unknown location":
+                lower = query.lower().strip()
+                # Skip location injection for short follow-up / pronoun queries
+                # These refer to previous context and would be corrupted
+                follow_up_patterns = [
+                    "when is it", "what is it", "where is it", "how about",
+                    "what about", "and the", "tell me more", "why is that",
+                    "how much", "how many", "what are they", "who are they",
+                ]
+                if any(p in lower for p in follow_up_patterns):
+                    return query
+                # Skip if query is very short (likely a follow-up)
+                if len(query.split()) <= 3:
+                    return query
                 # Only add location if query doesn't already specify one
-                lower = query.lower()
                 if not any(x in lower for x in ["in ", "near ", "at ", "around "]):
                     return f"{query} in {loc}"
         except Exception:

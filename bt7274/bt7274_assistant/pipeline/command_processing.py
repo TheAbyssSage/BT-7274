@@ -826,7 +826,7 @@ class CommandProcessingMixin(_AssistantBase):
         if "search" in intents and "search" not in handled_types:
             status("SEARCH", "Looking up...")
             try:
-                # Enrich query with location context
+                # Enrich query with location context (smart: skips follow-ups)
                 enriched_query = self.location.enrich_query(text) if self.location else text
                 if enriched_query != text:
                     status("LOC", f"Localized query: {enriched_query}")
@@ -834,23 +834,36 @@ class CommandProcessingMixin(_AssistantBase):
                 if search_result and not search_result.startswith("Action") and not search_result.startswith("Search failed"):
                     status("SEARCH", f"Results: {search_result[:100]}...")
                     log_llm("Summarizing for Pilot...")
+                    
+                    # Build conversation context from recent history
+                    recent_context = ""
+                    if self.conversation_history:
+                        recent = self.conversation_history[-3:]
+                        recent_context = "Recent conversation:\n" + "\n".join(
+                            f"Pilot: {q}\nBT-7274: {r}" for q, r in recent
+                        ) + "\n\n"
+                    
                     # Check if this is a news query
                     is_news_query = any(word in text.lower() for word in ["news", "latest", "breaking"])
                     if is_news_query:
                         summary_prompt = (
+                            f"{recent_context}"
                             f"Search results: {search_result}\n\n"
                             f"Respond in character as BT-7274. Provide a concise summary of the most relevant news. "
                             f"Focus on the key facts from the search results. "
                             f"Use 2-4 sentences. Be direct and informative. "
-                            f"NEVER repeat the user's question. Just answer directly. "
+                            f"IMPORTANT: Answer the Pilot's question using the search results above. "
                             f"Only the response text. No quotes, no markdown, no extra text."
                         )
                     else:
                         summary_prompt = (
+                            f"{recent_context}"
                             f"Search results: {search_result}\n\n"
-                            f"Respond in character as BT-7274 with a detailed, complete explanation. "
-                            f"Use 3-7 sentences. Be thorough and helpful. "
-                            f"NEVER repeat the user's question. Just answer directly. "
+                            f"Respond in character as BT-7274. Answer the Pilot's question directly "
+                            f"using ONLY the search results provided above. "
+                            f"Use 2-5 sentences. Be thorough and helpful. "
+                            f"IMPORTANT: Your answer MUST be based on the search results. "
+                            f"Do NOT introduce yourself or make up unrelated tactical scenarios. "
                             f"Only the response text. No quotes, no markdown, no extra text."
                         )
                     try:
@@ -1542,13 +1555,13 @@ class CommandProcessingMixin(_AssistantBase):
                 filtered_lines.append(line)
         clean_response = '\n'.join(filtered_lines)
         
-        # Enforce conciseness: limit to first 3 sentences max
+        # Enforce conciseness: limit to first 5 sentences max
         sentences = re.split(r'(?<=[.!?])\s+', clean_response)
-        if len(sentences) > 3:
-            clean_response = ' '.join(sentences[:3]).strip()
+        if len(sentences) > 5:
+            clean_response = ' '.join(sentences[:5]).strip()
         
-        # Also hard-cap at 300 characters as a safety net
-        if len(clean_response) > 300:
+        # Also hard-cap at 500 characters as a safety net
+        if len(clean_response) > 500:
             # Find the last sentence boundary before 300 chars
             truncated = clean_response[:300]
             last_period = max(truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
@@ -1569,8 +1582,21 @@ class CommandProcessingMixin(_AssistantBase):
             except:
                 pass
         
-        if not clean_response:
-            clean_response = "Processing complete, Pilot."
+        if not clean_response or clean_response in ("Processing complete, Pilot.", "Copy that, Pilot."):
+            # Generate a better fallback based on what we know
+            if "calendar" in text.lower() or "event" in text.lower() or "schedule" in text.lower():
+                if self.calendar and not self.calendar._calendar_access_granted:
+                    clean_response = (
+                        "Pilot, I cannot access your calendar. "
+                        "Grant permission in System Settings > Privacy > Calendars, "
+                        "then restart our link."
+                    )
+                else:
+                    clean_response = "Pilot, I was unable to retrieve your calendar data. Please try again."
+            elif "search" in text.lower() or "find" in text.lower() or "look up" in text.lower():
+                clean_response = "Pilot, my search systems returned no useful data. Try rephrasing your query."
+            else:
+                clean_response = "Pilot, I'm not sure how to respond to that. Could you rephrase?"
 
         quote("BT-7274", clean_response)
 

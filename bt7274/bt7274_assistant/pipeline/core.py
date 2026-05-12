@@ -508,8 +508,10 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
 
         try:
             self.calendar = CalendarMonitor(self.config.get("calendar_access", {}))
-            self.calendar.start()
-            success("Calendar monitor")
+            if self.calendar.start():
+                success("Calendar monitor")
+            else:
+                warning("Calendar monitor — access not granted")
         except Exception as e:
             self._report_error("calendar", "initialize", e)
             warning("Calendar monitor failed")
