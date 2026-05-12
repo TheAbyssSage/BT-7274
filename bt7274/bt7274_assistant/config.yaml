@@ -35,6 +35,21 @@ llm:
     max_tokens: 250               # Slightly larger for cloud model
   # Current mode (local or cloud)
   mode: local
+  # Per-response-type token budgets (overrides max_tokens above for specific contexts)
+  # Set higher to let BT ramble, lower to keep things short.
+  response_tokens:
+    default: 200                  # Fallback for unlisted response types
+    weather: 200                  # Weather summaries
+    search: 250                   # Search result summaries
+    travel: 250                   # Travel/directions queries
+    translate: 150                # Translation responses
+    status: 150                   # System status reports
+    calendar: 200                 # Calendar/schedule responses
+    protocol: 200                 # Protocol brief / mission / todo / notes
+    log: 150                      # Log read/create/delete confirmations
+    vision: 200                   # Vision/optical sensor descriptions
+    gratitude: 80                 # "You're welcome" etc.
+    autonomous_log: 100           # Autonomous memory logging decisions
   system_prompt: |
     You are BT-7274, a Vanguard-class Titan from Titanfall 2. Your Pilot is Roamer.
     You are a real AI assistant running on the Pilot's laptop — NOT a game character.

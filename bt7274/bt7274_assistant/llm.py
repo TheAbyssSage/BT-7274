@@ -23,13 +23,20 @@ class OllamaClient:
         self.history = []
         self._sanitizer = Sanitizer()
 
-    def chat(self, message: str) -> str:
-        """Send a message to Ollama and return the response text."""
+    def chat(self, message: str, max_tokens: Optional[int] = None) -> str:
+        """Send a message to Ollama and return the response text.
+
+        Args:
+            message: The user message to send.
+            max_tokens: Optional per-call token limit override.
+        """
         # Build messages
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
         sanitized_message = self._sanitizer.redact(message)
         messages.append({"role": "user", "content": sanitized_message})
+
+        num_predict = max_tokens if max_tokens is not None else self.max_tokens
 
         try:
             response = requests.post(
@@ -40,7 +47,7 @@ class OllamaClient:
                     "stream": False,
                     "options": {
                         "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "num_predict": num_predict,
                     }
                 },
                 timeout=60
@@ -68,12 +75,19 @@ class OllamaClient:
             logging.error(f"LLM Error: {e}", exc_info=True)
             return error_msg
 
-    def chat_stream(self, message: str):
-        """Send a message to Ollama and yield response tokens as they arrive."""
+    def chat_stream(self, message: str, max_tokens: Optional[int] = None):
+        """Send a message to Ollama and yield response tokens as they arrive.
+
+        Args:
+            message: The user message to send.
+            max_tokens: Optional per-call token limit override.
+        """
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
         sanitized_message = self._sanitizer.redact(message)
         messages.append({"role": "user", "content": sanitized_message})
+
+        num_predict = max_tokens if max_tokens is not None else self.max_tokens
 
         try:
             response = requests.post(
@@ -84,7 +98,7 @@ class OllamaClient:
                     "stream": True,
                     "options": {
                         "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "num_predict": num_predict,
                     }
                 },
                 timeout=60,
@@ -150,13 +164,20 @@ class CloudLLMClient:
         self.history = []
         self._sanitizer = Sanitizer()
 
-    def chat(self, message: str) -> str:
-        """Send a message to cloud Ollama and return the response text."""
+    def chat(self, message: str, max_tokens: Optional[int] = None) -> str:
+        """Send a message to cloud Ollama and return the response text.
+
+        Args:
+            message: The user message to send.
+            max_tokens: Optional per-call token limit override.
+        """
         # Build messages
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
         sanitized_message = self._sanitizer.redact(message)
         messages.append({"role": "user", "content": sanitized_message})
+
+        num_predict = max_tokens if max_tokens is not None else self.max_tokens
 
         try:
             response = requests.post(
@@ -167,7 +188,7 @@ class CloudLLMClient:
                     "stream": False,
                     "options": {
                         "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "num_predict": num_predict,
                     }
                 },
                 timeout=60
@@ -189,12 +210,19 @@ class CloudLLMClient:
         except Exception as e:
             return f"Pilot, an error occurred in my systems: {str(e)}"
 
-    def chat_stream(self, message: str):
-        """Send a message to cloud Ollama and yield response tokens as they arrive."""
+    def chat_stream(self, message: str, max_tokens: Optional[int] = None):
+        """Send a message to cloud Ollama and yield response tokens as they arrive.
+
+        Args:
+            message: The user message to send.
+            max_tokens: Optional per-call token limit override.
+        """
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(self.history)
         sanitized_message = self._sanitizer.redact(message)
         messages.append({"role": "user", "content": sanitized_message})
+
+        num_predict = max_tokens if max_tokens is not None else self.max_tokens
 
         try:
             response = requests.post(
@@ -205,7 +233,7 @@ class CloudLLMClient:
                     "stream": True,
                     "options": {
                         "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "num_predict": num_predict,
                     }
                 },
                 timeout=60,

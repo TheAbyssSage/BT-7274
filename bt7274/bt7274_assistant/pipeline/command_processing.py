@@ -67,6 +67,19 @@ logger = logging.getLogger("BT7274")
 class CommandProcessingMixin(_AssistantBase):
     """Mixin containing the main process_command method and follow-up listener."""
 
+    def _get_response_tokens(self, response_type: str) -> int:
+        """Get the per-response-type token budget from config.
+
+        Falls back to llm.response_tokens.default, then to the model's max_tokens.
+        """
+        response_tokens = self.config.get("llm", {}).get("response_tokens", {})
+        if response_type in response_tokens:
+            return response_tokens[response_type]
+        if "default" in response_tokens:
+            return response_tokens["default"]
+        # Ultimate fallback: the model's configured max_tokens
+        return self.config.get("llm", {}).get(self.ai_mode, {}).get("max_tokens", 200)
+
     def generate_standby_responses(self, force_regenerate: bool = False):
         """Generate standby response audio files using BT's voice.
 
@@ -395,7 +408,7 @@ class CommandProcessingMixin(_AssistantBase):
             prompt = prompt.replace("{context_summary}", context_summary)
 
             try:
-                decision_raw = self.llm.chat(prompt)
+                decision_raw = self.llm.chat(prompt, max_tokens=self._get_response_tokens("autonomous_log"))
             except Exception as e:
                 self._report_error("llm", "autonomous_log_decision", e)
                 return None
@@ -805,7 +818,7 @@ class CommandProcessingMixin(_AssistantBase):
                             f"Only the response text. No quotes, no markdown, no extra text."
                         )
                         try:
-                            weather_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize weather: {weather_result}"
+                            weather_response = self.llm.chat(summary_prompt, max_tokens=self._get_response_tokens("weather")) if self.llm else f"Failed to summarize weather: {weather_result}"
                             response_parts.append(weather_response)
                             # Use BT clip + TTS followup for immersive weather responses
                             skip_normal_tts = True
@@ -867,7 +880,7 @@ class CommandProcessingMixin(_AssistantBase):
                             f"Only the response text. No quotes, no markdown, no extra text."
                         )
                     try:
-                        search_response = self.llm.chat(summary_prompt) if self.llm else f"Failed to summarize search: {search_result}"
+                        search_response = self.llm.chat(summary_prompt, max_tokens=self._get_response_tokens("search")) if self.llm else f"Failed to summarize search: {search_result}"
                         response_parts.append(search_response)
                     except Exception as e:
                         self._report_error("llm", "chat_search_summary", e)
@@ -1407,13 +1420,13 @@ class CommandProcessingMixin(_AssistantBase):
 
                 if is_pilot_speaking:
                     # Pilot is responding — translate TO the foreign language
-                    translated, bt_response = self.translator.translate_outgoing(text)
+                    translated, bt_response = self.translator.translate_outgoing(text, max_tokens=self._get_response_tokens("translate"))
                     response_parts.append(bt_response)
                     # Also display the translated text clearly for the Pilot to read/speak
                     quote("TRANSLATED", translated)
                 else:
                     # Foreign speaker — translate TO the Pilot's language
-                    translated, bt_response = self.translator.translate_incoming(text)
+                    translated, bt_response = self.translator.translate_incoming(text, max_tokens=self._get_response_tokens("translate"))
                     response_parts.append(bt_response)
                     # Also display the original for context
                     quote("ORIGINAL", text)
@@ -1441,7 +1454,7 @@ class CommandProcessingMixin(_AssistantBase):
                     # Add location context to the query - let LLM handle the full question
                     enriched_text = f"{text} {location_context} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                     log_llm("Thinking with location context...")
-                    travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
+                    travel_response = self.llm.chat(enriched_text, max_tokens=self._get_response_tokens("travel")) if self.llm else "Travel information unavailable"
                     response_parts.append(travel_response)
                     handled_types.add("travel")
                 except json.JSONDecodeError:
@@ -1450,23 +1463,23 @@ class CommandProcessingMixin(_AssistantBase):
                     if simple_location and not simple_location.startswith("Location"):
                         enriched_text = f"{text} IMPORTANT PILOT LOCATION DATA - USE THIS EXACT LOCATION, DO NOT ASSUME ANY OTHER LOCATION: {simple_location} DO NOT MENTION GAME WORLD LOCATIONS OR FICTIONAL PLACES. USE THE PROVIDED REAL-WORLD GEOGRAPHIC INFORMATION."
                         log_llm("Thinking with location context...")
-                        travel_response = self.llm.chat(enriched_text) if self.llm else "Travel information unavailable"
+                        travel_response = self.llm.chat(enriched_text, max_tokens=self._get_response_tokens("travel")) if self.llm else "Travel information unavailable"
                         response_parts.append(travel_response)
                         handled_types.add("travel")
                     else:
                         log_llm("Thinking...")
-                        normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
+                        normal_response = self.llm.chat(text, max_tokens=self._get_response_tokens("default")) if self.llm else "Response unavailable"
                         response_parts.append(normal_response)
                         handled_types.add("travel")
             else:
                 log_llm("Thinking...")
-                normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
+                normal_response = self.llm.chat(text, max_tokens=self._get_response_tokens("default")) if self.llm else "Response unavailable"
                 response_parts.append(normal_response)
                 handled_types.add("travel")
         elif is_information_query and "travel" not in handled_types and is_travel_related:
             # For event information queries, process normally without location context
             log_llm("Thinking...")
-            normal_response = self.llm.chat(text) if self.llm else "Response unavailable"
+            normal_response = self.llm.chat(text, max_tokens=self._get_response_tokens("default")) if self.llm else "Response unavailable"
             response_parts.append(normal_response)
             handled_types.add("travel")
 
@@ -1482,7 +1495,7 @@ class CommandProcessingMixin(_AssistantBase):
             try:
                 if self.llm:
                     tokens = []
-                    for token in self.llm.chat_stream(text):
+                    for token in self.llm.chat_stream(text, max_tokens=self._get_response_tokens("default")):
                         tokens.append(token)
                     response = "".join(tokens)
                 else:

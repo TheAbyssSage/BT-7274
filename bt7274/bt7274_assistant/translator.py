@@ -180,7 +180,7 @@ class TranslatorTool:
                 return self.CODE_TO_NAME.get(code, name.title())
         return lang.strip().title()
 
-    def detect_language(self, text: str) -> str:
+    def detect_language(self, text: str, max_tokens: Optional[int] = None) -> str:
         """Detect the language of the given text using the LLM.
 
         Returns the canonical language name (e.g., 'Spanish', 'Japanese').
@@ -193,7 +193,7 @@ class TranslatorTool:
             f"Text: \"{text}\"\n\nLanguage:"
         )
         try:
-            result = self._get_llm().chat(prompt)
+            result = self._get_llm().chat(prompt, max_tokens=max_tokens)
             # Clean up the response
             result = result.strip().strip('"').strip("'")
             # Remove any extra text, keep only the first line/word
@@ -203,13 +203,14 @@ class TranslatorTool:
             warning(f"Language detection failed: {e}")
             return "Unknown"
 
-    def translate(self, text: str, source_lang: Optional[str] = None, target_lang: Optional[str] = None) -> Tuple[str, str, str]:
+    def translate(self, text: str, source_lang: Optional[str] = None, target_lang: Optional[str] = None, max_tokens: Optional[int] = None) -> Tuple[str, str, str]:
         """Translate text from source language to target language.
 
         Args:
             text: The text to translate.
             source_lang: Source language name (auto-detected if None).
             target_lang: Target language name (defaults to English).
+            max_tokens: Optional per-call token limit override.
 
         Returns:
             Tuple of (translated_text, detected_source_lang, target_lang)
@@ -219,7 +220,7 @@ class TranslatorTool:
 
         # Auto-detect source language if not provided
         if source_lang is None or source_lang.lower() in ("auto", "unknown", ""):
-            detected = self.detect_language(text)
+            detected = self.detect_language(text, max_tokens=max_tokens)
             source_lang = detected
         else:
             source_lang = self._normalize_language(source_lang)
@@ -237,7 +238,7 @@ class TranslatorTool:
         )
 
         try:
-            result = self._get_llm().chat(prompt)
+            result = self._get_llm().chat(prompt, max_tokens=max_tokens)
             # Clean up: remove quotes if the LLM wrapped the output
             result = result.strip()
             if result.startswith('"') and result.endswith('"'):
@@ -289,7 +290,7 @@ class TranslatorTool:
         """Check if a translation session is currently active."""
         return self.session.active
 
-    def translate_incoming(self, foreign_text: str) -> Tuple[str, str]:
+    def translate_incoming(self, foreign_text: str, max_tokens: Optional[int] = None) -> Tuple[str, str]:
         """Translate foreign speech TO the Pilot's language.
 
         This is used when BT hears someone speaking a foreign language
@@ -305,7 +306,7 @@ class TranslatorTool:
         source = self.session.source_lang if self.session.source_lang else None
         target = self.session.target_lang
 
-        translated, detected_src, _ = self.translate(foreign_text, source_lang=source, target_lang=target)
+        translated, detected_src, _ = self.translate(foreign_text, source_lang=source, target_lang=target, max_tokens=max_tokens)
 
         # Update session state
         if not self.session.source_lang and detected_src != "Unknown":
@@ -320,7 +321,7 @@ class TranslatorTool:
 
         return translated, bt_response
 
-    def translate_outgoing(self, pilot_text: str) -> Tuple[str, str]:
+    def translate_outgoing(self, pilot_text: str, max_tokens: Optional[int] = None) -> Tuple[str, str]:
         """Translate the Pilot's speech TO the foreign language.
 
         This is used when the Pilot responds and BT needs to translate
@@ -337,12 +338,12 @@ class TranslatorTool:
 
         if target is None:
             # Try to detect from the pilot text (unlikely to be foreign, but handle it)
-            target = self.detect_language(pilot_text)
+            target = self.detect_language(pilot_text, max_tokens=max_tokens)
             if target.lower() == source.lower():
                 # If pilot is speaking their native language, we need a target
                 return pilot_text, "Target language not set, Pilot. Specify a language first."
 
-        translated, _, _ = self.translate(pilot_text, source_lang=source, target_lang=target)
+        translated, _, _ = self.translate(pilot_text, source_lang=source, target_lang=target, max_tokens=max_tokens)
 
         self.session.last_foreign_text = translated
         self.session.last_translated_text = pilot_text
