@@ -579,23 +579,45 @@ class VisionViewerWindow:
             self._root.after(0, self._on_look)
 
     def open_pilot_hud(self):
-        """Launch the dedicated camera stream window if available."""
+        """Launch the dedicated camera stream window in a separate process.
+        
+        Uses multiprocessing to avoid macOS NSWindow main thread crash.
+        tkinter NSWindow must be created on the main thread, but this method
+        is called from background threads during voice command processing.
+        """
         if not _HAS_HUD or CameraWindow is None:
             self._set_status("Camera stream not available.")
             return
-        hud = CameraWindow(
-            camera_device=self._camera_device,
-            width=1280,
-            height=720,
-            fullscreen=False,
+        
+        import multiprocessing
+        camera_device = self._camera_device
+        
+        def _run_hud(device):
+            hud = CameraWindow(
+                camera_device=device,
+                width=1280,
+                height=720,
+                fullscreen=False,
+            )
+            hud.start()
+        
+        self._hud_process = multiprocessing.Process(
+            target=_run_hud, args=(camera_device,), daemon=True
         )
-        hud.start()
-        self._hud_window = hud
+        self._hud_process.start()
         self._set_status("Camera stream opened.")
 
     def close_pilot_hud(self):
         """Close the Pilot HUD camera stream window if open."""
-        if hasattr(self, '_hud_window') and self._hud_window:
+        if hasattr(self, '_hud_process') and self._hud_process:
+            try:
+                self._hud_process.terminate()
+                self._hud_process.join(timeout=2)
+            except Exception:
+                pass
+            self._hud_process = None
+            self._set_status("Camera stream closed.")
+        elif hasattr(self, '_hud_window') and self._hud_window:
             try:
                 self._hud_window.stop()
             except Exception:

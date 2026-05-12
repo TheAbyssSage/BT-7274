@@ -21,8 +21,13 @@ import os
 import subprocess
 import sys
 import time
+import warnings
 from datetime import datetime
 from pathlib import Path
+
+# Suppress deprecation warnings from transitive dependencies (jieba/pkg_resources)
+warnings.filterwarnings("ignore", category=UserWarning, module="jieba")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
 
 
 def cmd_bt_link(args):
