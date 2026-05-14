@@ -59,13 +59,13 @@ class CalendarMonitor:
         return self._event_store
 
     def _check_calendar_access(self) -> bool:
-        """Check if Calendar access is granted via EventKit."""
-        if self._calendar_access_granted is not None:
-            return self._calendar_access_granted
-
+        """Check if Calendar access is granted via EventKit.
+        
+        On first run with NotDetermined status, requests access and waits up to 15 seconds.
+        Does not cache failure states to allow retries.
+        """
         store = self._get_event_store()
         if store is None:
-            self._calendar_access_granted = False
             return False
 
         try:
@@ -76,8 +76,10 @@ class CalendarMonitor:
             # 0 = NotDetermined, 1 = Restricted, 2 = Denied, 3 = Authorized
             if auth_status == 3:  # Authorized
                 self._calendar_access_granted = True
-            elif auth_status == 0:  # NotDetermined
-                # Request access synchronously on first check
+                return True
+            elif auth_status == 0:  # NotDetermined - request access
+                # Request access synchronously (blocks until user responds or timeout)
+                import time as time_module
                 granted = [False]
                 lock = threading.Event()
 
@@ -88,15 +90,22 @@ class CalendarMonitor:
                 store.requestAccessToEntityType_completion_(  # type: ignore
                     EventKit.EKEntityTypeEvent, completion  # type: ignore
                 )
-                lock.wait(timeout=10)
-                self._calendar_access_granted = granted[0]
-            else:
+                # Wait longer for user to respond
+                lock.wait(timeout=15)
+                
+                if granted[0]:
+                    self._calendar_access_granted = True
+                    return True
+                else:
+                    # Request failed or timed out - don't cache, allow retry next time
+                    return False
+            else:  # Restricted (1) or Denied (2)
                 self._calendar_access_granted = False
+                return False
         except Exception as e:
             warning(f"Calendar access check failed: {e}")
-            self._calendar_access_granted = False
-
-        return self._calendar_access_granted
+            # Don't cache exceptions - allow retry on next call
+            return False
 
     # ─── Event fetching ───────────────────────────────────────────────
 
@@ -303,14 +312,21 @@ class CalendarMonitor:
         if not events:
             return f"No events {label}, Pilot."
 
-        # Deduplicate by UID
+        # Deduplicate by title + start date (catches duplicate holidays across calendars)
         seen_uids = set()
+        seen_keys = set()
         unique = []
         for e in events:
             uid = e.get("uid", "")
+            title = e.get("title", "").strip().lower()
+            start = e.get("start_time", "")
+            dedup_key = (title, start)
             if uid and uid in seen_uids:
                 continue
+            if dedup_key in seen_keys:
+                continue
             seen_uids.add(uid)
+            seen_keys.add(dedup_key)
             unique.append(e)
 
         count = len(unique)
@@ -323,15 +339,12 @@ class CalendarMonitor:
                 time_str = self._format_event_time(evt)
                 title = evt.get("title", "Untitled")
                 location = evt.get("location", "")
-                cal = evt.get("calendar_name", "")
                 if time_str == "All day":
                     line = f"  {title}"
                 else:
                     line = f"  {time_str} — {title}"
                 if location:
                     line += f" at {location}"
-                if cal:
-                    line += f" [{cal}]"
                 lines.append(line)
             return "\n".join(lines)
 
@@ -353,15 +366,12 @@ class CalendarMonitor:
                 time_str = self._format_event_time(evt)
                 title = evt.get("title", "Untitled")
                 location = evt.get("location", "")
-                cal = evt.get("calendar_name", "")
                 if time_str == "All day":
                     line = f"  {day} — {title}"
                 else:
                     line = f"  {day} {time_str} — {title}"
                 if location:
                     line += f" at {location}"
-                if cal:
-                    line += f" [{cal}]"
                 lines.append(line)
             else:
                 lines.append(f"  {day}:")
@@ -369,15 +379,12 @@ class CalendarMonitor:
                     time_str = self._format_event_time(evt)
                     title = evt.get("title", "Untitled")
                     location = evt.get("location", "")
-                    cal = evt.get("calendar_name", "")
                     if time_str == "All day":
                         sub = f"    {title}"
                     else:
                         sub = f"    {time_str} — {title}"
                     if location:
                         sub += f" at {location}"
-                    if cal:
-                        sub += f" [{cal}]"
                     lines.append(sub)
 
         return "\n".join(lines)

@@ -1568,20 +1568,28 @@ class CommandProcessingMixin(_AssistantBase):
                 filtered_lines.append(line)
         clean_response = '\n'.join(filtered_lines)
         
-        # Enforce conciseness: limit to first 5 sentences max
-        sentences = re.split(r'(?<=[.!?])\s+', clean_response)
-        if len(sentences) > 5:
-            clean_response = ' '.join(sentences[:5]).strip()
-        
-        # Also hard-cap at 500 characters as a safety net
-        if len(clean_response) > 500:
-            # Find the last sentence boundary before 300 chars
-            truncated = clean_response[:300]
-            last_period = max(truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
-            if last_period > 0:
-                clean_response = truncated[:last_period + 1].strip()
-            else:
-                clean_response = truncated.strip() + "..."
+        # Skip conciseness enforcement for structured data responses (calendar, lists)
+        is_structured_response = (
+            clean_response.startswith("You have ") and
+            ("event" in clean_response or "events" in clean_response) and
+            any(day in clean_response for day in ["Mon ", "Tue ", "Wed ", "Thu ", "Fri ", "Sat ", "Sun ", "today", "tomorrow", "week", "month"])
+        )
+
+        if not is_structured_response:
+            # Enforce conciseness: limit to first 5 sentences max
+            sentences = re.split(r'(?<=[.!?])\s+', clean_response)
+            if len(sentences) > 5:
+                clean_response = ' '.join(sentences[:5]).strip()
+
+            # Also hard-cap at 500 characters as a safety net
+            if len(clean_response) > 500:
+                # Find the last sentence boundary before 300 chars
+                truncated = clean_response[:300]
+                last_period = max(truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
+                if last_period > 0:
+                    clean_response = truncated[:last_period + 1].strip()
+                else:
+                    clean_response = truncated.strip() + "..."
         
         # Post-process to correct location inaccuracies
         if "New London" in clean_response:

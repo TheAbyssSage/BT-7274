@@ -48,6 +48,20 @@ except Exception:
     pass
 
 
+def _run_pilot_hud(device):
+    """Module-level target for multiprocessing.Process on macOS.
+    
+    Must be picklable — nested functions can't be pickled by spawn.
+    """
+    hud = CameraWindow(
+        camera_device=device,
+        width=1280,
+        height=720,
+        fullscreen=False,
+    )
+    hud.start()
+
+
 class VisionViewerWindow:
     """Tkinter window for BT-7274's camera vision."""
 
@@ -592,17 +606,8 @@ class VisionViewerWindow:
         import multiprocessing
         camera_device = self._camera_device
         
-        def _run_hud(device):
-            hud = CameraWindow(
-                camera_device=device,
-                width=1280,
-                height=720,
-                fullscreen=False,
-            )
-            hud.start()
-        
         self._hud_process = multiprocessing.Process(
-            target=_run_hud, args=(camera_device,), daemon=True
+            target=_run_pilot_hud, args=(camera_device,), daemon=True
         )
         self._hud_process.start()
         self._set_status("Camera stream opened.")

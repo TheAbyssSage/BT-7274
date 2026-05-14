@@ -44,7 +44,7 @@ llm:
     travel: 250                   # Travel/directions queries
     translate: 150                # Translation responses
     status: 150                   # System status reports
-    calendar: 200                 # Calendar/schedule responses
+    calendar: 400                 # Calendar/schedule responses
     protocol: 200                 # Protocol brief / mission / todo / notes
     log: 150                      # Log read/create/delete confirmations
     vision: 200                   # Vision/optical sensor descriptions

@@ -896,13 +896,10 @@ def action_get_upcoming_events(hours: int = 2):
         upcoming = []
         for evt in events:
             try:
-                start_str = evt.get("start_time", "")
-                if " at " in start_str:
-                    date_part, time_part = start_str.split(" at ")
-                    from datetime import datetime as dt
-                    start_dt = dt.strptime(f"{date_part} {time_part}", "%A, %B %d, %Y %I:%M:%S %p")
-                    if now <= start_dt <= threshold:
-                        upcoming.append(evt)
+                # Use the same parsing as _parse_event_datetime
+                start_dt = monitor._parse_event_datetime(evt)
+                if start_dt and now <= start_dt <= threshold:
+                    upcoming.append(evt)
             except Exception:
                 continue
 
