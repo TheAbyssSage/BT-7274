@@ -54,7 +54,10 @@ class ClipMatchingMixin(_AssistantBase):
         """Load BT-7274's original voice clips from the game for instant responses."""
         import csv
         import json
-        voicepack_dir = Path(__file__).parent.parent / "BT-7274.Voicepack"
+        # BT-7274.Voicepack is at the project root level (bt7274/BT-7274.Voicepack/)
+        # This file is at bt7274/bt7274_assistant/pipeline/clip_matching.py
+        # Go up 3 levels: pipeline -> bt7274_assistant -> bt7274 (project root)
+        voicepack_dir = Path(__file__).parent.parent.parent / "BT-7274.Voicepack"
         bt_clips_dir = voicepack_dir / "bt_clips"
         csv_file = voicepack_dir / "bt_clips_index.csv"
         

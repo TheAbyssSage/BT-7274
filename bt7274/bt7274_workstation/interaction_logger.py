@@ -139,38 +139,19 @@ class InteractionLogger:
         if metadata:
             entry["metadata"] = metadata
 
-        # Enhanced matching and personality logging
-        if metadata is not None:
-            if "match_type" in metadata:
-                entry["match_type"] = metadata["match_type"]
-            if "match_score" in metadata:
-                entry["match_score"] = metadata["match_score"]
-            if "personality_weights" in metadata:
-                entry["personality_weights"] = metadata["personality_weights"]
-            if "dialogue_state" in metadata:
-                entry["dialogue_state"] = metadata["dialogue_state"]
-            if "emotion_detected" in metadata:
-                entry["emotion_detected"] = metadata["emotion_detected"]
-            if "user_emotion" in metadata:
-                entry["user_emotion"] = metadata["user_emotion"]
-            if "context_topic" in metadata:
-                entry["context_topic"] = metadata["context_topic"]
-            if "clip_source" in metadata:
-                entry["clip_source"] = metadata["clip_source"]
-            if "clip_phrase" in metadata:
-                entry["clip_phrase"] = metadata["clip_phrase"]
-            if "tts_triggered" in metadata:
-                entry["tts_triggered"] = metadata["tts_triggered"]
-            if "bt_running" in metadata:
-                entry["bt_running"] = metadata["bt_running"]
+        if metadata:
+            entry["metadata"] = metadata
 
         if self.current_file is None:
             self._update_current_file()
         if self.current_file is None:
             return  # Cannot log without a valid file path
 
-        with open(self.current_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        try:
+            with open(self.current_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass  # Never let logging failures crash the pipeline
 
         # Also log detailed per-interaction info to pilot_logs
         self._log_interaction_details(entry)

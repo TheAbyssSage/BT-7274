@@ -372,14 +372,27 @@ def archive_and_clear_session() -> Optional[Path]:
         "cache_location": str(SESSION_CACHE_DIR),
     }
 
+    # Encrypt the archive entry before writing
+    try:
+        from bt7274.bt7274_workstation.log_encryption import LogEncryptor
+        from bt7274.bt7274_workstation.log_manager import get_encryption_key_path, ensure_encryption_key
+        ensure_encryption_key()
+        encryptor = LogEncryptor(key_path=str(get_encryption_key_path()))
+        encrypted_entry = encryptor.encrypt_json(archive_entry)
+    except Exception:
+        encrypted_entry = json.dumps(archive_entry, ensure_ascii=False)
+
     # Append to centralized archive file
     try:
         ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
         with open(archive_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(archive_entry, ensure_ascii=False) + "\n")
+            f.write(encrypted_entry + "\n")
     except Exception as e:
         # Best-effort: log but don't fail
         pass
+
+    # Prune old archive entries (keep last 100 sessions)
+    _prune_archive(archive_file, max_entries=100)
 
     # Clear session cache
     for item in SESSION_CACHE_DIR.iterdir():
@@ -389,6 +402,22 @@ def archive_and_clear_session() -> Optional[Path]:
             item.unlink()
 
     return archive_file
+
+
+def _prune_archive(archive_file: Path, max_entries: int = 100):
+    """Keep only the most recent N entries in the archive file."""
+    if not archive_file.exists():
+        return
+    try:
+        with open(archive_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        if len(lines) <= max_entries:
+            return
+        # Keep only the last max_entries lines
+        with open(archive_file, "w", encoding="utf-8") as f:
+            f.writelines(lines[-max_entries:])
+    except Exception:
+        pass
 
 
 def clear_session_cache():

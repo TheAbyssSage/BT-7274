@@ -34,6 +34,8 @@ class BatteryMonitor:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._last_level: Optional[int] = None
+        self._last_warning_time: float = 0.0
+        self._rewarn_interval: int = 300  # Re-warn every 5 minutes when below 20%
         self._log_dir = get_telemetry_system_dir()
         self._log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -85,10 +87,18 @@ class BatteryMonitor:
             if level <= threshold and threshold not in self._warned_levels:
                 self._warned_levels.add(threshold)
                 self._warn(level)
+                self._last_warning_time = time.time()
                 # Log only critical levels (<= 10%)
                 if level <= 10:
                     self._log_critical(level)
                 break
+
+        # Re-warn periodically when battery stays below 20%
+        if level <= 20 and time.time() - self._last_warning_time > self._rewarn_interval:
+            self._warn(level)
+            self._last_warning_time = time.time()
+            if level <= 10:
+                self._log_critical(level)
 
         # Reset warnings if battery recovers above a threshold + buffer
         # (e.g., if it was at 9% and now is at 12%, reset 10% warning)

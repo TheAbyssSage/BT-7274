@@ -72,23 +72,29 @@ class PilotLogger:
             text: The raw log text.
             name: Optional log name (used in filename). Defaults to "pilot".
             tags: Optional list of tags (e.g., ["mission", "personal"]).
-            use_single_file: If True, writes to pilot_logs.md instead of daily files.
+            use_single_file: If True, writes to pilot_logs.jsonl instead of daily files.
 
         Returns:
             Confirmation message.
         """
+        import json as _json
         name = name or "pilot"
-        entry = self._format_entry(text, tags)
+        now = datetime.now()
+        entry = {
+            "timestamp": now.isoformat(),
+            "text": text,
+            "tags": tags or [],
+        }
 
         if use_single_file:
-            log_file = self.pilot_logs_dir / "pilot_logs.md"
+            log_file = self.pilot_logs_dir / "pilot_logs.jsonl"
         else:
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = now.strftime("%Y-%m-%d")
             safe_name = self._sanitize_name(name)
-            log_file = self.pilot_logs_dir / f"{safe_name}_{today}.log"
+            log_file = self.pilot_logs_dir / f"{safe_name}_{today}.jsonl"
 
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(entry)
+            f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
 
         return f"Log entry saved to {log_file.name}."
 
@@ -109,14 +115,19 @@ class PilotLogger:
         Returns:
             Confirmation message.
         """
+        import json as _json
         name = name or "bt"
         today = datetime.now().strftime("%Y-%m-%d")
         safe_name = self._sanitize_name(name)
-        log_file = self.bt_logs_dir / f"{safe_name}_{today}.log"
-        entry = self._format_entry(text, tags)
+        log_file = self.bt_logs_dir / f"{safe_name}_{today}.jsonl"
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "text": text,
+            "tags": tags or [],
+        }
 
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(entry)
+            f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
 
         return f"BT log entry saved to {log_file.name}."
 
@@ -137,39 +148,57 @@ class PilotLogger:
         Returns:
             Formatted log entries or a message if none found.
         """
+        import json as _json
         if date:
             safe_name = self._sanitize_name(name or "pilot")
-            log_file = self.pilot_logs_dir / f"{safe_name}_{date}.log"
+            log_file = self.pilot_logs_dir / f"{safe_name}_{date}.jsonl"
             if not log_file.exists():
-                return f"No pilot log found for {name or 'pilot'} on {date}."
+                # Check legacy .log format
+                legacy_file = self.pilot_logs_dir / f"{safe_name}_{date}.log"
+                if legacy_file.exists():
+                    log_file = legacy_file
+                else:
+                    return f"No pilot log found for {name or 'pilot'} on {date}."
             files = [log_file]
         else:
             # Gather all pilot log files, sorted newest first
-            files = sorted(self.pilot_logs_dir.glob("*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+            files = sorted(
+                list(self.pilot_logs_dir.glob("*.jsonl")) + list(self.pilot_logs_dir.glob("*.log")),
+                key=lambda p: p.stat().st_mtime, reverse=True
+            )
             if not files:
-                # Check for single file
-                single = self.pilot_logs_dir / "pilot_logs.md"
-                if single.exists():
-                    files = [single]
-                else:
-                    return "No pilot logs found."
+                return "No pilot logs found."
 
-        all_lines = []
+        all_entries = []
         for log_file in files:
             try:
                 with open(log_file, "r", encoding="utf-8") as f:
-                    file_lines = f.readlines()
-                all_lines.extend(reversed(file_lines))
-                if len(all_lines) >= lines:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        if log_file.suffix == ".jsonl":
+                            try:
+                                entry = _json.loads(line)
+                                ts = entry.get("timestamp", "")
+                                text = entry.get("text", "")
+                                tags = entry.get("tags", [])
+                                tag_str = f" [{', '.join(tags)}]" if tags else ""
+                                all_entries.append(f"[{ts}]{tag_str} {text}")
+                            except _json.JSONDecodeError:
+                                all_entries.append(line)
+                        else:
+                            all_entries.append(line)
+                if len(all_entries) >= lines:
                     break
             except Exception:
                 continue
 
-        selected = all_lines[:lines]
+        selected = all_entries[-lines:] if len(all_entries) > lines else all_entries
         if not selected:
             return "No log entries found."
 
-        return "".join(reversed(selected))
+        return "\n".join(selected)
 
     def delete_pilot_logs(
         self,
@@ -191,39 +220,35 @@ class PilotLogger:
 
         if date:
             safe_name = self._sanitize_name(name or "pilot")
-            log_file = self.pilot_logs_dir / f"{safe_name}_{date}.log"
-            if log_file.exists():
-                try:
-                    log_file.unlink()
-                    deleted.append(log_file.name)
-                except Exception as e:
-                    errors.append(f"{log_file.name}: {e}")
-            else:
+            # Check both .jsonl and legacy .log
+            for ext in (".jsonl", ".log"):
+                log_file = self.pilot_logs_dir / f"{safe_name}_{date}{ext}"
+                if log_file.exists():
+                    try:
+                        log_file.unlink()
+                        deleted.append(log_file.name)
+                    except Exception as e:
+                        errors.append(f"{log_file.name}: {e}")
+            if not deleted:
                 return f"No pilot log found for {name or 'pilot'} on {date}."
         elif name:
             safe_name = self._sanitize_name(name)
-            for log_file in self.pilot_logs_dir.glob(f"{safe_name}_*.log"):
-                try:
-                    log_file.unlink()
-                    deleted.append(log_file.name)
-                except Exception as e:
-                    errors.append(f"{log_file.name}: {e}")
+            for pattern in (f"{safe_name}_*.jsonl", f"{safe_name}_*.log"):
+                for log_file in self.pilot_logs_dir.glob(pattern):
+                    try:
+                        log_file.unlink()
+                        deleted.append(log_file.name)
+                    except Exception as e:
+                        errors.append(f"{log_file.name}: {e}")
         else:
             # Delete all pilot log files
-            for log_file in self.pilot_logs_dir.glob("*.log"):
-                try:
-                    log_file.unlink()
-                    deleted.append(log_file.name)
-                except Exception as e:
-                    errors.append(f"{log_file.name}: {e}")
-            # Also delete the single file if it exists
-            single_file = self.pilot_logs_dir / "pilot_logs.md"
-            if single_file.exists():
-                try:
-                    single_file.unlink()
-                    deleted.append(single_file.name)
-                except Exception as e:
-                    errors.append(f"{single_file.name}: {e}")
+            for pattern in ("*.jsonl", "*.log"):
+                for log_file in self.pilot_logs_dir.glob(pattern):
+                    try:
+                        log_file.unlink()
+                        deleted.append(log_file.name)
+                    except Exception as e:
+                        errors.append(f"{log_file.name}: {e}")
 
         if deleted:
             return f"Deleted {len(deleted)} pilot log file(s): {', '.join(deleted)}."
