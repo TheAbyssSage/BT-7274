@@ -443,7 +443,8 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                     self.tts = XTTSClient(self.config["tts"])
                     status("TTS", "XTTS v2 engine (authentic BT voice)")
             
-            self.tts.ensure_ready()
+            if self.tts is not None:
+                self.tts.ensure_ready()
             success("TTS ready")
         except Exception as e:
             self._report_error("tts", "initialize", e)

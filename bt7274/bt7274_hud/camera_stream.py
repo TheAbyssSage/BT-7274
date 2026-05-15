@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    _PREFERRED_FOURCC = cv2.VideoWriter_fourcc(*"MJPG")   # lower CPU on most webcams
+    _PREFERRED_FOURCC = cv2.VideoWriter_fourcc(*"MJPG")  # type: ignore[attr-defined]
 except AttributeError:
     _PREFERRED_FOURCC = 0  # headless OpenCV; MJPEG not available
 

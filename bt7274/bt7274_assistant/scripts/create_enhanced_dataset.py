@@ -12,20 +12,24 @@ from collections import defaultdict
 import numpy as np
 
 # Try to import optional libraries
+phonemize = None
+PHONEMIZER_AVAILABLE = False
 try:
-    from phonemizer import phonemize
+    from phonemizer import phonemize as _phonemize
     from phonemizer.backend import EspeakBackend
+    phonemize = _phonemize
     PHONEMIZER_AVAILABLE = True
 except ImportError:
-    PHONEMIZER_AVAILABLE = False
     print("⚠ phonemizer not available. Install with: pip install phonemizer")
 
+librosa = None
+LIBROSA_AVAILABLE = False
 try:
-    import librosa
+    import librosa as _librosa
     import soundfile as sf
+    librosa = _librosa
     LIBROSA_AVAILABLE = True
 except ImportError:
-    LIBROSA_AVAILABLE = False
     print("⚠ librosa not available. Install with: pip install librosa soundfile")
 
 
@@ -40,6 +44,7 @@ def normalize_phrase(phrase: str) -> str:
 def get_phoneme_transcription(text: str) -> str:
     """Get phoneme-level transcription using phonemizer or fallback."""
     if PHONEMIZER_AVAILABLE:
+        assert phonemize is not None
         try:
             # Use espeak backend for English phonemes
             phonemes = phonemize(
@@ -50,7 +55,8 @@ def get_phoneme_transcription(text: str) -> str:
                 preserve_punctuation=True,
                 with_stress=True
             )
-            return phonemes.strip()
+            # phonemize returns a str when strip=True
+            return phonemes.strip() if isinstance(phonemes, str) else str(phonemes)
         except Exception as e:
             print(f"    ⚠ Phonemization failed: {e}")
             return _fallback_phonemize(text)
@@ -109,6 +115,7 @@ def analyze_prosody(audio_path: str) -> dict:
     if not LIBROSA_AVAILABLE:
         return {}
     
+    assert librosa is not None
     try:
         # Load audio
         y, sr = librosa.load(audio_path, sr=None)
