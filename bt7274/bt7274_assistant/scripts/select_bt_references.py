@@ -20,13 +20,16 @@ This creates:
 import json
 import shutil
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+sf = None
+HAS_SOUNDFILE = False
 try:
-    import soundfile as sf
+    import soundfile as _sf
+    sf = _sf
     HAS_SOUNDFILE = True
 except ImportError:
-    HAS_SOUNDFILE = False
+    pass
 
 
 # Hand-curated list of the best BT-7274 voice clips for voice cloning.
@@ -104,7 +107,7 @@ def normalize_filename(filename: str) -> str:
     return name.strip()
 
 
-def find_matching_clip(clips_dir: Path, target_name: str) -> Tuple[Path, float]:
+def find_matching_clip(clips_dir: Path, target_name: str) -> Tuple[Optional[Path], float]:
     """Find the best matching clip in the directory."""
     target_normalized = normalize_filename(target_name)
     
@@ -142,6 +145,7 @@ def get_clip_duration(clip_path: Path) -> float:
     """Get the duration of a WAV file in seconds."""
     if not HAS_SOUNDFILE:
         return 0.0
+    assert sf is not None
     try:
         info = sf.info(str(clip_path))
         return info.duration

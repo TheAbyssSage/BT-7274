@@ -26,7 +26,9 @@ class VisionLogger:
         self._current_day = None
         self._current_log_file = None
         self._current_image_dir = None
+        self._max_image_age_days: int = 7  # Auto-clean images older than 7 days
         self._update_paths()
+        self._cleanup_old_images()
 
     def _update_paths(self):
         """Update daily log file and image directory."""
@@ -179,3 +181,27 @@ class VisionLogger:
                 return sum(1 for _ in f)
         except Exception:
             return 0
+
+    def _cleanup_old_images(self):
+        """Remove vision images older than _max_image_age_days and empty date folders."""
+        import time as _time
+        images_dir = self.log_dir / "images"
+        if not images_dir.exists():
+            return
+        now = _time.time()
+        cutoff = now - (self._max_image_age_days * 86400)
+        for date_dir in sorted(images_dir.iterdir()):
+            if not date_dir.is_dir():
+                continue
+            try:
+                # Check if directory is old enough to clean
+                dir_mtime = date_dir.stat().st_mtime
+                if dir_mtime < cutoff:
+                    import shutil
+                    shutil.rmtree(date_dir)
+                else:
+                    # Remove empty dirs even if recent
+                    if not any(date_dir.iterdir()):
+                        date_dir.rmdir()
+            except Exception:
+                pass

@@ -29,7 +29,9 @@ from typing import Optional, Any
 
 # ─── Root resolution ──────────────────────────────────────────────
 
-_PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+# Resolve to the project root (3 levels up from this file:
+#   log_manager.py -> workstation -> bt7274 -> project root)
+_PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 LOGS_ROOT = _PROJECT_ROOT / "logs"
 
 # ─── Sub-directory helpers ────────────────────────────────────────
@@ -364,3 +366,44 @@ def migrate_telemetry_and_archive():
         "telemetry_files_moved": moved_files,
         "archive_entries_consolidated": consolidated_entries,
     }
+
+
+# ─── Log retention / pruning ──────────────────────────────────────
+
+# Retention limits: max number of daily files to keep per category
+LOG_RETENTION = {
+    "conversations": 90,    # ~3 months of daily interaction logs
+    "bt_memory": 90,        # ~3 months of BT memory logs
+    "pilot_memory": 90,     # ~3 months of pilot memory logs
+    "telemetry/system": 30, # ~1 month of system telemetry
+    "telemetry/health": 30, # ~1 month of health telemetry
+    "telemetry/voice": 30,  # ~1 month of voice telemetry
+    "vision": 30,           # ~1 month of vision logs
+}
+
+
+def prune_old_logs() -> dict:
+    """Remove old log files exceeding retention limits. Returns counts of removed files."""
+    removed = {}
+    for subpath, max_files in LOG_RETENTION.items():
+        directory = LOGS_ROOT / subpath
+        if not directory.exists():
+            continue
+        # Get all files, sorted oldest first
+        files = sorted(
+            [f for f in directory.iterdir() if f.is_file()],
+            key=lambda p: p.stat().st_mtime
+        )
+        if len(files) <= max_files:
+            continue
+        to_remove = files[:len(files) - max_files]
+        count = 0
+        for f in to_remove:
+            try:
+                f.unlink()
+                count += 1
+            except Exception:
+                pass
+        if count > 0:
+            removed[subpath] = count
+    return removed

@@ -276,6 +276,7 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
             get_archive_dir,
             migrate_legacy_logs,
             migrate_telemetry_and_archive,
+            prune_old_logs,
         )
         # Ensure new hierarchy exists
         _ = get_conversations_dir()
@@ -291,6 +292,8 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
         # One-shot migrations
         migrate_legacy_logs()
         migrate_telemetry_and_archive()
+        # Prune old logs to enforce retention limits
+        prune_old_logs()
 
     def initialize(self):
         """Initialize all components."""
@@ -440,7 +443,8 @@ class BT7274Assistant(ClipMatchingMixin, IntentDetectionMixin, ResponseHelpersMi
                     self.tts = XTTSClient(self.config["tts"])
                     status("TTS", "XTTS v2 engine (authentic BT voice)")
             
-            self.tts.ensure_ready()
+            if self.tts is not None:
+                self.tts.ensure_ready()
             success("TTS ready")
         except Exception as e:
             self._report_error("tts", "initialize", e)

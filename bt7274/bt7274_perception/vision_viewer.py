@@ -24,7 +24,7 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
-from typing import Optional
+from typing import Any, Optional
 
 # Ensure project root on path for imports
 _project_root = Path(__file__).parent.parent
@@ -53,6 +53,8 @@ def _run_pilot_hud(device):
     
     Must be picklable — nested functions can't be pickled by spawn.
     """
+    if CameraWindow is None:
+        raise RuntimeError("CameraWindow not available — bt7274_hud module missing")
     hud = CameraWindow(
         camera_device=device,
         width=1280,
@@ -85,7 +87,7 @@ class VisionViewerWindow:
         self._log_dir = log_dir
 
         # Live preview: fast OpenCV CameraStream (real-time, low latency)
-        self._preview_stream: Optional[CameraStream] = None
+        self._preview_stream: Any = None
         self._build_preview_stream()
 
         # High-res LOOK capture: ffmpeg CameraCapture (saves files for vision model)
@@ -134,7 +136,7 @@ class VisionViewerWindow:
             height=self.PREVIEW_HEIGHT,
             fps=30,
         )
-        if was_running:
+        if was_running and self._preview_stream is not None:
             self._preview_stream.start()
 
     def _build_ui(self):
