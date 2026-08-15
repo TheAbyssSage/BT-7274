@@ -114,10 +114,10 @@ When starting the assistant, you'll see:
 
 ```bash
 # Standard mode
-python bt7274/bt7274_assistant/pipeline.py --performance-mode standard
+bt7274 assistant --performance-mode standard
 
-# Performance mode
-python bt7274/bt7274_assistant/pipeline.py --performance-mode performance
+# Performance / streaming mode
+bt7274 assistant --performance-mode performance
 ```
 
 ### Configuration File
@@ -129,7 +129,7 @@ performance_mode: performance  # Options: standard | performance
 
 ### Startup Script
 
-The `start_bt7274.sh` script now asks which mode to use:
+The `start_bt7274.sh` script launches the full CLI and asks which mode to use:
 ```bash
 ./scripts/start_bt7274.sh
 # Select mode [1-2] (default: 1):

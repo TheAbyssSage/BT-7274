@@ -22,7 +22,7 @@ A fully local AI assistant based on BT-7274 from Titanfall 2, designed to run on
 
 | Component | Tool / Model | Purpose | Hardware Fit |
 |-----------|--------------|---------|--------------|
-| Speech-to-Text | OpenAI Whisper (local) | Convert voice commands to text | ✅ Already installed, runs well on M1 |
+| Speech-to-Text | OpenAI Whisper (local) | Convert voice commands to text | ✅ Installed via `pip install -e .`, runs well on M1 |
 | LLM / Conversation | Ollama + Phi-3 / Llama 3.1 | Intent recognition, conversation, personality | ✅ 8B models run smoothly on 16 GB M1 |
 | Text-to-Speech | Coqui TTS (XTTS v2) | BT-7274 voice cloning & synthesis | ✅ ~4-6 GB RAM, CPU inference feasible |
 | Action Handler | Python + AppleScript / shell | Execute tasks, control apps, run scripts | ✅ Native macOS integration |
@@ -38,10 +38,10 @@ Integrated all 885 original BT-7274 voice lines from Titanfall 2 for instant, au
 - Zero-latency playback for matched phrases
 - Priority given to original game voice over generated responses
 - Complete TTS training dataset for voice model fine-tuning
-- See [NEW_BT_CLIPS_FEATURES.md](NEW_BT_CLIPS_FEATURES.md) and [BT_CLIPS_USAGE.md](BT_CLIPS_USAGE.md) for details.
+- See [new_bt_clips_features.md](docs/new_bt_clips_features.md) and [bt_clips_usage.md](docs/bt_clips_usage.md) for details.
 
 ### Noise Resistance Enhancements
-The system now includes advanced noise reduction and adaptive audio processing to work effectively in noisy environments. See [NOISE_IMPROVEMENTS.md](NOISE_IMPROVEMENTS.md) for technical details.
+The system now includes advanced noise reduction and adaptive audio processing to work effectively in noisy environments. See [docs/noise_improvements.md](docs/noise_improvements.md) for technical details.
 
 ### Enhanced Log Reading Capability
 BT-7274 can now read and summarize interaction logs from all dates using the `read_logs` action, with advanced features:
@@ -57,7 +57,7 @@ A dedicated Titanfall 2-style HUD window with live camera feed and semi-transpar
 - Ability icons, weapon readout, notification feed
 - Center reticle for aiming/focus
 - Voice-activated via "Open HUD" or "Show HUD"
-- Launch with `python bt7274/scripts/hud_launcher.py` or `python bt7274/scripts/hud_launcher.py --windowed`
+- Launch with `bt7274 hud` or `bt7274 camera` (unified CLI)
 
 ## Folder Structure
 
@@ -107,8 +107,7 @@ BT-7274/
 Ensure you have:
 - **macOS 12+** (Monterey or newer)
 - **Homebrew** installed
-- **Python 3.10+**
-- **Whisper** already installed (as you mentioned)
+- **Python 3.11+**
 
 ### 1.2 Install Ollama
 
@@ -133,31 +132,25 @@ ollama pull llama3.1:8b
 
 > **Note:** `phi3:medium` uses ~8-10 GB RAM. With 16 GB total, close other heavy apps while running.
 
-### 1.3 Install Python Dependencies
+### 1.3 Install the Package
+
+From the project root:
 
 ```bash
 # Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install Python packages
-pip install -r requirements.txt
+# Install the package in editable mode (includes all dependencies)
+pip install -e .
+
+# Verify the CLI is available
+bt7274 --help
 ```
 
-### 1.4 Install Coqui TTS (XTTS v2)
-
-```bash
-# Install Coqui TTS for voice cloning
-pip install TTS
-
-# On Apple Silicon, you may need to install PyTorch with MPS support first:
-pip install torch torchvision torchaudio
-
-# Verify TTS installation
-tts --list_models | grep xtts
-```
-
-> **M1 Optimization:** Coqui TTS will use CPU by default on M1. For MPS (Metal) acceleration, ensure you have `torch>=2.0` with MPS backend. However, XTTS v2 currently runs best on CPU for Apple Silicon.
+> **Dependencies:** `requirements.txt` and `pyproject.toml` include Whisper, Coqui TTS, PyTorch, Ollama client, and the rest of the stack. `pip install -e .` installs everything needed.
+>
+> **M1 Optimization:** Coqui TTS uses CPU by default on Apple Silicon. XTTS v2 currently runs best on CPU for M1/M2/M3.
 
 ---
 
@@ -175,7 +168,6 @@ Your `metadata.csv` already has transcriptions — great! But we need to clean a
 ### 2.2 Run Dataset Preparation
 
 ```bash
-source venv/bin/activate
 python bt7274/bt7274_assistant/scripts/prepare_dataset.py
 ```
 
@@ -226,15 +218,10 @@ This creates `bt7274/bt7274_assistant/dataset/reference_speaker.wav` (~30–60 s
 
 ```bash
 # Generate a test phrase in BT-7274's voice
-python bt7274/bt7274_assistant/scripts/test_tts.py --text "Pilot, I am standing by."
+python bt7274/bt7274_assistant/scripts/prepare_dataset.py --create-reference --test-phrase "Pilot, I am standing by."
 ```
 
-This will:
-1. Load XTTS v2
-2. Encode your reference speaker
-3. Generate `test_output.wav`
-
-Listen to it. If it sounds good, you're ready!
+This creates `bt7274/bt7274_assistant/dataset/reference_speaker.wav` and a test clip. Listen to it. If it sounds good, you're ready!
 
 ### 3.4 Fine-Tuning (Optional, Advanced)
 
@@ -251,7 +238,7 @@ You already have a `Modelfile`. Let's build and test it.
 ### 4.1 Build the Model
 
 ```bash
-cd /path/to/BT-7274
+# From the project root:
 ollama create bt7274 -f bt7274/models/bt-7274.Modelfile
 ```
 
@@ -321,13 +308,23 @@ actions:
     - tell_time
 ```
 
-### 5.2 Run the Pipeline
+### 5.2 Run the Assistant
+
+Run the full Protocol 1 startup sequence:
 
 ```bash
-source venv/bin/activate
+bt7274 bt-link
+```
 
-# Run the assistant (will prompt for model selection)
-python bt7274/bt7274_assistant/pipeline.py
+Or start individual subsystems directly:
+
+```bash
+bt7274 assistant                     # Voice assistant (no prompt sequence)
+bt7274 assistant --chat              # Console chat mode
+bt7274 camera                        # Camera stream window
+bt7274 hud                           # Real-time YOLO detection HUD
+bt7274 vision                        # Vision viewer window
+bt7274 logs                          # View today's interaction logs
 ```
 
 The pipeline runs in a loop:
@@ -350,12 +347,14 @@ When you start the assistant, it will:
 
 ### 5.4 Using the Startup Script
 
-For convenience, you can use the provided startup script:
+The startup script activates the venv and launches the full CLI:
 
 ```bash
 # Start the assistant
 ./bt7274/scripts/start_bt7274.sh
 ```
+
+The `bt7274` shell function in `~/.zshrc` also handles venv activation globally, so you can run `bt7274` from anywhere.
 
 ### 5.5 Wake Word (Optional)
 
@@ -420,7 +419,7 @@ BT-7274 can execute tasks. The action handler parses intents from the LLM respon
 
 ### 6.2 Adding Custom Actions
 
-Edit `bt7274/bt7274_assistant/actions.py` to add your own. Example:
+Edit `bt7274/bt7274_workstation/actions.py` to add your own. Example:
 
 ```python
 @register_action("trigger_automation")
@@ -468,7 +467,7 @@ For faster TTS, consider **Piper TTS** as a fallback for short responses.
 
 ### 7.4 TTS Optimization Features
 
-The BT-7274 assistant includes several optimizations to improve TTS response times. For full details, see [`TTS_OPTIMIZATIONS.md`](TTS_OPTIMIZATIONS.md).
+The BT-7274 assistant includes several optimizations to improve TTS response times. For full details, see [docs/tts_optimizations.md](docs/tts_optimizations.md).
 
 Key highlights:
 1. **Response Caching**: Frequently used responses are cached to avoid re-synthesis
@@ -480,7 +479,7 @@ These optimizations can reduce TTS latency by 50-70% for repeated or common resp
 
 ### 7.5 Performance Mode (Streaming TTS)
 
-For the fastest possible responses, enable **Performance Mode** which uses sentence-level streaming TTS. For full details, see [`PERFORMANCE_MODE.md`](PERFORMANCE_MODE.md).
+For the fastest possible responses, enable **Performance Mode** which uses sentence-level streaming TTS. For full details, see [docs/performance_mode.md](docs/performance_mode.md).
 
 Quick overview:
 - **First audio plays in ~2-4 seconds** instead of waiting for full synthesis
@@ -490,7 +489,7 @@ Quick overview:
 
 Enable via command line:
 ```bash
-python bt7274/bt7274_assistant/pipeline.py --performance-mode performance
+bt7274 assistant --performance-mode performance
 ```
 
 Or set in `config.yaml`:
@@ -518,19 +517,17 @@ The M1 MacBook Air has no fan. During extended use:
 
 ### 8.2 Quick-Start Script
 
-Create a one-click launcher:
+Use the included launcher:
 
 ```bash
-#!/bin/bash
-# scripts/start_bt7274.sh
-cd /path/to/BT-7274
-source venv/bin/activate
-ollama serve &
-sleep 2
-python bt7274/bt7274_assistant/pipeline.py
+# Make it executable once
+chmod +x bt7274/scripts/start_bt7274.sh
+
+# Run it from anywhere
+./bt7274/scripts/start_bt7274.sh
 ```
 
-Make it executable: `chmod +x bt7274/scripts/start_bt7274.sh`
+The launcher activates the venv and runs `bt7274 bt-link`.
 
 ---
 
@@ -549,14 +546,14 @@ Make it executable: `chmod +x bt7274/scripts/start_bt7274.sh`
 
 ## Viewing Interaction Logs
 
-You can view BT-7274's interaction logs using the `bt7274/scripts/view_logs.py` script with the following options:
+View logs with the unified CLI:
 
-**New Usage Options**
-- `python bt7274/scripts/view_logs.py` - Show today's interactions (enhanced formatting)
-- `python bt7274/scripts/view_logs.py --all` - Show all log files (enhanced formatting)
-- `python bt7274/scripts/view_logs.py --summary` - Show summary statistics (enhanced formatting)
-- `python bt7274/scripts/view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
-- `python bt7274/scripts/view_logs.py --logs` - Show all logs content (NEW)
+```bash
+bt7274 logs                          # Show today's interactions
+bt7274 logs --all                    # Show all log files
+bt7274 logs --summary                # Show summary statistics
+bt7274 logs --date 2026-04-24        # Show specific date
+```
 
 The enhanced formatting provides better readability with clear section headers, visual indicators for response times and confidence levels, and organized technical details.
 

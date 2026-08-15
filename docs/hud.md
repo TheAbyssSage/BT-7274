@@ -3,17 +3,17 @@
 ## Quick Start
 
 ```bash
-# Fullscreen (default)
-python hud_launcher.py
+# Camera stream (default device 0, fullscreen)
+bt7274 camera
 
 # Windowed mode
-python hud_launcher.py --windowed
+bt7274 camera --windowed
 
 # Use a different camera
-python hud_launcher.py --device 1
+bt7274 camera --device 1
 
 # List all available cameras
-python hud_launcher.py --list-cameras
+bt7274 list-cameras
 ```
 
 ## Architecture
@@ -22,18 +22,18 @@ python hud_launcher.py --list-cameras
 - `bt7274_hud/hud_data.py` — Immutable-ish dataclasses for all HUD state.
 - `bt7274_hud/hud_renderer.py` — PIL-based drawing engine. Renders overlays onto a transparent layer and composites onto the camera frame.
 - `bt7274_hud/hud_window.py` — Tkinter window with a `Canvas`. Zero-copy render loop at maximum FPS with FPS counter overlay.
-- `hud_launcher.py` — Standalone entry point with demo state.
+- `bt7274 camera` — Unified CLI entry point for the camera stream.
 
 ## Camera Selection
 
 - `Tab` or `C` — Cycle to the next available camera
-- `--list-cameras` — List all detected cameras from the CLI:
+- `bt7274 list-cameras` — List all detected cameras from the CLI:
   ```bash
-  python hud_launcher.py --list-cameras
+  bt7274 list-cameras
   ```
 - `--device N` — Start with a specific camera index:
   ```bash
-  python hud_launcher.py --device 1
+  bt7274 camera --device 1
   ```
 
 The current camera name is displayed in the top-left corner of the window.

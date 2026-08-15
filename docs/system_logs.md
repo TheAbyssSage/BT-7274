@@ -92,14 +92,13 @@ with open(log_file) as f:
         print(line.strip())
 ```
 
-### Using `view_logs.py`
+### Using `bt7274 logs`
 
 ```bash
-python view_logs.py              # Today's interactions
-python view_logs.py --all        # All log files
-python view_logs.py --summary    # Summary statistics
-python view_logs.py --date 2026-04-24  # Specific date
-python view_logs.py --logs       # All logs content
+bt7274 logs              # Today's interactions
+bt7274 logs --all        # All log files
+bt7274 logs --summary    # Summary statistics
+bt7274 logs --date 2026-04-24  # Specific date
 ```
 
 ---
@@ -126,4 +125,4 @@ Consider encrypting or periodically purging `logs/` if operating in sensitive en
 - **Log directories**: Created automatically at startup in `logs/`
 - **System log writer**: `bt7274_workstation/battery_monitor.py`, `bt7274_workstation/vpn_monitor.py`, `bt7274_workstation/weather_monitor.py`
 - **Interaction log writer**: `bt7274_workstation/interaction_logger.py`
-- **Log viewer**: `view_logs.py`
+- **Log viewer**: `bt7274 logs`

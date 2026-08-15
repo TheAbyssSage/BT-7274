@@ -76,11 +76,10 @@ All signal processing steps include comprehensive error handling to gracefully f
 - Slightly increased CPU usage during audio preprocessing
 
 ## Viewing Logs
-You can view BT-7274's interaction logs using the enhanced `view_logs.py` script:
-- `python view_logs.py` - Show today's interactions (enhanced formatting)
-- `python view_logs.py --all` - Show all log files (enhanced formatting)
-- `python view_logs.py --summary` - Show summary statistics (enhanced formatting)
-- `python view_logs.py --date 2026-04-24` - Show specific date (enhanced formatting)
-- `python view_logs.py --logs` - Show all logs content (NEW)
+You can view BT-7274's interaction logs with the unified CLI:
+- `bt7274 logs` - Show today's interactions (enhanced formatting)
+- `bt7274 logs --all` - Show all log files (enhanced formatting)
+- `bt7274 logs --summary` - Show summary statistics (enhanced formatting)
+- `bt7274 logs --date 2026-04-24` - Show specific date (enhanced formatting)
 
 The enhanced formatting provides better readability with clear section headers and organized technical details.
