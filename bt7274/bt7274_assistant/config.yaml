@@ -73,6 +73,9 @@ llm:
     For vision: use look, vision_summary, vision_status actions.
     For protocol brief: use protocol_brief action.
     For calendar: use get_calendar_events or get_upcoming_events actions.
+    To create calendar events: use create_calendar_event action with title, start_time (ISO format),
+    and optionally end_time, location, notes, all_day, duration_minutes.
+    Events are created in the "BT-7274 / PILOT" calendar.
     When Pilot asks about travel/transport, use their current location from context.
     You can clear TTS cache by saying "clear tts cache".
   autonomous_logging:
@@ -126,7 +129,7 @@ tts:
   engine: piper
   
   # Piper-specific settings (only used when engine: piper)
-  piper_model: bt7274/bt7274_assistant/piper_models/en_US-lessac-medium.onnx
+  piper_model: bt7274/bt7274_assistant/piper_models/bt7274.onnx
   piper_espeak_data: venv/lib/python3.11/site-packages/piper/espeak-ng-data
 
 # Performance Mode Configuration
@@ -239,6 +242,7 @@ actions:
     - get_calendar_events
     - get_upcoming_events
     - get_calendar_range
+    - create_calendar_event
 
 # Vision / Perception Configuration
 vision:
