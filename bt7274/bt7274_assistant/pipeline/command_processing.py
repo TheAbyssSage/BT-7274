@@ -49,6 +49,7 @@ _INTENT_PATTERNS = [
     ("hud_close", re.compile(r'\b(close\s+hud|hide\s+hud|dismiss\s+hud)\b', re.IGNORECASE)),
     ("cache_clear", re.compile(r'\bclear\s+(tts\s+)?cache\b', re.IGNORECASE)),
     ("calendar", re.compile(r"\b(calendar|events?|schedul\w*|appointments?|agenda|what'?s?\s+on\s+(?:today|tomorrow|this\s+week|next\s+week|this\s+month|next\s+month)|what\s+(?:do|am)\s+i\s+have\s+(?:today|tomorrow|this\s+week|next\s+week|this\s+month|next\s+month)|my\s+(?:day|week|month|schedul\w*)|(?:this|next)\s+(?:week|month)('?s)?\s+schedul\w*|rest\s+of\s+(?:the\s+)?(?:week|month)|weekly|monthly|the\s+(?:week|month)\s+ahead|coming\s+(?:week|month)|following\s+(?:day|week|month)|day\s+after|the\s+next\s+day)\b", re.IGNORECASE)),
+    ("calendar_create", re.compile(r"\b(schedul\w*\s+(?:a\s+|an\s+|the\s+)?|create\s+(?:a\s+|an\s+)?(?:event|calendar|appointment)|add\s+(?:a\s+|an\s+)?(?:event|calendar|appointment)|set\s+up\s+(?:a\s+|an\s+)?(?:event|meeting|appointment)|make\s+(?:a\s+|an\s+)?(?:event|appointment|meeting)|put\s+(?:it|that|this)\s+(?:in|on|into)\s+(?:the\s+)?calendar|remind\s+me\s+(?:to|about)|book\s+(?:a\s+|an\s+)?)\b", re.IGNORECASE)),
     ("calendar_toggle", re.compile(r'\b((enable|disable|turn\s+(on|off))\s+(calendar|calendar\s+access))\b', re.IGNORECASE)),
 ]
 
@@ -990,7 +991,45 @@ class CommandProcessingMixin(_AssistantBase):
                     response_parts.append("Cloak disengagement failed, Pilot.")
                 handled_types.add("vpn")
 
-        # Check for calendar commands
+        # Check for calendar creation requests (schedule, create, add, remind me to...)
+        if "calendar_create" in intents and "calendar" not in handled_types:
+            status("CAL", "Creating calendar event...")
+            try:
+                # Route to LLM to parse the natural language into structured event data
+                now = time.strftime("%Y-%m-%d %H:%M")
+                today = time.strftime("%A, %B %d, %Y")
+                create_prompt = (
+                    f"Today is {today}. Current time is {now}.\n\n"
+                    f"The Pilot wants to create a calendar event. Parse their request into a JSON action.\n"
+                    f"Pilot's request: \"{text}\"\n\n"
+                    f"Respond with ONLY a JSON object in this exact format:\n"
+                    f'{{"action": "create_calendar_event", "params": {{"title": "Event title", "start_time": "YYYY-MM-DD HH:MM", "end_time": "YYYY-MM-DD HH:MM", "location": "optional location", "notes": "optional notes", "all_day": false, "duration_minutes": 60}}}}\n\n'
+                    f"Rules:\n"
+                    f"- Parse relative dates like 'wednesday', 'next monday', 'tomorrow' into actual YYYY-MM-DD dates based on today's date.\n"
+                    f"- Parse times like '2pm', '14:00', 'after 4pm', 'at noon' into HH:MM format.\n"
+                    f"- If no specific time is given, default to 09:00.\n"
+                    f"- If no duration is given, default to 60 minutes.\n"
+                    f"- If the user says 'all day', set all_day to true.\n"
+                    f"- If the user mentions multiple events, only create the FIRST one.\n"
+                    f"- Only output the JSON. No other text."
+                )
+                llm_result = self.llm.chat(create_prompt, max_tokens=300) if self.llm else None
+                if llm_result:
+                    result = self.actions.parse_and_execute(llm_result) if self.actions else None
+                    if result:
+                        status("CAL", result)
+                        response_parts.append(result)
+                    else:
+                        response_parts.append("Pilot, I couldn't parse that event. Try specifying a date and time.")
+                else:
+                    response_parts.append("Pilot, my neural link is offline. Cannot create events right now.")
+                handled_types.add("calendar")
+            except Exception as e:
+                self._report_error("actions", "create_calendar_event", e)
+                response_parts.append("Pilot, I was unable to create that calendar event.")
+                handled_types.add("calendar")
+
+        # Check for calendar commands (read-only queries)
         if "calendar" in intents and "calendar" not in handled_types:
             status("CAL", "Accessing calendar...")
             try:

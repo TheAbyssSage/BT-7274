@@ -49,6 +49,8 @@ class XTTSClient:
         self._max_cache_size = 50
         # Performance metrics (last synthesis)
         self._last_metrics: Dict[str, float | str | bool] = {}
+        # Track whether the loaded model is multilingual
+        self._is_multilingual: Optional[bool] = None
 
         # Resolve reference_wav: single file, list of files, or directory
         raw_ref = config.get("reference_wav", "bt7274/bt7274_assistant/dataset/reference_speaker.wav")
@@ -109,41 +111,64 @@ class XTTSClient:
         """Pre-compute speaker latents and do a dummy synthesis to warm up the model."""
         info("Warming up TTS (caching speaker voice)...")
         try:
-            # Cache speaker conditioning latents
-            # Try to load cached speaker latents first (with reference validation)
-            cached_latents, cached_embedding = load_speaker_latents(self.reference_wav)
-            if cached_latents is not None and cached_embedding is not None:
-                self._gpt_cond_latent = cached_latents
-                self._speaker_embedding = cached_embedding
-                info("Loaded cached speaker latents from session cache.")
-            elif self._model and hasattr(self._model, 'synthesizer') and \
-               self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
-               self._model.synthesizer.tts_model and \
-               hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
-                self._gpt_cond_latent, self._speaker_embedding = \
-                    self._model.synthesizer.tts_model.get_conditioning_latents(
-                        audio_path=self.reference_wav
+            # Detect if model is multilingual
+            self._is_multilingual = self._detect_multilingual()
+
+            # Cache speaker conditioning latents (only for XTTS models)
+            if self._is_multilingual:
+                cached_latents, cached_embedding = load_speaker_latents(self.reference_wav)
+                if cached_latents is not None and cached_embedding is not None:
+                    self._gpt_cond_latent = cached_latents
+                    self._speaker_embedding = cached_embedding
+                    info("Loaded cached speaker latents from session cache.")
+                elif self._model and hasattr(self._model, 'synthesizer') and \
+                   self._model.synthesizer and hasattr(self._model.synthesizer, 'tts_model') and \
+                   self._model.synthesizer.tts_model and \
+                   hasattr(self._model.synthesizer.tts_model, "get_conditioning_latents"):
+                    self._gpt_cond_latent, self._speaker_embedding = \
+                        self._model.synthesizer.tts_model.get_conditioning_latents(
+                            audio_path=self.reference_wav
+                        )
+                    save_speaker_latents(
+                        self._gpt_cond_latent,
+                        self._speaker_embedding,
+                        reference_paths=self.reference_wav,
                     )
-                save_speaker_latents(
-                    self._gpt_cond_latent,
-                    self._speaker_embedding,
-                    reference_paths=self.reference_wav,
-                )
+
             # Dummy synthesis to warm up
             if self._model and hasattr(self._model, 'tts'):
                 try:
                     from bt7274.bt7274_assistant.utils import suppress_stdout
                     with suppress_stdout():
-                        _ = self._model.tts(  # type: ignore[operator]
-                            text="Ready.",
-                            speaker_wav=self.reference_wav,  # type: ignore[arg-type]
-                            language=self.language
-                        )
+                        tts_kwargs = {"text": "Ready."}
+                        if self._is_multilingual:
+                            tts_kwargs["speaker_wav"] = self.reference_wav
+                            tts_kwargs["language"] = self.language
+                        _ = self._model.tts(**tts_kwargs)
                 except Exception as e:
                     warning(f"TTS warmup synthesis failed: {e}")
             success("TTS warmed up and ready.")
         except Exception as e:
             warning(f"TTS warmup warning: {e}")
+
+    def _detect_multilingual(self) -> bool:
+        """Detect whether the loaded model supports multiple languages."""
+        if self._model is None:
+            return False
+        try:
+            # Check if model_name contains 'multilingual'
+            if "multilingual" in self.model_name.lower():
+                return True
+            # Check if the model has the is_multi_lingual attribute
+            if hasattr(self._model, 'is_multi_lingual'):
+                return bool(self._model.is_multi_lingual)
+            # Check the synthesizer
+            if hasattr(self._model, 'synthesizer') and self._model.synthesizer:
+                if hasattr(self._model.synthesizer, 'is_multi_lingual'):
+                    return bool(self._model.synthesizer.is_multi_lingual)
+            return False
+        except Exception:
+            return False
 
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for better TTS pronunciation."""
@@ -250,11 +275,11 @@ class XTTSClient:
             # Use the standard TTS API (cached latents path is unstable on some setups)
             from bt7274.bt7274_assistant.utils import suppress_stdout
             with suppress_stdout():
-                wav: Any = self.model.tts(  # type: ignore[operator]
-                    text=text,
-                    speaker_wav=self.reference_wav,  # type: ignore[arg-type]
-                    language=self.language
-                )
+                tts_kwargs: dict[str, Any] = {"text": text}
+                if self._is_multilingual:
+                    tts_kwargs["speaker_wav"] = self.reference_wav
+                    tts_kwargs["language"] = self.language
+                wav: Any = self.model.tts(**tts_kwargs)  # type: ignore[operator]
             synthesis_time = time.time() - start_time
             sf.write(str(output_path), wav, 24000)
 
