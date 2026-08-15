@@ -1,50 +1,25 @@
 #!/bin/bash
 # start_bt7274.sh - One-click launcher for BT-7274 Assistant
+# Delegates to the unified `bt7274` CLI (`bt7274 bt-link`).
 
-cd "$(dirname "$0")/../.."
-source venv/bin/activate
+set -e
 
-# Check if local Ollama is running (only needed for local mode)
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "  [SYS] Starting local Ollama server..."
-    ollama serve &
-    sleep 3
+PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$PROJECT_DIR"
+
+if [[ ! -d "venv" ]]; then
+    echo "  [ERR] Virtual environment not found at $PROJECT_DIR/venv"
+    echo "        Run: python3 -m venv venv && source venv/bin/activate && pip install -e ."
+    exit 1
 fi
 
-# Input Mode Selection
-echo ""
-echo "  Select Input Mode:"
-echo "    [1] Voice Mode       — Microphone + wake word"
-echo "    [2] Console Chat     — Text input (like Ollama)"
+source venv/bin/activate
 
-MODE_ARG=""
-while true; do
-    read -r -p "  > Mode [1-2]: " mode_choice
-    case "$mode_choice" in
-        1) MODE_ARG="";      echo "  [SELECT] Voice Mode"; break ;;
-        2) MODE_ARG="--console-chat-mode"; echo "  [SELECT] Console Chat"; break ;;
-        *) echo "  Invalid choice. Enter 1 or 2." ;;
-    esac
-done
+# Verify the package is installed in editable mode.
+if ! command -v bt7274 >/dev/null 2>&1; then
+    echo "  [ERR] bt7274 command not found. Installing package in editable mode..."
+    pip install -e "$PROJECT_DIR"
+fi
 
-# Performance Mode Selection
-echo ""
-echo "  Select TTS Mode:"
-echo "    [1] Standard    — Full synthesis, then play"
-echo "    [2] Streaming   — Sentence-level parallel playback"
-
-PERFORMANCE_ARG=""
-while true; do
-    read -r -p "  > TTS [1-2]: " choice
-    case "$choice" in
-        1) PERFORMANCE_ARG="--performance-mode standard"; echo "  [SELECT] Standard"; break ;;
-        2) PERFORMANCE_ARG="--performance-mode performance"; echo "  [SELECT] Streaming"; break ;;
-        *) echo "  Invalid choice. Enter 1 or 2." ;;
-    esac
-done
-
-echo ""
-
-# Suppress deprecation warnings from dependencies
-export PYTHONWARNINGS="ignore::UserWarning"
-python bt7274/bt7274_assistant/pipeline.py $MODE_ARG $PERFORMANCE_ARG
+# Launch the full Protocol 1 sequence (Ollama check + mode selection + assistant)
+bt7274 bt-link
