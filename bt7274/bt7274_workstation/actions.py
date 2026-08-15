@@ -919,6 +919,46 @@ def action_get_upcoming_events(hours: int = 2):
         return f"Calendar access failed: {str(e)}"
 
 
+@register_action("create_calendar_event")
+def action_create_calendar_event(
+    title: str,
+    start_time: str,
+    end_time: str | None = None,
+    location: str | None = None,
+    notes: str | None = None,
+    all_day: bool = False,
+    duration_minutes: int = 60,
+):
+    """Create a new calendar event in the 'BT-7274 / PILOT' calendar.
+
+    Args:
+        title: Event title.
+        start_time: Start time (e.g., '2026-06-01 14:00' or '2026-06-01T14:00:00').
+        end_time: Optional end time. If omitted, duration_minutes is used.
+        location: Optional event location.
+        notes: Optional event notes/description.
+        all_day: Whether this is an all-day event.
+        duration_minutes: Duration in minutes (default 60).
+
+    Returns:
+        Success or error message.
+    """
+    try:
+        from bt7274.bt7274_workstation.calendar_monitor import CalendarMonitor
+        monitor = CalendarMonitor({"enabled": True})
+        return monitor.create_event(
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            location=location,
+            notes=notes,
+            all_day=all_day,
+            duration_minutes=duration_minutes,
+        )
+    except Exception as e:
+        return f"Calendar event creation failed: {str(e)}"
+
+
 @register_action("get_calendar_range")
 def action_get_calendar_range(range_name: str = "today"):
     """Return calendar events for a specific time range.

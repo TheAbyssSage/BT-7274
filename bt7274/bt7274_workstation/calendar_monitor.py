@@ -605,3 +605,181 @@ class CalendarMonitor:
             "last_event_count": len(self._last_events),
             "upcoming_warning_minutes": self.upcoming_warning_minutes,
         }
+
+    # ─── Event creation ───────────────────────────────────────────────
+
+    TARGET_CALENDAR_NAME = "BT-7274 / PILOT"
+
+    def _find_target_calendar(self):
+        """Find the 'BT-7274 / PILOT' calendar in EventKit.
+
+        Returns the EKCalendar object if found, None otherwise.
+        Creates the calendar if it doesn't exist.
+        """
+        store = self._get_event_store()
+        if store is None:
+            return None
+
+        try:
+            import EventKit  # type: ignore
+
+            # Search for existing calendar
+            for cal in store.calendars():
+                if cal.title() == self.TARGET_CALENDAR_NAME:
+                    return cal
+
+            # Calendar not found — create it
+            new_cal = EventKit.EKCalendar.alloc().initForEntityType_eventStore_(  # type: ignore
+                EventKit.EKEntityTypeEvent, store  # type: ignore
+            )
+            new_cal.setTitle_(self.TARGET_CALENDAR_NAME)
+
+            # Find a local source (not iCloud/Exchange/CalDAV)
+            for source in store.sources():
+                if source.sourceType() == EventKit.EKSourceTypeLocal:  # type: ignore
+                    new_cal.setSource_(source)
+                    break
+
+            # If no local source found, use the first available
+            if new_cal.source() is None and store.sources():
+                new_cal.setSource_(store.sources()[0])
+
+            success, err = store.saveCalendar_commit_error_(new_cal, None)
+            if success:
+                info(f"Created calendar: {self.TARGET_CALENDAR_NAME}")
+                return new_cal
+            else:
+                warning(f"Failed to create calendar '{self.TARGET_CALENDAR_NAME}': {err}")
+                return None
+
+        except Exception as e:
+            warning(f"Calendar lookup failed: {e}")
+            return None
+
+    def create_event(
+        self,
+        title: str,
+        start_time: str,
+        end_time: Optional[str] = None,
+        location: Optional[str] = None,
+        notes: Optional[str] = None,
+        all_day: bool = False,
+        duration_minutes: int = 60,
+    ) -> str:
+        """Create a new calendar event in the 'BT-7274 / PILOT' calendar.
+
+        Args:
+            title: Event title.
+            start_time: Start time as ISO string (e.g., '2026-06-01 14:00' or '2026-06-01T14:00:00').
+            end_time: Optional end time as ISO string. If omitted, uses duration_minutes.
+            location: Optional event location.
+            notes: Optional event notes/description.
+            all_day: Whether this is an all-day event.
+            duration_minutes: Duration in minutes (used if end_time is None). Default 60.
+
+        Returns:
+            Success or error message string.
+        """
+        if not self._check_calendar_access():
+            return "Calendar access denied. Grant permission in System Settings > Privacy > Calendars."
+
+        store = self._get_event_store()
+        if store is None:
+            return "Calendar store unavailable."
+
+        target_cal = self._find_target_calendar()
+        if target_cal is None:
+            return f"Could not find or create the '{self.TARGET_CALENDAR_NAME}' calendar."
+
+        try:
+            import EventKit  # type: ignore
+
+            # Parse start time
+            start_dt = self._parse_iso_datetime(start_time)
+            if start_dt is None:
+                return f"Invalid start time format: '{start_time}'. Use 'YYYY-MM-DD HH:MM' or ISO format."
+
+            # Parse or compute end time
+            if end_time:
+                end_dt = self._parse_iso_datetime(end_time)
+                if end_dt is None:
+                    return f"Invalid end time format: '{end_time}'. Use 'YYYY-MM-DD HH:MM' or ISO format."
+            else:
+                end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+            # Validate time ordering
+            if end_dt <= start_dt:
+                return "End time must be after start time."
+
+            # Convert to NSDate
+            from Foundation import NSDate  # type: ignore
+            start_ns = NSDate.dateWithTimeIntervalSince1970_(start_dt.timestamp())
+            end_ns = NSDate.dateWithTimeIntervalSince1970_(end_dt.timestamp())
+
+            # Create the event
+            event = EventKit.EKEvent.eventWithEventStore_(store)  # type: ignore
+            event.setTitle_(title)
+            event.setStartDate_(start_ns)
+            event.setEndDate_(end_ns)
+            event.setAllDay_(all_day)
+            event.setCalendar_(target_cal)
+
+            if location:
+                event.setLocation_(location)
+            if notes:
+                event.setNotes_(notes)
+
+            # Set a default alert 15 minutes before
+            alarm = EventKit.EKAlarm.alarmWithRelativeOffset_(-900)  # 15 min before  # type: ignore
+            event.addAlarm_(alarm)
+
+            success, err = store.saveEvent_span_commit_error_(
+                event,
+                EventKit.EKSpanThisEvent,  # type: ignore
+                None,
+            )
+
+            if success:
+                time_str = start_dt.strftime("%A, %B %d at %I:%M %p").replace(" 0", " ")
+                msg = f"Event '{title}' created on {time_str} in {self.TARGET_CALENDAR_NAME}."
+                info(msg)
+                return msg
+            else:
+                err_msg = f"Failed to save event: {err}"
+                warning(err_msg)
+                return err_msg
+
+        except Exception as e:
+            return f"Event creation failed: {str(e)}"
+
+    @staticmethod
+    def _parse_iso_datetime(dt_str: str) -> Optional[datetime]:
+        """Parse a datetime string in various common formats.
+
+        Supports:
+          - '2026-06-01 14:00'
+          - '2026-06-01T14:00:00'
+          - '2026-06-01 14:00:00'
+          - '2026-06-01'
+          - 'June 1, 2026 2:00 PM'
+        """
+        if not dt_str:
+            return None
+
+        formats = [
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d",
+            "%B %d, %Y %I:%M %p",
+            "%B %d, %Y",
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(dt_str.strip(), fmt)
+            except ValueError:
+                continue
+
+        return None
