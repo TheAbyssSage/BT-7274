@@ -81,7 +81,7 @@ class CommandRouterTester:
                 "follow_up": {"max_depth": 1, "timeout_seconds": 8, "stop_phrases": ["no", "never mind", "stop"]},
                 "idle_timeout": 300
             },
-            "actions": {"enabled": True, "allowed_commands": ["say", "open", "run_script", "set_volume", "tell_time", "tell_date", "web_search", "trigger_shortcut", "search_web", "get_location", "get_location_structured", "get_weather", "get_weather_for_location", "get_weather_forecast", "clear_tts_cache", "read_logs", "make_log", "read_bt_logs", "protocol_brief"]},
+            "actions": {"enabled": True, "allowed_commands": ["say", "open", "run_script", "set_volume", "tell_time", "tell_date", "web_search", "trigger_shortcut", "search_web", "get_location", "get_location_structured", "get_weather", "get_weather_for_location", "get_weather_forecast", "clear_tts_cache", "read_logs", "make_log", "read_bt_logs", "protocol_brief", "create_calendar_event"]},
             "location": {},
             "battery": {"enabled": True, "interval": 60, "thresholds": [50, 20, 10, 5]},
             "environmental_warnings": {"enabled": True, "interval": 300},
